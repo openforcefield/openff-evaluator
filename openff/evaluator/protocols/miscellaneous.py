@@ -44,7 +44,6 @@ class AddValues(Protocol):
     )
 
     def _execute(self, directory, available_resources):
-
         if len(self.values) < 1:
             raise ValueError("There were no values to add together")
 
@@ -247,14 +246,12 @@ class WeightByMoleFraction(Protocol):
         return self.value * mole_fraction
 
     def _execute(self, directory, available_resources):
-
         assert len(self.component.components) == 1
 
         main_component = self.component.components[0]
         amounts = self.full_substance.get_amounts(main_component)
 
         if len(amounts) != 1:
-
             raise ValueError(
                 f"More than one type of amount was defined for component "
                 f"{main_component}. Only a single mole fraction must be defined.",
@@ -263,7 +260,6 @@ class WeightByMoleFraction(Protocol):
         amount = next(iter(amounts))
 
         if not isinstance(amount, MoleFraction):
-
             raise ValueError(
                 f"The component {main_component} was given as an exact amount, and "
                 f"not a mole fraction"
@@ -303,12 +299,10 @@ class FilterSubstanceByRole(Protocol):
     )
 
     def _execute(self, directory, available_resources):
-
         filtered_components = []
         total_mole_fraction = 0.0
 
         for component in self.input_substance.components:
-
             if component.role not in self.component_roles:
                 continue
 
@@ -317,7 +311,6 @@ class FilterSubstanceByRole(Protocol):
             amounts = self.input_substance.get_amounts(component)
 
             for amount in amounts:
-
                 if not isinstance(amount, MoleFraction):
                     continue
 
@@ -326,7 +319,6 @@ class FilterSubstanceByRole(Protocol):
         if self.expected_components != UNDEFINED and self.expected_components != len(
             filtered_components
         ):
-
             raise ValueError(
                 f"The filtered substance does not contain the expected number of "
                 f"components ({self.expected_components}) - {filtered_components}",
@@ -339,18 +331,15 @@ class FilterSubstanceByRole(Protocol):
         self.filtered_substance = Substance()
 
         for component in filtered_components:
-
             amounts = self.input_substance.get_amounts(component)
 
             for amount in amounts:
-
                 if isinstance(amount, MoleFraction):
                     amount = MoleFraction(amount.value * inverse_mole_fraction)
 
                 self.filtered_substance.add_component(component, amount)
 
     def validate(self, attribute_type=None):
-
         super(FilterSubstanceByRole, self).validate(attribute_type)
         assert all(isinstance(x, Component.Role) for x in self.component_roles)
 

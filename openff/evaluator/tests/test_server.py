@@ -37,7 +37,6 @@ class QuickCalculationLayer(CalculationLayer):
     def _schedule_calculation(
         cls, calculation_backend, storage_backend, layer_directory, batch
     ):
-
         futures = [
             calculation_backend.submit_task(
                 QuickCalculationLayer.process_property,
@@ -58,13 +57,9 @@ class QuickCalculationLayer(CalculationLayer):
 
 
 def test_server_spin_up():
-
     with tempfile.TemporaryDirectory() as directory:
-
         with temporarily_change_directory(directory):
-
             with DaskLocalCluster() as calculation_backend:
-
                 server = EvaluatorServer(
                     calculation_backend=calculation_backend,
                     working_directory=directory,
@@ -75,7 +70,6 @@ def test_server_spin_up():
 
 
 def test_launch_batch():
-
     # Set up a dummy data set
     data_set = PhysicalPropertyDataSet()
     data_set.add_properties(
@@ -94,11 +88,8 @@ def test_launch_batch():
     batch.validate()
 
     with tempfile.TemporaryDirectory() as directory:
-
         with temporarily_change_directory(directory):
-
             with DaskLocalCluster() as calculation_backend:
-
                 server = EvaluatorServer(
                     calculation_backend=calculation_backend,
                     working_directory=directory,
@@ -115,7 +106,6 @@ def test_launch_batch():
 
 
 def test_same_component_batching():
-
     thermodynamic_state = ThermodynamicState(
         temperature=1.0 * unit.kelvin, pressure=1.0 * unit.atmosphere
     )
@@ -151,7 +141,6 @@ def test_same_component_batching():
     submission.options = options
 
     with DaskLocalCluster() as calculation_backend:
-
         server = EvaluatorServer(calculation_backend)
         batches = server._batch_by_same_component(submission, "")
 
@@ -162,7 +151,6 @@ def test_same_component_batching():
 
 
 def test_shared_component_batching():
-
     thermodynamic_state = ThermodynamicState(
         temperature=1.0 * unit.kelvin, pressure=1.0 * unit.atmosphere
     )
@@ -198,7 +186,6 @@ def test_shared_component_batching():
     submission.options = options
 
     with DaskLocalCluster() as calculation_backend:
-
         server = EvaluatorServer(calculation_backend)
         batches = server._batch_by_shared_component(submission, "")
 

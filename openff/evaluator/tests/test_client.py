@@ -68,7 +68,6 @@ def test_default_options():
     ],
 )
 def test_protocol_replacement(force_field_source, expected_protocol_type):
-
     data_set = PhysicalPropertyDataSet()
 
     for property_type in property_types:
@@ -83,13 +82,9 @@ def test_protocol_replacement(force_field_source, expected_protocol_type):
 
 
 def test_submission():
-
     with tempfile.TemporaryDirectory() as directory:
-
         with temporarily_change_directory(directory):
-
             with DaskLocalCluster() as calculation_backend:
-
                 # Spin up a server instance.
                 server = EvaluatorServer(
                     calculation_backend=calculation_backend,
@@ -97,7 +92,6 @@ def test_submission():
                 )
 
                 with server:
-
                     # Connect a client.
                     client = EvaluatorClient()
 

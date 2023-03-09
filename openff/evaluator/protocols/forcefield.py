@@ -8,7 +8,6 @@ import logging
 import os
 import re
 import subprocess
-import textwrap
 from enum import Enum
 
 import numpy as np
@@ -99,13 +98,11 @@ class BaseBuildSystem(Protocol, abc.ABC):
 
         # Append the particles.
         for index in range(system_to_append.getNumParticles()):
-
             index = index_map[index]
             existing_system.addParticle(system_to_append.getParticleMass(index))
 
         # Append the constraints
         for index in range(system_to_append.getNumConstraints()):
-
             index_a, index_b, distance = system_to_append.getConstraintParameters(index)
 
             index_a = index_map[index_a]
@@ -117,7 +114,6 @@ class BaseBuildSystem(Protocol, abc.ABC):
 
         # Validate the forces to append.
         for force_to_append in system_to_append.getForces():
-
             if type(force_to_append) in supported_force_types:
                 continue
 
@@ -128,13 +124,10 @@ class BaseBuildSystem(Protocol, abc.ABC):
 
         # Append the forces.
         for force_to_append in system_to_append.getForces():
-
             existing_force = None
 
             for force in existing_system.getForces():
-
                 if type(force) not in supported_force_types:
-
                     raise ValueError(
                         f"The existing system contains an unsupported type "
                         f"of force: {type(force)}."
@@ -147,15 +140,12 @@ class BaseBuildSystem(Protocol, abc.ABC):
                 break
 
             if existing_force is None:
-
                 existing_force = type(force_to_append)()
                 existing_system.addForce(existing_force)
 
             if isinstance(force_to_append, openmm.HarmonicBondForce):
-
                 # Add the bonds.
                 for index in range(force_to_append.getNumBonds()):
-
                     index_a, index_b, *parameters = force_to_append.getBondParameters(
                         index
                     )
@@ -168,10 +158,8 @@ class BaseBuildSystem(Protocol, abc.ABC):
                     )
 
             elif isinstance(force_to_append, openmm.HarmonicAngleForce):
-
                 # Add the angles.
                 for index in range(force_to_append.getNumAngles()):
-
                     (
                         index_a,
                         index_b,
@@ -191,10 +179,8 @@ class BaseBuildSystem(Protocol, abc.ABC):
                     )
 
             elif isinstance(force_to_append, openmm.PeriodicTorsionForce):
-
                 # Add the torsions.
                 for index in range(force_to_append.getNumTorsions()):
-
                     (
                         index_a,
                         index_b,
@@ -217,10 +203,8 @@ class BaseBuildSystem(Protocol, abc.ABC):
                     )
 
             elif isinstance(force_to_append, openmm.NonbondedForce):
-
                 # Add the vdW parameters
                 for index in range(force_to_append.getNumParticles()):
-
                     index = index_map[index]
 
                     existing_force.addParticle(
@@ -229,7 +213,6 @@ class BaseBuildSystem(Protocol, abc.ABC):
 
                 # Add the 1-2, 1-3 and 1-4 exceptions.
                 for index in range(force_to_append.getNumExceptions()):
-
                     (
                         index_a,
                         index_b,
@@ -365,7 +348,6 @@ class TemplateBuildSystem(BaseBuildSystem, abc.ABC):
         raise NotImplementedError()
 
     def _execute(self, directory, available_resources):
-
         from openff.toolkit.topology import Molecule, Topology
         from openff.toolkit.utils.rdkit_wrapper import RDKitToolkitWrapper
 
@@ -391,21 +373,17 @@ class TemplateBuildSystem(BaseBuildSystem, abc.ABC):
         system_templates = {}
 
         for index, (smiles, unique_molecule) in enumerate(unique_molecules.items()):
-
             if smiles in ["O", "[H]O[H]", "[H][O][H]"]:
-
                 component_system = self._build_tip3p_system(
                     cutoff,
                     openmm_pdb_file.topology.getUnitCellDimensions(),
                 )
 
             else:
-
                 component_directory = os.path.join(directory, str(index))
                 os.makedirs(component_directory, exist_ok=True)
 
                 with temporarily_change_directory(component_directory):
-
                     component_system = self._parameterize_molecule(
                         unique_molecule, force_field_source, cutoff
                     )
@@ -439,10 +417,9 @@ class TemplateBuildSystem(BaseBuildSystem, abc.ABC):
                 for index, atom in enumerate(duplicate_molecule.atoms):
                     index_map[atom.molecule_particle_index] = index
 
-            self._append_system(system, system_template, index_map)
+                self._append_system(system, system_template, index_map)
 
         if openmm_pdb_file.topology.getPeriodicBoxVectors() is not None:
-
             system.setDefaultPeriodicBoxVectors(
                 *openmm_pdb_file.topology.getPeriodicBoxVectors()
             )
@@ -468,7 +445,6 @@ class BuildSmirnoffSystem(BaseBuildSystem):
     """
 
     def _execute(self, directory, available_resources):
-
         from openff.toolkit.topology import Molecule, Topology
 
         pdb_file = app.PDBFile(self.coordinate_file_path)
@@ -486,7 +462,6 @@ class BuildSmirnoffSystem(BaseBuildSystem):
         unique_molecules = []
 
         for component in self.substance.components:
-
             molecule = Molecule.from_smiles(smiles=component.smiles)
 
             if molecule is None:
@@ -503,7 +478,6 @@ class BuildSmirnoffSystem(BaseBuildSystem):
         system = force_field.create_openmm_system(topology)
 
         if system is None:
-
             raise RuntimeError(
                 "Failed to create a system from the specified topology and molecules."
             )
@@ -576,7 +550,6 @@ class BuildLigParGenSystem(TemplateBuildSystem):
             == LigParGenForceFieldSource.ChargeModel.CM1A_1_14
             or not np.isclose(total_charge, 0.0)
         ):
-
             charge_model = "cm1a"
 
             if (
@@ -700,7 +673,6 @@ class BuildLigParGenSystem(TemplateBuildSystem):
         forces = [force for force in forces if isinstance(force, openmm.NonbondedForce)]
 
         for original_force in forces:
-
             # Define a custom force with the OPLS mixing rules.
             custom_force = openmm.CustomNonbondedForce(
                 "4*epsilon*((sigma/r)^12-(sigma/r)^6); "
@@ -736,7 +708,6 @@ class BuildLigParGenSystem(TemplateBuildSystem):
 
             # Update the 1-4 exceptions.
             for exception_index in range(original_force.getNumExceptions()):
-
                 (
                     index_a,
                     index_b,
@@ -767,12 +738,10 @@ class BuildLigParGenSystem(TemplateBuildSystem):
                     )
 
     def _execute(self, directory, available_resources):
-
         with open(self.force_field_path) as file:
             force_field_source = ForceFieldSource.parse_json(file.read())
 
         if not isinstance(force_field_source, LigParGenForceFieldSource):
-
             raise ValueError(
                 "Only LigParGen force field sources are supported by this protocol."
             )
@@ -839,7 +808,6 @@ class BuildTLeapSystem(TemplateBuildSystem):
         """
         # Change into the working directory.
         with temporarily_change_directory(directory):
-
             initial_file_path = "initial.sdf"
             molecule.to_file(initial_file_path, file_format="SDF")
 
@@ -847,14 +815,14 @@ class BuildTLeapSystem(TemplateBuildSystem):
             charges = [x.m_as(unit.elementary_charge) for x in molecule.partial_charges]
 
             with open("charges.txt", "w") as file:
-                file.write(textwrap.fill(" ".join(map(str, charges)), width=70))
+                file.write("\n".join(map(str, charges)))
+                file.write("\n")
 
             if force_field_source.leap_source == "leaprc.gaff2":
                 amber_type = "gaff2"
             elif force_field_source.leap_source == "leaprc.gaff":
                 amber_type = "gaff"
             else:
-
                 raise ValueError(
                     f"The {force_field_source.leap_source} source is currently "
                     f"unsupported. Only the 'leaprc.gaff2' and 'leaprc.gaff' "
@@ -903,7 +871,6 @@ class BuildTLeapSystem(TemplateBuildSystem):
                 file.write(antechamber_error.decode())
 
             if not os.path.isfile(processed_mol2_path):
-
                 raise RuntimeError(
                     f"antechamber failed to assign atom types to the input mol2 file "
                     f"({initial_file_path})"
@@ -912,7 +879,6 @@ class BuildTLeapSystem(TemplateBuildSystem):
             frcmod_path = None
 
             if amber_type == "gaff" or amber_type == "gaff2":
-
                 # Optionally run parmchk to find any missing parameters.
                 frcmod_path = "parmck2.frcmod"
 
@@ -942,7 +908,6 @@ class BuildTLeapSystem(TemplateBuildSystem):
                     file.write(prmchk2_error.decode())
 
                 if not os.path.isfile(frcmod_path):
-
                     raise RuntimeError(
                         f"parmchk2 failed to assign missing {amber_type} parameters "
                         f"to the antechamber created mol2 file ({processed_mol2_path})",
@@ -972,6 +937,7 @@ class BuildTLeapSystem(TemplateBuildSystem):
 
             with open(input_file_path, "w") as file:
                 file.write("\n".join(template_lines))
+                file.write("\nquit\n")
 
             # Run tleap.
             tleap_process = subprocess.Popen(
@@ -991,12 +957,15 @@ class BuildTLeapSystem(TemplateBuildSystem):
                 raise RuntimeError("tleap failed to execute.")
 
             with open("leap.log", "r") as file:
-
                 if re.search(
+                    "Exiting LEaP: Errors = 0; Warnings = 0; Notes = 0.", file.read()
+                ):
+                    # normal exiting log
+                    pass
+                elif re.search(
                     "ERROR|WARNING|Warning|duplicate|FATAL|Could|Fatal|Error",
                     file.read(),
                 ):
-
                     raise RuntimeError("tleap failed to execute.")
 
         return (
@@ -1015,13 +984,11 @@ class BuildTLeapSystem(TemplateBuildSystem):
         """
 
         if self.charge_backend == BuildTLeapSystem.ChargeBackend.OpenEye:
-
             from openff.toolkit.utils.toolkits import OpenEyeToolkitWrapper
 
             toolkit_wrapper = OpenEyeToolkitWrapper()
 
         elif self.charge_backend == BuildTLeapSystem.ChargeBackend.AmberTools:
-
             from openff.toolkit.utils.toolkits import (
                 AmberToolsToolkitWrapper,
                 RDKitToolkitWrapper,
@@ -1036,7 +1003,11 @@ class BuildTLeapSystem(TemplateBuildSystem):
             raise ValueError("Invalid toolkit specification.")
 
         molecule.generate_conformers(toolkit_registry=toolkit_wrapper)
-        molecule.compute_partial_charges_am1bcc(toolkit_registry=toolkit_wrapper)
+        molecule.assign_partial_charges(
+            partial_charge_method="am1bcc",
+            toolkit_registry=toolkit_wrapper,
+            normalize_partial_charges=True,
+        )
 
     def _parameterize_molecule(self, molecule, force_field_source, cutoff):
         """Parameterize the specified molecule.
@@ -1073,11 +1044,9 @@ class BuildTLeapSystem(TemplateBuildSystem):
         return system
 
     def _execute(self, directory, available_resources):
-
         force_field_source = ForceFieldSource.from_json(self.force_field_path)
 
         if not isinstance(force_field_source, TLeapForceFieldSource):
-
             raise ValueError(
                 "Only TLeap force field sources are supported by this protocol."
             )

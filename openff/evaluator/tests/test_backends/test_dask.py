@@ -11,7 +11,6 @@ from openff.evaluator.workflow.plugins import registered_workflow_protocols
 
 
 def dummy_function(*args, **kwargs):
-
     assert len(args) == 1
     return args[0]
 
@@ -56,7 +55,6 @@ def test_dask_jobqueue_backend_creation(cluster_class):
 
 @pytest.mark.skip(reason="This code currently hangs only on travis.")
 def test_multiprocessor():
-
     expected_output = 12345
 
     return_value = _Multiprocessor.run(dummy_function, expected_output)
@@ -65,7 +63,6 @@ def test_multiprocessor():
 
 @pytest.mark.skip(reason="This code currently hangs only on travis.")
 def test_lsf_wrapped_function():
-
     available_resources = QueueWorkerResources()
 
     protocols_to_import = [

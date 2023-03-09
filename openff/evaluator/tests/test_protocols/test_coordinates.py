@@ -75,11 +75,9 @@ def test_build_coordinates_packmol(input_substance, expected):
     assert build_coordinates.output_substance == expected
 
     for component in input_substance:
-
         assert component.identifier in build_coordinates.assigned_residue_names
 
         if component.smiles == "O":
-
             assigned_name = build_coordinates.assigned_residue_names[
                 component.identifier
             ]
@@ -125,7 +123,6 @@ def test_solvate_existing_structure_protocol():
     water_substance.add_component(Component("O"), MoleFraction(1.0))
 
     with tempfile.TemporaryDirectory() as temporary_directory:
-
         build_methanol_coordinates = BuildCoordinatesPackmol("build_methanol")
         build_methanol_coordinates.max_molecules = 1
         build_methanol_coordinates.substance = methanol_substance
@@ -164,7 +161,6 @@ def test_build_docked_coordinates_protocol():
     #       by storing the binary prepared receptor. Would this
     #       be in breach of any oe license terms?
     with tempfile.TemporaryDirectory() as temporary_directory:
-
         build_docked_coordinates = BuildDockedCoordinates("build_methanol")
         build_docked_coordinates.ligand_substance = ligand_substance
         build_docked_coordinates.number_of_ligand_conformers = 5

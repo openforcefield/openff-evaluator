@@ -15,7 +15,6 @@ from openff.evaluator.workflow.utils import ProtocolPath, ReplicatorValue
 
 
 def test_simple_replicators():
-
     dummy_schema = WorkflowSchema()
 
     replicator_id = "replicator"
@@ -87,7 +86,6 @@ def test_simple_replicators():
 
 
 def test_group_replicators():
-
     dummy_schema = WorkflowSchema()
 
     replicator_id = "replicator"
@@ -162,7 +160,6 @@ def test_group_replicators():
 
 
 def test_advanced_group_replicators():
-
     dummy_schema = WorkflowSchema()
 
     replicator_id = "replicator"
@@ -244,7 +241,6 @@ def test_advanced_group_replicators():
 
 
 def test_nested_replicators():
-
     dummy_schema = WorkflowSchema()
 
     dummy_protocol = DummyReplicableProtocol("dummy_$(rep_a)_$(rep_b)")
@@ -289,7 +285,6 @@ def test_nested_replicators():
 
 
 def test_advanced_nested_replicators():
-
     dummy_schema = WorkflowSchema()
 
     replicator_a = ProtocolReplicator(replicator_id="replicator_a")

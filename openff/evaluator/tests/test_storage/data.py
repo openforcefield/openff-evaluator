@@ -4,7 +4,6 @@ from openff.evaluator.storage.query import BaseDataQuery
 
 
 class SimpleData(BaseStoredData):
-
     some_attribute = StorageAttribute(docstring="", type_hint=int)
 
     @classmethod
@@ -24,7 +23,6 @@ class SimpleDataQuery(BaseDataQuery):
 
 
 class HashableData(HashableStoredData):
-
     some_attribute = StorageAttribute(docstring="", type_hint=int)
 
     @classmethod

@@ -17,17 +17,14 @@ class ParameterGradientKey:
         return self._attribute
 
     def __init__(self, tag=None, smirks=None, attribute=None):
-
         self._tag = tag
         self._smirks = smirks
         self._attribute = attribute
 
     def __getstate__(self):
-
         return {"tag": self._tag, "smirks": self._smirks, "attribute": self._attribute}
 
     def __setstate__(self, state):
-
         self._tag = state["tag"]
         self._smirks = state["smirks"]
         self._attribute = state["attribute"]
@@ -42,7 +39,6 @@ class ParameterGradientKey:
         return hash((self._tag, self._smirks, self._attribute))
 
     def __eq__(self, other):
-
         return (
             isinstance(other, ParameterGradientKey)
             and self._tag == other._tag
@@ -64,19 +60,16 @@ class ParameterGradient:
         return self._value
 
     def __init__(self, key=None, value=None):
-
         self._key = key
         self._value = value
 
     def __getstate__(self):
-
         return {
             "key": self._key,
             "value": self._value,
         }
 
     def __setstate__(self, state):
-
         self._key = state["key"]
         self._value = state["value"]
 
@@ -130,7 +123,6 @@ class ParameterGradient:
             and not isinstance(other, int)
             and not isinstance(other, unit.Quantity)
         ):
-
             raise ValueError(
                 "ParameterGradient objects can only be multiplied by int's, "
                 "float's or Quantity objects."
@@ -153,7 +145,6 @@ class ParameterGradient:
             and not isinstance(other, int)
             and not isinstance(other, unit.Quantity)
         ):
-
             raise ValueError(
                 "ParameterGradient objects can only be divided by int's, "
                 "float's or Quantity objects."
@@ -162,7 +153,6 @@ class ParameterGradient:
         return ParameterGradient(self.key, self.value / other)
 
     def __eq__(self, other):
-
         return (
             isinstance(other, ParameterGradient)
             and self.key == other.key

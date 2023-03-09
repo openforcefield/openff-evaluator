@@ -63,7 +63,6 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
             ObservableType.Volume,
             ObservableType.Density,
         ]:
-
             n_molar_molecules = miscellaneous.DivideValue(f"n_molar_molecules{suffix}")
             n_molar_molecules.value = n_molecules
             n_molar_molecules.divisor = (1.0 * unit.avogadro_constant).to("mole**-1")

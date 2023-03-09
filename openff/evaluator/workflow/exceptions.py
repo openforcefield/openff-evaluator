@@ -20,7 +20,6 @@ class WorkflowException(EvaluatorException):
         self.protocol_id = protocol_id
 
     def __getstate__(self):
-
         state = super(WorkflowException, self).__getstate__()
 
         if self.protocol_id is not None:
@@ -29,13 +28,11 @@ class WorkflowException(EvaluatorException):
         return state
 
     def __setstate__(self, state):
-
         super(WorkflowException, self).__setstate__(state)
 
         if "protocol_id" in state:
             self.protocol_id = state["protocol_id"]
 
     def __str__(self):
-
         base_str = super(WorkflowException, self).__str__()
         return f"{self.protocol_id} failed to execute.\n\n{base_str}"

@@ -115,7 +115,6 @@ class Request(AttributeClass):
         """
 
         if client is not None:
-
             self.connection_options = ConnectionOptions()
             self.connection_options.server_address = client.server_address
             self.connection_options.server_port = client.server_port
@@ -155,7 +154,6 @@ class Request(AttributeClass):
             or self._client.server_address != self._client.server_address
             or self._client.server_port != self._client.server_port
         ):
-
             self.validate()
             self._client = EvaluatorClient(self.connection_options)
 
@@ -235,20 +233,16 @@ class RequestOptions(AttributeClass):
         self.calculation_schemas[property_type][layer_type] = schema
 
     def validate(self, attribute_type=None):
-
         super(RequestOptions, self).validate(attribute_type)
 
         assert all(isinstance(x, str) for x in self.calculation_layers)
         assert all(x in registered_calculation_layers for x in self.calculation_layers)
 
         if self.calculation_schemas != UNDEFINED:
-
             for property_type in self.calculation_schemas:
-
                 assert isinstance(self.calculation_schemas[property_type], dict)
 
                 for layer_type in self.calculation_schemas[property_type]:
-
                     assert layer_type in self.calculation_layers
                     calculation_layer = registered_calculation_layers[layer_type]
 
@@ -461,7 +455,6 @@ class EvaluatorClient:
             connection_options = ConnectionOptions()
 
         if connection_options.server_address is None:
-
             raise ValueError(
                 "The address of the server which will run"
                 "these calculations must be given."
@@ -549,7 +542,6 @@ class EvaluatorClient:
         properties_without_schemas = set(property_types)
 
         for property_type in options.calculation_schemas:
-
             if property_type not in properties_without_schemas:
                 continue
 
@@ -558,9 +550,7 @@ class EvaluatorClient:
         # Assign default calculation schemas in the cases where the user
         # hasn't provided one.
         for calculation_layer in options.calculation_layers:
-
             for property_type in property_types:
-
                 # Check if the user has already provided a schema.
                 existing_schema = options.calculation_schemas.get(
                     property_type, {}
@@ -603,7 +593,6 @@ class EvaluatorClient:
         # Make sure all property types have at least one registered
         # calculation schema.
         if len(properties_without_schemas) >= 1:
-
             type_string = ", ".join(properties_without_schemas)
 
             raise ValueError(
@@ -618,7 +607,6 @@ class EvaluatorClient:
 
         for calculation_layer in options.calculation_layers:
             for property_type in property_types:
-
                 # Check if the user has already provided a schema.
                 if (
                     property_type not in options.calculation_schemas
@@ -670,7 +658,6 @@ class EvaluatorClient:
         from openff.toolkit.typing.engines import smirnoff
 
         if property_set is None or force_field_source is None:
-
             raise ValueError(
                 "Both a data set and force field source must be "
                 "present to compute physical properties."
@@ -682,7 +669,6 @@ class EvaluatorClient:
         # Handle the conversion of a SMIRNOFF force field object
         # for backwards compatibility.
         if isinstance(force_field_source, smirnoff.ForceField):
-
             force_field_source = SmirnoffForceFieldSource.from_object(
                 force_field_source
             )
@@ -758,7 +744,6 @@ class EvaluatorClient:
         should_run = True
 
         while should_run:
-
             if polling_interval > 0:
                 sleep(polling_interval)
 
@@ -808,7 +793,6 @@ class EvaluatorClient:
         request_id = None
 
         try:
-
             # Encode the submission json into an encoded
             # packet ready to submit to the server.
             message_type = pack_int(EvaluatorMessageTypes.Submission)
@@ -830,12 +814,10 @@ class EvaluatorClient:
             request_id, error = json.loads(encoded_json.decode(), cls=TypedJSONDecoder)
 
         except Exception as e:
-
             trace = traceback.format_exception(None, e, e.__traceback__)
             error = EvaluatorException(message=trace)
 
         finally:
-
             if connection is not None:
                 connection.close()
 
@@ -869,7 +851,6 @@ class EvaluatorClient:
         connection.connect(connection_settings)
 
         try:
-
             # Encode the request id into the message.
             message_type = pack_int(EvaluatorMessageTypes.Query)
 
@@ -885,12 +866,10 @@ class EvaluatorClient:
             # Decode the response from the server. If everything
             # went well, this should be the finished calculation.
             if length > 0:
-
                 encoded_json = recvall(connection, length)
                 server_response = encoded_json.decode()
 
         finally:
-
             if connection is not None:
                 connection.close()
 

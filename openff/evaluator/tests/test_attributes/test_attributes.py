@@ -11,7 +11,6 @@ from openff.evaluator.workflow.attributes import InputAttribute, OutputAttribute
 
 
 class AttributeObject(AttributeClass):
-
     required_input = InputAttribute("", str, UNDEFINED, optional=False)
     optional_input = InputAttribute("", int, UNDEFINED, optional=True)
 
@@ -22,7 +21,6 @@ class AttributeObject(AttributeClass):
 
 
 class NestedAttributeObject(AttributeClass):
-
     some_value = Attribute("", AttributeObject)
 
     some_list = Attribute("", list, UNDEFINED, optional=True)
@@ -51,7 +49,6 @@ def test_undefined_serialization():
 
 
 def test_get_attributes():
-
     input_attributes = AttributeObject.get_attributes(InputAttribute)
     assert input_attributes == ["required_input", "optional_input"]
 
@@ -63,7 +60,6 @@ def test_get_attributes():
 
 
 def test_type_check():
-
     some_object = AttributeObject()
 
     with pytest.raises(ValueError):
@@ -71,7 +67,6 @@ def test_type_check():
 
 
 def test_state_methods():
-
     some_object = AttributeObject()
     some_object.required_input = "Set"
 
@@ -91,7 +86,6 @@ def test_state_methods():
 
 
 def test_nested_validation():
-
     nested_object = NestedAttributeObject()
     nested_object.some_value = AttributeObject()
 

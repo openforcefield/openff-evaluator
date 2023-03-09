@@ -15,7 +15,6 @@ from openff.units import unit
 
 
 def _type_string_to_object(type_string):
-
     if type_string.startswith("evaluator."):
         # Make files produced with the beta evaluator release compatible with
         # the full evaluator release.
@@ -42,11 +41,9 @@ def _type_string_to_object(type_string):
     module_path = None
 
     while len(type_string_split) > 0:
-
         class_name = type_string_split.pop(0)
 
         try:
-
             if module_path is None:
                 module_path = class_name
             else:
@@ -57,7 +54,6 @@ def _type_string_to_object(type_string):
             class_object = module
 
         except ImportError:
-
             # If we get an import error, try then to treat the string
             # as the name of a nested class.
             class_object = getattr(class_object, class_name)
@@ -185,7 +181,6 @@ def deserialize_measurement(serialized):
 
 
 def serialize_enum(enum):
-
     if not isinstance(enum, Enum):
         raise ValueError("{} is not an Enum".format(type(enum)))
 
@@ -193,15 +188,12 @@ def serialize_enum(enum):
 
 
 def deserialize_enum(enum_dictionary):
-
     if "@type" not in enum_dictionary:
-
         raise ValueError(
             "The serialized enum dictionary must includewhich type the enum is."
         )
 
     if "value" not in enum_dictionary:
-
         raise ValueError("The serialized enum dictionary must includethe enum value.")
 
     enum_type_string = enum_dictionary["@type"]
@@ -216,7 +208,6 @@ def deserialize_enum(enum_dictionary):
 
 
 def serialize_set(set_object):
-
     if not isinstance(set_object, set):
         raise ValueError("{} is not a set".format(type(set)))
 
@@ -224,9 +215,7 @@ def serialize_set(set_object):
 
 
 def deserialize_set(set_dictionary):
-
     if "value" not in set_dictionary:
-
         raise ValueError(
             "The serialized set dictionary must includethe value of the set."
         )
@@ -234,14 +223,12 @@ def deserialize_set(set_dictionary):
     set_value = set_dictionary["value"]
 
     if not isinstance(set_value, list):
-
         raise ValueError("The value of the serialized set must be a list.")
 
     return set(set_value)
 
 
 def serialize_frozen_set(set_object):
-
     if not isinstance(set_object, frozenset):
         raise ValueError("{} is not a frozenset".format(type(frozenset)))
 
@@ -249,9 +236,7 @@ def serialize_frozen_set(set_object):
 
 
 def deserialize_frozen_set(set_dictionary):
-
     if "value" not in set_dictionary:
-
         raise ValueError(
             "The serialized frozenset dictionary must includethe value of the set."
         )
@@ -265,7 +250,6 @@ def deserialize_frozen_set(set_dictionary):
 
 
 class TypedJSONEncoder(json.JSONEncoder):
-
     _natively_supported_types = [dict, list, tuple, str, int, float, bool]
 
     _custom_supported_types = {
@@ -284,7 +268,6 @@ class TypedJSONEncoder(json.JSONEncoder):
     }
 
     def default(self, value_to_serialize):
-
         if value_to_serialize is None:
             return None
 
@@ -308,9 +291,7 @@ class TypedJSONEncoder(json.JSONEncoder):
         custom_encoder = None
 
         for encoder_type in TypedJSONEncoder._custom_supported_types:
-
             if isinstance(encoder_type, str):
-
                 qualified_name = type_to_serialize.__qualname__
 
                 if encoder_type != qualified_name:
@@ -323,12 +304,10 @@ class TypedJSONEncoder(json.JSONEncoder):
             break
 
         if custom_encoder is not None:
-
             try:
                 serializable_dictionary = custom_encoder(value_to_serialize)
 
             except Exception as e:
-
                 raise ValueError(
                     "{} ({}) could not be serialized "
                     "using a specialized custom encoder: {}".format(
@@ -337,12 +316,10 @@ class TypedJSONEncoder(json.JSONEncoder):
                 )
 
         elif hasattr(value_to_serialize, "__getstate__"):
-
             try:
                 serializable_dictionary = value_to_serialize.__getstate__()
 
             except Exception as e:
-
                 raise ValueError(
                     "{} ({}) could not be serialized "
                     "using its __getstate__ method: {}".format(
@@ -351,7 +328,6 @@ class TypedJSONEncoder(json.JSONEncoder):
                 )
 
         else:
-
             raise ValueError(
                 "Objects of type {} are not serializable, please either"
                 "add a __getstate__ method, or add the object to the list"
@@ -383,7 +359,6 @@ class TypedJSONDecoder(json.JSONDecoder):
 
     @staticmethod
     def object_hook(object_dictionary):
-
         if "@type" not in object_dictionary:
             return object_dictionary
 
@@ -393,9 +368,7 @@ class TypedJSONDecoder(json.JSONDecoder):
         custom_decoder = None
 
         for decoder_type in TypedJSONDecoder._custom_supported_types:
-
             if isinstance(decoder_type, str):
-
                 if decoder_type != class_type.__qualname__:
                     continue
 
@@ -406,12 +379,10 @@ class TypedJSONDecoder(json.JSONDecoder):
             break
 
         if custom_decoder is not None:
-
             try:
                 deserialized_object = custom_decoder(object_dictionary)
 
             except Exception as e:
-
                 raise ValueError(
                     "{} ({}) could not be deserialized "
                     "using a specialized custom decoder: {}".format(
@@ -420,17 +391,14 @@ class TypedJSONDecoder(json.JSONDecoder):
                 )
 
         elif hasattr(class_type, "__setstate__"):
-
             class_init_signature = inspect.signature(class_type)
 
             for parameter in class_init_signature.parameters.values():
-
                 if (
                     parameter.default != inspect.Parameter.empty
                     or parameter.kind == inspect.Parameter.VAR_KEYWORD
                     or parameter.kind == inspect.Parameter.VAR_POSITIONAL
                 ):
-
                     continue
 
                 raise ValueError(
@@ -442,7 +410,6 @@ class TypedJSONDecoder(json.JSONDecoder):
             deserialized_object.__setstate__(object_dictionary)
 
         else:
-
             raise ValueError(
                 "Objects of type {} are not deserializable, please either"
                 "add a __setstate__ method, or add the object to the list"
@@ -497,7 +464,6 @@ class TypedBaseModel(ABC):
             json_string = json.dumps(self, cls=TypedJSONEncoder)
 
         if file_path is not None:
-
             with open(file_path, "w") as file:
                 file.write(json_string)
 

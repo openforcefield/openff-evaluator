@@ -82,12 +82,10 @@ class CalculationLayerSchema(AttributeClass):
     )
 
     def validate(self, attribute_type=None):
-
         if (
             self.absolute_tolerance != UNDEFINED
             and self.relative_tolerance != UNDEFINED
         ):
-
             raise ValueError(
                 "Only one of `absolute_tolerance` and `relative_tolerance` "
                 "can be set."
@@ -152,7 +150,6 @@ class CalculationLayer(abc.ABC):
         )
 
         def callback_wrapper(results_future):
-
             CalculationLayer._process_results(
                 results_future, batch, layer_name, storage_backend, callback
             )
@@ -177,12 +174,10 @@ class CalculationLayer(abc.ABC):
         """
 
         for data_tuple in returned_output.data_to_store:
-
             data_object_path, data_directory_path = data_tuple
 
             # Make sure the data directory / file to store actually exists
             if not path.isdir(data_directory_path) or not path.isfile(data_object_path):
-
                 logger.info(
                     f"Invalid data directory ({data_directory_path}) / "
                     f"file ({data_object_path})"
@@ -193,7 +188,6 @@ class CalculationLayer(abc.ABC):
             data_object = BaseStoredData.from_json(data_object_path)
 
             if isinstance(data_object, StoredSimulationData):
-
                 if isinstance(data_object.force_field_id, PlaceholderValue):
                     data_object.force_field_id = batch.force_field_id
                 if isinstance(data_object.source_calculation_id, PlaceholderValue):
@@ -224,7 +218,6 @@ class CalculationLayer(abc.ABC):
         # Wrap everything in a try catch to make sure the whole calculation backend /
         # server doesn't go down when an unexpected exception occurs.
         try:
-
             results = list(results_future.result())
 
             if len(results) > 0 and isinstance(results[0], collections.abc.Iterable):
@@ -233,14 +226,12 @@ class CalculationLayer(abc.ABC):
             results_future.release()
 
             for returned_output in results:
-
                 if returned_output is None:
                     # Indicates the layer could not calculate this
                     # particular property.
                     continue
 
                 if not isinstance(returned_output, CalculationLayerResult):
-
                     # Make sure we are actually dealing with the object we expect.
                     raise ValueError(
                         "The output of the calculation was not "
@@ -248,7 +239,6 @@ class CalculationLayer(abc.ABC):
                     )
 
                 if len(returned_output.exceptions) > 0:
-
                     # If exceptions were raised, make sure to add them to the list.
                     batch.exceptions.extend(returned_output.exceptions)
 
@@ -260,14 +250,12 @@ class CalculationLayer(abc.ABC):
                         logger.info(str(exception))
 
                 else:
-
                     # Make sure to store any important calculation data if no exceptions
                     # were thrown.
                     if (
                         returned_output.data_to_store is not None
                         and batch.enable_data_caching
                     ):
-
                         CalculationLayer._store_cached_output(
                             batch, returned_output, storage_backend
                         )
@@ -275,7 +263,6 @@ class CalculationLayer(abc.ABC):
                 matches = []
 
                 if returned_output.physical_property != UNDEFINED:
-
                     matches = [
                         x
                         for x in batch.queued_properties
@@ -283,14 +270,12 @@ class CalculationLayer(abc.ABC):
                     ]
 
                     if len(matches) > 1:
-
                         raise ValueError(
                             f"A property id ({returned_output.physical_property.id}) "
                             f"conflict occurred."
                         )
 
                     elif len(matches) == 0:
-
                         logger.info(
                             "A calculation layer returned results for a property not in "
                             "the queue. This sometimes and expectedly occurs when using "
@@ -300,9 +285,7 @@ class CalculationLayer(abc.ABC):
                         continue
 
                 if returned_output.physical_property == UNDEFINED:
-
                     if len(returned_output.exceptions) == 0:
-
                         logger.info(
                             "A calculation layer did not return an estimated property nor did it "
                             "raise an Exception. This sometimes and expectedly occurs when using "
@@ -339,7 +322,6 @@ class CalculationLayer(abc.ABC):
                 batch.estimated_properties.append(returned_output.physical_property)
 
         except Exception as e:
-
             logger.exception(f"Error processing layer results for request {batch.id}")
             exception = EvaluatorException.from_exception(e)
 

@@ -46,7 +46,6 @@ class EvaluatorException(TypedBaseModel, BaseException):
         self.message = state["message"]
 
     def __str__(self):
-
         message = self.message
 
         if isinstance(message, list):

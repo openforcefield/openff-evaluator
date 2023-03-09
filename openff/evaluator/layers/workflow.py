@@ -112,7 +112,6 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
         workflows = []
 
         for index, physical_property in enumerate(properties):
-
             logger.info(f"Building workflow {index} of {len(properties)}")
 
             property_type = type(physical_property).__name__
@@ -154,7 +153,6 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
         workflow_graph.add_workflows(*workflows)
 
         for workflow in workflows:
-
             provenance[workflow.uuid] = CalculationSource(
                 fidelity=cls.__name__, provenance=workflow.schema.json()
             )
@@ -184,7 +182,6 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
         results = []
 
         for workflow_result in workflow_results:
-
             calculation_result = CalculationLayerResult()
             calculation_result.exceptions.extend(workflow_result.exceptions)
 
@@ -215,7 +212,6 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
         layer_directory,
         batch,
     ):
-
         # Store a temporary copy of the force field for protocols to easily access.
         force_field_source = storage_backend.retrieve_force_field(batch.force_field_id)
         force_field_path = os.path.join(layer_directory, batch.force_field_id)

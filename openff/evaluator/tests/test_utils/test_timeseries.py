@@ -4,12 +4,7 @@ Units tests for openff.evaluator.utils.statistics
 
 import numpy as np
 
-try:
-    from pymbar.timeseries import detect_equilibration
-except ImportError:
-    from pymbar.timeseries import detectEquilibration as detect_equilibration
-
-
+from openff.evaluator.utils.pymbar import detect_equilibration
 from openff.evaluator.utils.timeseries import (
     analyze_time_series,
     get_uncorrelated_indices,
@@ -44,6 +39,5 @@ def test_analyze_time_series():
 
 
 def test_get_uncorrelated_indices():
-
     uncorrelated_indices = get_uncorrelated_indices(4, 2.0)
     assert uncorrelated_indices == [0, 2]

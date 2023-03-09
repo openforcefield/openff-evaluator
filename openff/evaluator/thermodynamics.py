@@ -90,7 +90,6 @@ class ThermodynamicState(AttributeClass):
         return return_value
 
     def __hash__(self):
-
         temperature = self.temperature.to(unit.kelvin).magnitude
         pressure = (
             None
@@ -103,7 +102,6 @@ class ThermodynamicState(AttributeClass):
         )
 
     def __eq__(self, other):
-
         if not isinstance(other, ThermodynamicState):
             return False
 

@@ -13,7 +13,6 @@ from openff.evaluator.thermodynamics import Ensemble, ThermodynamicState
 
 
 def tip4p_force_field() -> ForceField:
-
     force_field = ForceField()
 
     constraint_handler = force_field.get_parameter_handler("Constraints")
@@ -77,7 +76,6 @@ def tip4p_force_field() -> ForceField:
 
 
 def main():
-
     force_field = tip4p_force_field()
     substance = Substance.from_components("O")
 

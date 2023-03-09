@@ -8,6 +8,43 @@ Releases follow the ``major.minor.micro`` scheme recommended by
 * ``minor`` increments add features but do not break API compatibility
 * ``micro`` increments represent bugfix releases or improvements in documentation
 
+
+Current development
+-------------------
+
+This release adds support for OpenMM 8. Support for OpenMM 7 will be removed in a future release.
+
+Bugfixes
+""""""""
+
+* PR `#496 <https://github.com/openforcefield/openff-evaluator/pull/496>`_: Add support for OpenMM 8
+
+
+Documentation
+"""""""""""""
+
+* PR `#499 <https://github.com/openforcefield/openff-evaluator/pull/496>`_: Updates tutorials
+
+
+0.4.2
+-----
+
+New Features
+""""""""""""
+
+* PR `#479 <https://github.com/openforcefield/openff-evaluator/pull/479>`_: Improves compatibility with `pymbar` 3 and 4.
+
+Bugfixes
+""""""""
+
+* PR `#489 <https://github.com/openforcefield/openff-evaluator/pull/489>`_: Properly creates Amber-style systems involving multiple molecules.
+
+Behavior Changes
+"""""""""""""""""
+
+* PR `#490 <https://github.com/openforcefield/openff-evaluator/pull/490>`_: Deprecates Yank protocols.
+
+
 0.4.1
 -----
 

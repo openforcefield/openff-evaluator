@@ -192,7 +192,6 @@ class PhysicalProperty(AttributeClass, abc.ABC):
             self.source = source
 
     def __setstate__(self, state):
-
         if "id" not in state:
             state["id"] = str(uuid.uuid4()).replace("-", "")
 
@@ -280,12 +279,10 @@ class PhysicalPropertyDataSet(TypedBaseModel):
 
         # TODO: Do we need to check for adding the same property twice?
         for physical_property in physical_properties:
-
             if validate:
                 physical_property.validate()
 
             if physical_property.id in all_ids:
-
                 raise KeyError(
                     f"A property with the unique id {physical_property.id} already "
                     f"exists."
@@ -310,7 +307,6 @@ class PhysicalPropertyDataSet(TypedBaseModel):
         """
 
         for physical_property in self._properties:
-
             if physical_property.substance != substance:
                 continue
 
@@ -335,7 +331,6 @@ class PhysicalPropertyDataSet(TypedBaseModel):
             property_type = property_type.__name__
 
         for physical_property in self._properties:
-
             if physical_property.__class__.__name__ != property_type:
                 continue
 
@@ -395,7 +390,6 @@ class PhysicalPropertyDataSet(TypedBaseModel):
         default_units = {}
 
         for physical_property in self:
-
             # Extract the measured state.
             temperature = physical_property.thermodynamic_state.temperature.to(
                 unit.kelvin
@@ -403,7 +397,6 @@ class PhysicalPropertyDataSet(TypedBaseModel):
             pressure = None
 
             if physical_property.thermodynamic_state.pressure != UNDEFINED:
-
                 pressure = physical_property.thermodynamic_state.pressure.to(
                     unit.kilopascal
                 ).magnitude
@@ -416,11 +409,9 @@ class PhysicalPropertyDataSet(TypedBaseModel):
             roles = []
 
             for index, component in enumerate(physical_property.substance):
-
                 component_amounts = {MoleFraction: None, ExactAmount: None}
 
                 for x in physical_property.substance.get_amounts(component):
-
                     assert isinstance(x, (MoleFraction, ExactAmount))
                     component_amounts[type(x)] = x.value
 
@@ -447,7 +438,6 @@ class PhysicalPropertyDataSet(TypedBaseModel):
             source = None
 
             if isinstance(physical_property.source, MeasurementSource):
-
                 source = physical_property.source.doi
 
                 if source is None or len(source) == 0:
@@ -466,7 +456,6 @@ class PhysicalPropertyDataSet(TypedBaseModel):
             }
 
             for index in range(len(components)):
-
                 data_row[f"Component {index + 1}"] = components[index]
                 data_row[f"Role {index + 1}"] = roles[index]
                 data_row[f"Mole Fraction {index + 1}"] = amounts[index][MoleFraction]
@@ -506,7 +495,6 @@ class PhysicalPropertyDataSet(TypedBaseModel):
             data_columns.append(f"Exact Amount {index + 1}")
 
         for property_type in self.property_types:
-
             default_unit = default_units[property_type]
 
             data_columns.append(f"{property_type} Value ({default_unit:~})")
@@ -553,7 +541,6 @@ class PhysicalPropertyDataSet(TypedBaseModel):
         # built-in property type, and specify correctly the properties
         # units.
         for match in property_header_matches:
-
             assert match
 
             property_type_string, property_unit_string = match.groups()
@@ -575,7 +562,6 @@ class PhysicalPropertyDataSet(TypedBaseModel):
         physical_properties = []
 
         for _, data_row in data_frame.iterrows():
-
             data_row = data_row.dropna()
 
             # Extract the state at which the measurement was made.
@@ -589,7 +575,6 @@ class PhysicalPropertyDataSet(TypedBaseModel):
             substance = Substance()
 
             for i in range(data_row["N Components"]):
-
                 component = Component(
                     smiles=data_row[f"Component {i + 1}"],
                     role=Component.Role[data_row.get(f"Role {i + 1}", "Solvent")],
@@ -607,7 +592,6 @@ class PhysicalPropertyDataSet(TypedBaseModel):
                 property_header,
                 (property_type, property_unit),
             ) in property_headers.items():
-
                 # Check to see whether the row contains a value for this
                 # type of property.
                 if property_header not in data_row:
@@ -667,7 +651,6 @@ class PhysicalPropertyDataSet(TypedBaseModel):
         return {"properties": self._properties}
 
     def __setstate__(self, state):
-
         self._properties = state["properties"]
 
         assert all(isinstance(x, PhysicalProperty) for x in self)

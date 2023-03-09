@@ -35,7 +35,6 @@ class DummyCalculationLayer(CalculationLayer):
     def _schedule_calculation(
         cls, calculation_backend, storage_backend, layer_directory, batch
     ):
-
         futures = [
             # Fake a success.
             calculation_backend.submit_task(
@@ -119,7 +118,6 @@ class DummyCalculationLayer(CalculationLayer):
 
 
 def test_base_layer():
-
     properties_to_estimate = [
         create_dummy_property(Density),
         create_dummy_property(Density),
@@ -136,9 +134,7 @@ def test_base_layer():
     }
 
     with tempfile.TemporaryDirectory() as temporary_directory:
-
         with temporarily_change_directory(temporary_directory):
-
             # Create a simple calculation backend to test with.
             test_backend = DaskLocalCluster()
             test_backend.start()
@@ -150,7 +146,6 @@ def test_base_layer():
             makedirs(layer_directory)
 
             def dummy_callback(returned_request):
-
                 assert len(returned_request.estimated_properties) == 1
                 assert len(returned_request.exceptions) == 2
 

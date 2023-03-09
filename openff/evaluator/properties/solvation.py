@@ -162,7 +162,6 @@ class SolvationFreeEnergy(PhysicalProperty):
         conditional_group.max_iterations = 20
 
         if use_target_uncertainty:
-
             condition = groups.ConditionalGroup.Condition()
             condition.type = groups.ConditionalGroup.Condition.Type.LessThan
             condition.right_hand_value = ProtocolPath("target_uncertainty", "global")

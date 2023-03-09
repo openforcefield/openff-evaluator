@@ -37,7 +37,6 @@ def register_external_plugins():
     """
 
     for entry_point in pkg_resources.iter_entry_points("openff_evaluator.plugins"):
-
         try:
             entry_point.load()
         except ImportError:
