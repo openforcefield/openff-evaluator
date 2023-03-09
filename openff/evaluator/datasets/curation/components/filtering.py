@@ -883,21 +883,91 @@ class FilterBySmirks(CurationComponent):
         list of str
             The matched smirks patterns.
         """
+        from rdkit import Chem
 
-        from openff.toolkit.topology import Molecule
+        def _rdmol_from_smiles(smiles: str) -> Chem.Mol:
+            """
+            Create an RDKit molecule from a SMILES string.
+
+            Parameters
+            ----------
+            smiles: str
+                The SMILES string to convert.
+
+            Returns
+            -------
+            rdmol: rdkit.Chem.rdchem.Mol
+                The RDKit molecule.
+
+            Taken from https://github.com/openforcefield/openff-toolkit/blob/0.12.1/openff/toolkit/utils/rdkit_wrapper.py#L953
+            """
+            rdmol = Chem.MolFromSmiles(smiles, sanitize=False)
+
+            if rdmol is None:
+                # TODO: Catch this
+                raise Exception
+
+            Chem.SanitizeMol(
+                rdmol,
+                Chem.SANITIZE_ALL
+                ^ Chem.SANITIZE_ADJUSTHS
+                ^ Chem.SANITIZE_SETAROMATICITY,
+            )
+            Chem.SetAromaticity(rdmol, Chem.AromaticityModel.AROMATICITY_MDL)
+            Chem.AssignStereochemistry(rdmol)
+
+            Chem.AddHs(rdmol)
+
+            return rdmol
+
+        def _match(rdmol: Chem.Mol, smarts: str) -> List[Tuple[int, ...]]:
+            """
+            Run substructure matching.
+
+            Parameters
+            ----------
+            rdmol: Chem.Mol
+                The RDKit molecule to match against.
+            smarts: str
+                The SMARTS pattern to match.
+
+            Returns
+            -------
+            list of tuple of int
+                The matched atoms.
+
+            Taken from https://github.com/openforcefield/openff-toolkit/blob/0.12.1/openff/toolkit/utils/rdkit_wrapper.py#L2306
+            """
+            qmol = Chem.MolFromSmarts(smarts)
+
+            if qmol is None:
+                raise ValueError(
+                    'RDKit could not parse the SMIRKS string "{}"'.format(smarts)
+                )
+
+            # Create atom mapping for query molecule
+            idx_map = dict()
+            for atom in qmol.GetAtoms():
+                smirks_index = atom.GetAtomMapNum()
+                if smirks_index != 0:
+                    idx_map[smirks_index - 1] = atom.GetIdx()
+            map_list = [idx_map[x] for x in sorted(idx_map)]
+
+            match_kwargs = dict(
+                uniquify=False, maxMatches=2**32 - 1, useChirality=True
+            )
+
+            return [
+                tuple(match[x] for x in map_list)
+                for match in rdmol.GetSubstructMatches(qmol, **match_kwargs)
+            ]
 
         if len(smirks_patterns) == 0:
             return []
 
-        molecule = Molecule.from_smiles(smiles_pattern, allow_undefined_stereo=True)
+        rdmol = _rdmol_from_smiles(smiles_pattern)
 
-        matches = [
-            smirks
-            for smirks in smirks_patterns
-            if len(molecule.chemical_environment_matches(smirks)) > 0
-        ]
-
-        return matches
+        return [smirks for smirks in smirks_patterns if len(_match(rdmol, smirks)) > 0]
 
     @classmethod
     def _apply(

@@ -828,6 +828,9 @@ def test_find_smirks_matches():
     # Test that no matches are found for water
     assert FilterBySmirks._find_smirks_matches("O", "[#6:1]") == []
 
+    # See issue 502
+    assert FilterBySmirks._find_smirks_matches("[2H]OC", "[2H]") == ["[2H]"]
+
 
 def test_filter_by_smirks(data_frame):
 
