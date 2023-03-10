@@ -886,11 +886,7 @@ class FilterBySmirks(CurationComponent):
             # TODO: This function does not handle SMILES parsing failures gracefully.
             qmol = Chem.MolFromSmarts(smarts)
 
-            match_kwargs = dict(
-                uniquify=False, maxMatches=2**32 - 1, useChirality=True
-            )
-
-            return len(rdmol.GetSubstructMatches(qmol, **match_kwargs)) > 0
+            return len(rdmol.GetSubstructMatch(qmol)) > 0
 
         if len(smirks_patterns) == 0:
             return []
