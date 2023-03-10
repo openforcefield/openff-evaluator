@@ -12,12 +12,16 @@ Releases follow the ``major.minor.micro`` scheme recommended by
 Current development
 -------------------
 
+0.4.3
+-----
+
 This release adds support for OpenMM 8. Support for OpenMM 7 will be removed in a future release.
 
 Bugfixes
 """"""""
 
 * PR `#496 <https://github.com/openforcefield/openff-evaluator/pull/496>`_: Add support for OpenMM 8
+* PR `#503 <https://github.com/openforcefield/openff-evaluator/pull/496>`_: `FilterBySmirks` no longer ignores isotopes.
 
 
 Documentation
