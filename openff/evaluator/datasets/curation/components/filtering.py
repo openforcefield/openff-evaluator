@@ -849,9 +849,8 @@ class FilterBySmirks(CurationComponent):
 
             Taken from https://github.com/openforcefield/openff-toolkit/blob/0.12.1/openff/toolkit/utils/rdkit_wrapper.py#L953
             """
-            rdmol = Chem.MolFromSmiles(smiles, sanitize=False)
-
             # TODO: This function does not handle SMILES parsing failures gracefully.
+            rdmol = Chem.MolFromSmiles(smiles, sanitize=False)
 
             Chem.SanitizeMol(
                 rdmol,
@@ -866,9 +865,9 @@ class FilterBySmirks(CurationComponent):
 
             return rdmol
 
-        def _match(rdmol: Chem.Mol, smarts: str) -> List[Tuple[int, ...]]:
+        def _has_match(rdmol: Chem.Mol, smarts: str) -> bool:
             """
-            Run substructure matching.
+            Run substructure matching, returning only whether or not matches were found.
 
             Parameters
             ----------
@@ -879,38 +878,26 @@ class FilterBySmirks(CurationComponent):
 
             Returns
             -------
-            list of tuple of int
-                The matched atoms.
+            bool
+                Whether or not a match(es) was found.
 
             Taken from https://github.com/openforcefield/openff-toolkit/blob/0.12.1/openff/toolkit/utils/rdkit_wrapper.py#L2306
             """
-            qmol = Chem.MolFromSmarts(smarts)
-
             # TODO: This function does not handle SMILES parsing failures gracefully.
-
-            # Create atom mapping for query molecule
-            idx_map = dict()
-            for atom in qmol.GetAtoms():
-                smirks_index = atom.GetAtomMapNum()
-                if smirks_index != 0:
-                    idx_map[smirks_index - 1] = atom.GetIdx()
-            map_list = [idx_map[x] for x in sorted(idx_map)]
+            qmol = Chem.MolFromSmarts(smarts)
 
             match_kwargs = dict(
                 uniquify=False, maxMatches=2**32 - 1, useChirality=True
             )
 
-            return [
-                tuple(match[x] for x in map_list)
-                for match in rdmol.GetSubstructMatches(qmol, **match_kwargs)
-            ]
+            return len(rdmol.GetSubstructMatches(qmol, **match_kwargs)) > 0
 
         if len(smirks_patterns) == 0:
             return []
 
         rdmol = _rdmol_from_smiles(smiles_pattern)
 
-        return [smirks for smirks in smirks_patterns if len(_match(rdmol, smirks)) > 0]
+        return [smirks for smirks in smirks_patterns if _has_match(rdmol, smirks)]
 
     @classmethod
     def _apply(
