@@ -57,6 +57,12 @@ jobs:
         run: |
           micromamba install "openmm =${{ matrix.openmm-version }}" "pymbar =${{ matrix.pymbar-version }}" -c conda-forge -yq
 
+      - name: Avoid pulling down old jaxlib
+        shell: bash -l {0}
+        if: ${{ matrix.pymbar-version == 4 }}
+        run: |
+          micromamba install "jax >=3" "jaxlib >=3" -c conda-forge -yq
+
       - name: Install OpenEye
         if: matrix.openeye
         shell: bash -l {0}
