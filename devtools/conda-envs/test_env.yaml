@@ -17,7 +17,7 @@ dependencies:
 
     # Standard dependencies
   - openff-toolkit >=0.11.0
-  - openmm =8
+  - openmm =7.7|8
   - pymbar =3|4
   - dask >=2.7.0
   - distributed >=2.7.0
