@@ -32,7 +32,7 @@ jobs:
           - 3.8
           - 3.9
         pymbar-version:
-          - 3
+          - 3.1
           - 4
         openmm-version:
           - 7
