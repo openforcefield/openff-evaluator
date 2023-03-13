@@ -51,17 +51,8 @@ jobs:
           environment-file: devtools/conda-envs/test_env.yaml
           extra-specs: |
             python=${{ matrix.python-version }}
-
-      - name: Update openmm, pymbar versions
-        shell: bash -l {0}
-        run: |
-          micromamba install "openmm =${{ matrix.openmm-version }}" "pymbar =${{ matrix.pymbar-version }}" -c conda-forge -yq
-
-      - name: Avoid pulling down old jaxlib
-        shell: bash -l {0}
-        if: ${{ matrix.pymbar-version == 4 }}
-        run: |
-          micromamba install "jax >=3" "jaxlib >=3" -c conda-forge -yq
+            pymbar=${{ matrix.pymbar-version }}
+            openmm=${{ matrix.openmm-version }}
 
       - name: Install OpenEye
         if: matrix.openeye
