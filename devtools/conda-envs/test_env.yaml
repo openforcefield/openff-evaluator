@@ -33,3 +33,4 @@ dependencies:
   - paprika
   - taproom
   - dataclasses
+  - pandas =1
