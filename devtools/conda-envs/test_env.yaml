@@ -10,6 +10,7 @@ dependencies:
     # Testing and development
   - pytest
   - pytest-cov
+  - pytest-xdist
   - nbval
   - requests-mock # For testing http requests.
   - smirnoff-plugins # For testing custom nonbonded forces
@@ -32,6 +33,4 @@ dependencies:
   - paprika
   - taproom
   - dataclasses
-
-    # Shims
-  - packaging =21
+  - pandas =1
