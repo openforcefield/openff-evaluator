@@ -33,14 +33,12 @@ jobs:
           - 3.9
         pymbar-version:
           - 3.1
-          - 4
         openmm-version:
           - 7
           - 8
         openeye:
           - true
           - false
-
 
     steps:
       - uses: actions/checkout@v3
