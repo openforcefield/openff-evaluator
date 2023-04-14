@@ -16,6 +16,8 @@ To install the ``openff-evaluator`` from the ``conda-forge`` channel simply run:
 
     conda install -c conda-forge openff-evaluator
 
+If you do not have Conda installed, see the `OpenFF installation guide <openff.docs:install>`_.
+
 Recommended Dependencies
 ------------------------
 
