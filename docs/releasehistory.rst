@@ -11,6 +11,10 @@ Releases follow the ``major.minor.micro`` scheme recommended by
 Current development
 -------------------
 
+This release drops support for Python 3.8.
+
+* PR `#511 <https://github.com/openforcefield/openff-evaluator/pull/511>`_: Following [NEP 29](https://numpy.org/neps/nep-0029-deprecation_policy.html), removes support for Python 3.8.
+
 0.4.3
 -----
 
