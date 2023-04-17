@@ -30,7 +30,6 @@ jobs:
           - macOS-latest
         python-version:
           - "3.9"
-          - "3.10"
         pymbar-version:
           - "3.1"
         openmm-version:
