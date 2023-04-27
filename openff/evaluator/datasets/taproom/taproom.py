@@ -452,14 +452,12 @@ class TaproomDataSet(PhysicalPropertyDataSet):
 
         # noinspection PyTypeChecker
         guest_spec = read_yaml_schema(guest_yaml_path)
-        logger.info(f"Guest Spec: {guest_spec}")
 
         guest_aliases = {
             guest_alias: atom_mask
             for guest_alias_entry in guest_spec["aliases"]
             for guest_alias, atom_mask in guest_alias_entry.items()
         }
-        logger.info(f"Guest Aliases: {guest_aliases}")
 
         metadata = {
             "host_substance": host_substance,
