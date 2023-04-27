@@ -20,11 +20,11 @@ def _type_string_to_object(type_string):
         # the full evaluator release.
         type_string = type_string.replace("evaluator.", "openff.evaluator.")
 
-    if type_string == "openff.evaluator.unit.Unit":
+    if type_string == "openff.units.unit.Unit":
         return unit.Unit
-    if type_string == "openff.evaluator.unit.Quantity":
+    if type_string == "openff.units.unit.Quantity":
         return unit.Quantity
-    if type_string == "openff.evaluator.unit.Measurement":
+    if type_string == "openff.units.unit.Measurement":
         return unit.Measurement
 
     last_period_index = type_string.rfind(".")
@@ -76,13 +76,13 @@ def _type_to_type_string(object_type):
     """
 
     if issubclass(object_type, unit.Unit):
-        return "openff.evaluator.unit.Unit"
+        return "openff.units.unit.Unit"
 
     if issubclass(object_type, unit.Measurement):
-        return "openff.evaluator.unit.Measurement"
+        return "openff.units.unit.Measurement"
 
     if issubclass(object_type, unit.Quantity):
-        return "openff.evaluator.unit.Quantity"
+        return "openff.units.unit.Quantity"
 
     qualified_name = object_type.__qualname__
 
@@ -95,18 +95,18 @@ def _type_to_type_string(object_type):
 
 
 def serialize_quantity(quantity):
-    """Serializes a openff.evaluator.unit.Quantity into a dictionary of the form
+    """Serializes a openff.units.unit.Quantity into a dictionary of the form
     `{'value': quantity.value_in_unit(quantity.unit), 'unit': quantity.unit}`
 
     Parameters
     ----------
-    quantity : openff.evaluator.unit.Quantity
+    quantity : openff.units.unit.Quantity
         The quantity to serialize
 
     Returns
     -------
     dict of str and str
-        A dictionary representation of a openff.evaluator.unit.Quantity
+        A dictionary representation of a openff.units.unit.Quantity
         with keys of {"value", "unit"}
     """
 
@@ -115,17 +115,17 @@ def serialize_quantity(quantity):
 
 
 def deserialize_quantity(serialized):
-    """Deserialize a openff.evaluator.unit.Quantity from a dictionary.
+    """Deserialize a openff.units.unit.Quantity from a dictionary.
 
     Parameters
     ----------
     serialized : dict of str and str
-        A dictionary representation of a openff.evaluator.unit.Quantity
+        A dictionary representation of a openff.units.unit.Quantity
         which must have keys {"value", "unit"}
 
     Returns
     -------
-    openff.evaluator.unit.Quantity
+    openff.units.unit.Quantity
         The deserialized quantity.
     """
 
@@ -141,36 +141,36 @@ def deserialize_quantity(serialized):
 
 
 def serialize_measurement(measurement):
-    """Serializes a `openff.evaluator.unit.Measurement` into a dictionary of the form
+    """Serializes a `openff.units.unit.Measurement` into a dictionary of the form
     `{'value', 'error'}`.
 
     Parameters
     ----------
-    measurement : openff.evaluator.unit.Measurement
+    measurement : openff.units.unit.Measurement
         The measurement to serialize
 
     Returns
     -------
     dict of str and str
-        A dictionary representation of a openff.evaluator.unit.Measurement
+        A dictionary representation of a openff.units.unit.Measurement
         with keys of {"value", "error"}
     """
     return {"value": measurement.value, "error": measurement.error}
 
 
 def deserialize_measurement(serialized):
-    """Deserialize a `openff.evaluator.unit.Measurement` from a dictionary of the form
+    """Deserialize a `openff.units.unit.Measurement` from a dictionary of the form
     `{'value', 'error'}`.
 
     Parameters
     ----------
     serialized : dict of str and str
-        A dictionary representation of a `openff.evaluator.unit.Measurement`
+        A dictionary representation of a `openff.units.unit.Measurement`
         which must have keys {"value", "error"}
 
     Returns
     -------
-    openff.evaluator.unit.Measurement
+    openff.units.unit.Measurement
         The deserialized measurement.
     """
 
@@ -281,11 +281,11 @@ class TypedJSONEncoder(json.JSONEncoder):
         # Otherwise, we need to add a @type attribute to it.
         type_tag = _type_to_type_string(type_to_serialize)
 
-        if type_tag == "openff.evaluator.unit.Unit":
+        if type_tag == "openff.units.unit.Unit":
             type_to_serialize = unit.Unit
-        if type_tag == "openff.evaluator.unit.Quantity":
+        if type_tag == "openff.units.unit.Quantity":
             type_to_serialize = unit.Quantity
-        if type_tag == "openff.evaluator.unit.Measurement":
+        if type_tag == "openff.units.unit.Measurement":
             type_to_serialize = unit.Measurement
 
         custom_encoder = None
