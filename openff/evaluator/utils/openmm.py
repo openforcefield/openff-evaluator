@@ -448,7 +448,7 @@ def perturbed_gaff_system(
                 parameter_value *= simtk_unit.angstrom
             elif parameter_key.attribute == "k":
                 parameter_value *= (
-                    simtk_unit.kilocalorie_per_mole / simtk_unit.angstrom**2
+                    simtk_unit.kilocalorie_per_mole / simtk_unit.angstrom ** 2
                 )
 
         elif parameter_key.tag == "Angle":
@@ -456,7 +456,7 @@ def perturbed_gaff_system(
                 parameter_value *= simtk_unit.degree
             elif parameter_key.attribute == "k":
                 parameter_value *= (
-                    simtk_unit.kilocalorie_per_mole / simtk_unit.radians**2
+                    simtk_unit.kilocalorie_per_mole / simtk_unit.radians ** 2
                 )
 
         elif parameter_key.tag == "vdW":
@@ -513,7 +513,7 @@ def perturbed_gaff_system(
             kbond *= (
                 (1.0 + scale_amount)
                 * simtk_unit.kilocalorie_per_mole
-                / simtk_unit.angstrom**2
+                / simtk_unit.angstrom ** 2
             )
             parameter_value = kbond
 
@@ -570,7 +570,7 @@ def perturbed_gaff_system(
             kangle *= (
                 (1.0 + scale_amount)
                 * simtk_unit.kilocalorie_per_mole
-                / simtk_unit.radians**2
+                / simtk_unit.radians ** 2
             )
             parameter_value = kangle
 

@@ -124,7 +124,7 @@ def test_same_component_batching():
         Density(
             thermodynamic_state=thermodynamic_state,
             substance=Substance.from_components("O", "C"),
-            value=0.0 * unit.kilogram / unit.meter**3,
+            value=0.0 * unit.kilogram / unit.meter ** 3,
         ),
         EnthalpyOfVaporization(
             thermodynamic_state=thermodynamic_state,
@@ -134,7 +134,7 @@ def test_same_component_batching():
         Density(
             thermodynamic_state=thermodynamic_state,
             substance=Substance.from_components("O", "CO"),
-            value=0.0 * unit.kilogram / unit.meter**3,
+            value=0.0 * unit.kilogram / unit.meter ** 3,
         ),
         EnthalpyOfVaporization(
             thermodynamic_state=thermodynamic_state,
@@ -171,7 +171,7 @@ def test_shared_component_batching():
         Density(
             thermodynamic_state=thermodynamic_state,
             substance=Substance.from_components("O", "C"),
-            value=0.0 * unit.kilogram / unit.meter**3,
+            value=0.0 * unit.kilogram / unit.meter ** 3,
         ),
         EnthalpyOfVaporization(
             thermodynamic_state=thermodynamic_state,
@@ -181,7 +181,7 @@ def test_shared_component_batching():
         Density(
             thermodynamic_state=thermodynamic_state,
             substance=Substance.from_components("O", "CO"),
-            value=0.0 * unit.kilogram / unit.meter**3,
+            value=0.0 * unit.kilogram / unit.meter ** 3,
         ),
         EnthalpyOfVaporization(
             thermodynamic_state=thermodynamic_state,

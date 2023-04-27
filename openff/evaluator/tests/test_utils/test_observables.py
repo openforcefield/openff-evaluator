@@ -703,10 +703,10 @@ def test_subtract_observables(value_a, value_b, expected_value):
                     object_type,
                 ),
                 _mock_observable(
-                    8.0 * unit.kelvin**2,
+                    8.0 * unit.kelvin ** 2,
                     [
-                        ("vdW", "[#1:1]", "epsilon", 20.0 * unit.kelvin**2),
-                        ("vdW", "[#6:1]", "epsilon", 16.0 * unit.kelvin**2),
+                        ("vdW", "[#1:1]", "epsilon", 20.0 * unit.kelvin ** 2),
+                        ("vdW", "[#6:1]", "epsilon", 16.0 * unit.kelvin ** 2),
                     ],
                     object_type,
                 ),
@@ -722,10 +722,10 @@ def test_subtract_observables(value_a, value_b, expected_value):
                     object_type,
                 ),
                 _mock_observable(
-                    8.0 * unit.kelvin**2,
+                    8.0 * unit.kelvin ** 2,
                     [
-                        ("vdW", "[#1:1]", "epsilon", 4.0 * unit.kelvin**2),
-                        ("vdW", "[#6:1]", "epsilon", 8.0 * unit.kelvin**2),
+                        ("vdW", "[#1:1]", "epsilon", 4.0 * unit.kelvin ** 2),
+                        ("vdW", "[#6:1]", "epsilon", 8.0 * unit.kelvin ** 2),
                     ],
                     object_type,
                 ),
@@ -954,7 +954,7 @@ def test_frame_magic_functions(key):
                 {"Temperature": ObservableArray(value=numpy.ones(2) * unit.kelvin)}
             ),
             "Volume",
-            numpy.ones(1) * unit.nanometer**3,
+            numpy.ones(1) * unit.nanometer ** 3,
             pytest.raises(ValueError),
             "The length of the data (1) must match the length of the data already in "
             "the frame (2).",
@@ -1002,7 +1002,7 @@ def test_frame_from_openmm(pressure):
         ObservableType.KineticEnergy: 5939.683117957521 * unit.kilojoule / unit.mole,
         ObservableType.TotalEnergy: 13874.51498645249 * unit.kilojoule / unit.mole,
         ObservableType.Temperature: 286.38157154881503 * unit.kelvin,
-        ObservableType.Volume: 26.342326662784938 * unit.nanometer**3,
+        ObservableType.Volume: 26.342326662784938 * unit.nanometer ** 3,
         ObservableType.Density: 0.6139877476363793 * unit.gram / unit.milliliter,
     }
 
@@ -1014,7 +1014,7 @@ def test_frame_from_openmm(pressure):
             13874.51498645249 * unit.kilojoule / unit.mole
             + pressure
             * 26.342326662784938
-            * unit.nanometer**3
+            * unit.nanometer ** 3
             * unit.avogadro_constant
         )
         assert numpy.isclose(observable_frame["Enthalpy"].value[0], expected_enthalpy)
@@ -1105,7 +1105,7 @@ def test_frame_join():
                 ObservableFrame(
                     {
                         "Volume": ObservableArray(
-                            value=numpy.ones(2) * unit.nanometer**3
+                            value=numpy.ones(2) * unit.nanometer ** 3
                         )
                     }
                 ),

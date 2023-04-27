@@ -233,7 +233,9 @@ class TaproomDataSet(PhysicalPropertyDataSet):
         """
         from openff.toolkit.topology import Molecule
 
-        receptor_molecule = Molecule.from_file(file_path, file_format=file_format)
+        receptor_molecule = Molecule.from_file(
+            file_path, file_format=file_format, allow_undefined_stereo=True
+        )
 
         return receptor_molecule.to_smiles()
 
@@ -310,10 +312,12 @@ class TaproomDataSet(PhysicalPropertyDataSet):
                 water_mole_fraction = 1.0 - salt_mole_fraction * 2
 
                 substance.add_component(
-                    component=sodium, amount=MoleFraction(salt_mole_fraction),
+                    component=sodium,
+                    amount=MoleFraction(salt_mole_fraction),
                 )
                 substance.add_component(
-                    component=chlorine, amount=MoleFraction(salt_mole_fraction),
+                    component=chlorine,
+                    amount=MoleFraction(salt_mole_fraction),
                 )
 
             substance.add_component(
@@ -324,7 +328,9 @@ class TaproomDataSet(PhysicalPropertyDataSet):
             guest_molecule_charge = (
                 0.0 * simtk_unit.elementary_charge
                 if guest_smiles is None
-                else Molecule.from_smiles(guest_smiles).total_charge
+                else Molecule.from_smiles(
+                    guest_smiles, allow_undefined_stereo=True
+                ).total_charge
             )
 
             net_charge = (host_molecule_charge + guest_molecule_charge).value_in_unit(
@@ -359,7 +365,9 @@ class TaproomDataSet(PhysicalPropertyDataSet):
 
     @staticmethod
     def _generate_lambda_scaling(
-        attach_lambdas: List[float], n_pull_windows: int, release_lambdas: List[float],
+        attach_lambdas: List[float],
+        n_pull_windows: int,
+        release_lambdas: List[float],
     ) -> Dict[str, Any]:
         """A help method to generate lambda scaling factors for use in error/convergence
         estimate.
@@ -443,16 +451,19 @@ class TaproomDataSet(PhysicalPropertyDataSet):
             The constructed metadata dictionary.
         """
 
-        from paprika.restraints.read_yaml import read_yaml
+        # from paprika.restraints.read_yaml import read_yaml
+        from paprika.restraints.taproom import read_yaml_schema
 
         # noinspection PyTypeChecker
-        guest_spec = read_yaml(guest_yaml_path)
+        guest_spec = read_yaml_schema(guest_yaml_path)
+        logger.info(f"Guest Spec: {guest_spec}")
 
         guest_aliases = {
             guest_alias: atom_mask
             for guest_alias_entry in guest_spec["aliases"]
             for guest_alias, atom_mask in guest_alias_entry.items()
         }
+        logger.info(f"Guest Aliases: {guest_aliases}")
 
         metadata = {
             "host_substance": host_substance,
@@ -475,13 +486,16 @@ class TaproomDataSet(PhysicalPropertyDataSet):
         for restraint in metadata["symmetry_restraints"]:
             del restraint["restraint"]
 
-        dummy_atom_offset = metadata["guest_restraints"][0]["attach"]["target"]
+        dummy_atom_offset = unit.Quantity(
+            metadata["guest_restraints"][0]["attach"]["target"]
+        )
         pull_distance = (
-            metadata["guest_restraints"][0]["pull"]["target"] - dummy_atom_offset
+            unit.Quantity(metadata["guest_restraints"][0]["pull"]["target"])
+            - dummy_atom_offset
         )
 
-        metadata["dummy_atom_offset"] = dummy_atom_offset * unit.angstrom
-        metadata["pull_distance"] = pull_distance * unit.angstrom
+        metadata["dummy_atom_offset"] = dummy_atom_offset
+        metadata["pull_distance"] = pull_distance
 
         unique_attach_lambdas = set()
         unique_n_pull_windows = set()
@@ -494,11 +508,12 @@ class TaproomDataSet(PhysicalPropertyDataSet):
         for orientation, host_yaml_path in host_yaml_paths.items():
 
             # noinspection PyTypeChecker
-            host_spec = read_yaml(host_yaml_path)
+            host_spec = read_yaml_schema(host_yaml_path)
 
             root_host_path = os.path.dirname(host_yaml_path)
             host_path = os.path.join(
-                root_host_path, host_spec["structure"].replace(".mol2", ".pdb"),
+                root_host_path,
+                host_spec["structure"]["pdb"],
             )
             unique_host_structures.add(host_path)
 
@@ -731,7 +746,13 @@ class TaproomDataSet(PhysicalPropertyDataSet):
 
                 # Host info
                 host_mol2_path = str(
-                    host_yaml_path.parent.joinpath(host_yaml["structure"])
+                    host_yaml_path.parent.joinpath(host_yaml["structure"]["mol2"])
+                )
+                host_sdf_path = str(
+                    host_yaml_path.parent.joinpath(host_yaml["structure"]["sdf"])
+                )
+                host_pdb_path = str(
+                    host_yaml_path.parent.joinpath(host_yaml["structure"]["pdb"])
                 )
                 host_monomer_path = None
                 if "monomer" in host_yaml:
@@ -739,15 +760,12 @@ class TaproomDataSet(PhysicalPropertyDataSet):
                         host_yaml_path.parent.joinpath(host_yaml["monomer"])
                     )
                 try:
-                    host_smiles = TaproomDataSet._molecule_to_smiles(host_mol2_path)
-                except NotImplementedError:
-                    host_sdf_path = str(
-                        host_yaml_path.parent.joinpath(
-                            host_yaml["structure"].replace("mol2", "sdf")
-                        )
-                    )
                     host_smiles = TaproomDataSet._molecule_to_smiles(
                         host_sdf_path, file_format="SDF"
+                    )
+                except NotImplementedError:
+                    host_smiles = TaproomDataSet._molecule_to_smiles(
+                        host_mol2_path, file_format="MOL2"
                     )
 
                 host_tleap_template = str(
@@ -757,19 +775,21 @@ class TaproomDataSet(PhysicalPropertyDataSet):
                 # Guest info
                 guest_mol2_path = str(
                     host_yaml_path.parent.joinpath(guest_name).joinpath(
-                        guest_yaml["structure"]
+                        guest_yaml["structure"]["mol2"]
+                    )
+                )
+                guest_sdf_path = str(
+                    host_yaml_path.parent.joinpath(guest_name).joinpath(
+                        guest_yaml["structure"]["sdf"]
                     )
                 )
                 try:
-                    guest_smiles = TaproomDataSet._molecule_to_smiles(guest_mol2_path)
-                except NotImplementedError:
-                    guest_sdf_path = str(
-                        host_yaml_path.parent.joinpath(guest_name).joinpath(
-                            guest_yaml["structure"].replace("mol2", "sdf")
-                        )
-                    )
                     guest_smiles = TaproomDataSet._molecule_to_smiles(
                         guest_sdf_path, file_format="SDF"
+                    )
+                except NotImplementedError:
+                    guest_smiles = TaproomDataSet._molecule_to_smiles(
+                        guest_mol2_path, file_format="MOL2"
                     )
 
                 # Build substance
@@ -813,12 +833,17 @@ class TaproomDataSet(PhysicalPropertyDataSet):
                     measured_property.metadata["host_file_paths"].update(
                         {
                             "host_mol2_path": host_mol2_path,
+                            "host_sdf_path": host_sdf_path,
+                            "host_pdb_path": host_pdb_path,
                             "host_monomer_path": host_monomer_path,
                             "host_tleap_template": host_tleap_template,
                         }
                     )
                     measured_property.metadata["guest_file_paths"].update(
-                        {"guest_mol2_path": guest_mol2_path}
+                        {
+                            "guest_mol2_path": guest_mol2_path,
+                            "guest_sdf_path": guest_sdf_path,
+                        }
                     )
 
                 all_properties.append(measured_property)
