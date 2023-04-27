@@ -3,16 +3,16 @@ from enum import Enum
 from typing import Union
 
 import numpy as np
+from openff.units import unit
+from openff.units.openmm import to_openmm
 from paprika.analysis import get_block_sem, load_trajectory, read_restraint_data
 
-from openff.evaluator import unit
 from openff.evaluator.forcefield.system import ParameterizedSystem
 from openff.evaluator.protocols.openmm import OpenMMSimulation
 from openff.evaluator.protocols.paprika.analysis import ComputePotentialEnergyGradient
 from openff.evaluator.protocols.paprika.restraints import ApplyRestraints
 from openff.evaluator.thermodynamics import Ensemble
 from openff.evaluator.utils import is_file_and_not_empty
-from openff.evaluator.utils.openmm import pint_quantity_to_openmm
 from openff.evaluator.workflow import workflow_protocol
 from openff.evaluator.workflow.attributes import InputAttribute, OutputAttribute
 
@@ -525,13 +525,13 @@ class PaprikaOpenMMSimulation(OpenMMSimulation):
 
         # We handle most things in OMM units here.
         temperature = self.thermodynamic_state.temperature
-        openmm_temperature = pint_quantity_to_openmm(temperature)
+        openmm_temperature = to_openmm(temperature)
 
         pressure = (
             None if self.ensemble == Ensemble.NVT else self.thermodynamic_state.pressure
         )
 
-        openmm_pressure = pint_quantity_to_openmm(pressure)
+        openmm_pressure = to_openmm(pressure)
 
         if openmm_temperature is None:
             raise ValueError(

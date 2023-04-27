@@ -21,9 +21,9 @@ except ImportError:
     import simtk.openmm as openmm
     from simtk.openmm import app
 
+from openff.units import unit
 from openff.units.openmm import to_openmm
 
-from openff.evaluator import unit
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.forcefield import (
     ForceFieldSource,
