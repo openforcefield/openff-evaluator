@@ -3,6 +3,7 @@ from enum import Enum
 from typing import Union
 
 import numpy as np
+import openmm.app as app
 from openff.units import unit
 from openff.units.openmm import to_openmm
 from paprika.analysis import get_block_sem, load_trajectory, read_restraint_data
@@ -271,16 +272,21 @@ class PaprikaOpenMMSimulation(OpenMMSimulation):
 
         # Load the restraints
         restraints = ApplyRestraints.load_restraints(self.restraints_path)
+        restraint_list = []
         if self.phase == "attach":
             restraint_list = restraints["guest"] + restraints["conformational"]
         elif self.phase == "pull":
-            restraint_list = []
             for restraint in restraints["guest"]:
                 # Find the distance `r` colvar restraint
                 if not restraint.mask3 and not restraint.mask4:
                     restraint_list.append(restraint)
         elif self.phase == "release":
             restraint_list = restraints["conformational"]
+
+        if len(restraint_list) == 0:
+            ValueError(
+                "There are no restraints configured, APR calculations require restraints."
+            )
 
         # Load the trajectory
         trajectory = load_trajectory(
@@ -296,7 +302,7 @@ class PaprikaOpenMMSimulation(OpenMMSimulation):
                 trajectory, restraint
             )
 
-            # Equlibrium position
+            # Equilibrium position
             equilibrium = restraint.phase[self.phase]["targets"][self.window_number]
 
             # Phase correction for torsions
@@ -398,7 +404,6 @@ class PaprikaOpenMMSimulation(OpenMMSimulation):
         integrator: simtk.openmm.Integrator
             The integrator to evolve the simulation with.
         """
-        from simtk.openmm import app
 
         # Define how many steps should be taken.
         total_number_of_steps = (
@@ -521,22 +526,20 @@ class PaprikaOpenMMSimulation(OpenMMSimulation):
         self._directory = directory
         self._available_resources = available_resources
 
-        from simtk.openmm import app
+        if self.thermodynamic_state.temperature is None:
+            raise ValueError(
+                "A temperature must be set to perform a simulation in any ensemble"
+            )
 
         # We handle most things in OMM units here.
         temperature = self.thermodynamic_state.temperature
         openmm_temperature = to_openmm(temperature)
 
-        pressure = (
-            None if self.ensemble == Ensemble.NVT else self.thermodynamic_state.pressure
-        )
-
-        openmm_pressure = to_openmm(pressure)
-
-        if openmm_temperature is None:
-            raise ValueError(
-                "A temperature must be set to perform a simulation in any ensemble"
-            )
+        pressure = None
+        openmm_pressure = None
+        if self.ensemble == Ensemble.NVT:
+            pressure = self.thermodynamic_state.pressure
+            openmm_pressure = to_openmm(pressure)
 
         if Ensemble(self.ensemble) == Ensemble.NPT and openmm_pressure is None:
             raise ValueError("A pressure must be set to perform an NPT simulation")
