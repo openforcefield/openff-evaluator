@@ -26,8 +26,6 @@
 
 .. |parameter_gradient_key|       replace:: :py:class:`~openff.evaluator.forcefield.ParameterGradientKey`
 
-.. |quantity|                     replace:: :py:class:`~openff.evaluator.utils.units.Quantity`
-
 Workflow Layers
 ===============
 
