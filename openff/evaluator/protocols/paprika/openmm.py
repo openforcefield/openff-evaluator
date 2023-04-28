@@ -460,7 +460,7 @@ class PaprikaOpenMMSimulation(OpenMMSimulation):
         # reporters.
         topology = app.PDBFile(self.input_coordinate_file).topology
         system = self.parameterized_system.system
-        simulation = self._Simulation(integrator, topology, system, current_step)
+        simulation = self._Simulation(integrator, topology, system, context, current_step)
 
         # Perform the simulation.
         checkpoint_counter = 0
