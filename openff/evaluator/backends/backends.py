@@ -144,8 +144,8 @@ class QueueWorkerResources(ComputeResources):
         self,
         number_of_threads=1,
         number_of_gpus=0,
-        preferred_gpu_toolkit=GPUToolkit.auto,
-        preferred_gpu_precision=GPUPrecision.mixed,
+        preferred_gpu_toolkit=ComputeResources.GPUPrecision.auto,
+        preferred_gpu_precision=ComputeResources.GPUPrecision.mixed,
         per_thread_memory_limit=1 * unit.gigabytes,
         wallclock_time_limit="01:00",
     ):
@@ -168,7 +168,12 @@ class QueueWorkerResources(ComputeResources):
             of minutes
         """
 
-        super().__init__(number_of_threads, number_of_gpus, preferred_gpu_toolkit, preferred_gpu_precision)
+        super().__init__(
+            number_of_threads,
+            number_of_gpus,
+            preferred_gpu_toolkit,
+            preferred_gpu_precision,
+        )
 
         self._per_thread_memory_limit = per_thread_memory_limit
         self._wallclock_time_limit = wallclock_time_limit

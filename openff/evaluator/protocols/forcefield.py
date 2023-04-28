@@ -23,7 +23,6 @@ except ImportError:
     import simtk.unit as openmm_unit
     from simtk.openmm import app
 
-from openff.units import unit
 from openff.units.openmm import to_openmm
 
 from openff.evaluator.attributes import UNDEFINED
@@ -443,9 +442,9 @@ class TemplateBuildSystem(BaseBuildSystem, abc.ABC):
 
         Parameters
         ----------
-        cutoff: openff.evaluator.unit.Quantity
+        cutoff: openff.units.unit.Quantity
             The non-bonded cutoff.
-        cell_vectors: openff.evaluator.unit.Quantity
+        cell_vectors: openff.units.unit.Quantity
             The full system's cell vectors.
 
         Returns
@@ -481,7 +480,7 @@ class TemplateBuildSystem(BaseBuildSystem, abc.ABC):
 
         Parameters
         ----------
-        cutoff: simtk.unit
+        cutoff: openmm.unit
             The non-bonded cutoff.
         gbsaModel: str
             The GBSA model to use, if specified.
@@ -525,7 +524,7 @@ class TemplateBuildSystem(BaseBuildSystem, abc.ABC):
             The molecule to parameterize.
         force_field_source: ForceFieldSource
             The tleap source which describes which parameters to apply.
-        cutoff: simtk.unit
+        cutoff: openmm.Unit
             The non-bonded cutoff.
 
         Returns
@@ -745,18 +744,17 @@ class BuildLigParGenSystem(TemplateBuildSystem):
 
         Returns
         -------
-        simtk.openmm.app.ForceField
+        openmm.app.ForceField
             The force field template.
         """
-        from simtk import unit as simtk_unit
 
         initial_request_url = force_field_source.request_url
         empty_stream = io.BytesIO(b"\r\n")
 
         total_charge = molecule.total_charge
 
-        if isinstance(total_charge, simtk_unit.Quantity):
-            total_charge = total_charge.value_in_unit(simtk_unit.elementary_charge)
+        if isinstance(total_charge, openmm_unit.Quantity):
+            total_charge = total_charge.value_in_unit(openmm_unit.elementary_charge)
 
         charge_model = "cm1abcc"
 
@@ -843,7 +841,6 @@ class BuildLigParGenSystem(TemplateBuildSystem):
         simtk.openmm.System
             The parameterized system.
         """
-        from simtk import unit as simtk_unit
 
         template = self._built_template(molecule, force_field_source)
 
@@ -852,7 +849,7 @@ class BuildLigParGenSystem(TemplateBuildSystem):
         box_vectors = np.eye(3) * 10.0
 
         openmm_topology = off_topology.to_openmm()
-        openmm_topology.setPeriodicBoxVectors(box_vectors * simtk_unit.nanometer)
+        openmm_topology.setPeriodicBoxVectors(box_vectors * openmm_unit.nanometer)
 
         system = template.createSystem(
             topology=openmm_topology,
@@ -882,7 +879,6 @@ class BuildLigParGenSystem(TemplateBuildSystem):
         system: simtk.openmm.System
             The system object to apply the OPLS mixing rules to.
         """
-        from simtk import unit as simtk_unit
 
         forces = [system.getForce(index) for index in range(system.getNumForces())]
         forces = [force for force in forces if isinstance(force, openmm.NonbondedForce)]
@@ -936,7 +932,7 @@ class BuildLigParGenSystem(TemplateBuildSystem):
                 custom_force.addExclusion(index_a, index_b)
 
                 if not np.isclose(
-                    epsilon.value_in_unit(simtk_unit.kilojoule_per_mole), 0.0
+                    epsilon.value_in_unit(openmm_unit.kilojoule_per_mole), 0.0
                 ):
                     sigma_14 = np.sqrt(
                         lennard_jones_parameters[index_a][0]
@@ -1039,7 +1035,6 @@ class BuildTLeapSystem(TemplateBuildSystem):
         str
             The file path to the `rst7` file.
         """
-        from simtk import unit as simtk_unit
 
         # Change into the working directory.
         with temporarily_change_directory(directory):
@@ -1048,7 +1043,7 @@ class BuildTLeapSystem(TemplateBuildSystem):
 
             # Save the molecule charges to a file.
             charges = [
-                x.value_in_unit(simtk_unit.elementary_charge)
+                x.value_in_unit(openmm_unit.elementary_charge)
                 for x in molecule.partial_charges
             ]
 
@@ -1281,17 +1276,14 @@ class BuildTLeapSystem(TemplateBuildSystem):
 
             if force_field_source.custom_frcmod:
                 if len(force_field_source.custom_frcmod["GBSA"]) != 0:
-                    from simtk.openmm import CustomGBForce, GBSAOBCForce
-                    from simtk.openmm.app import element as E
-                    from simtk.openmm.app.internal.customgbforces import (
-                        _get_bonded_atom_list,
-                    )
+                    from openmm.app import element as E
+                    from openmm.app.internal.customgbforces import _get_bonded_atom_list
 
                     # Get GB Force object from system
                     gbsa_force = None
                     for force in system.getForces():
-                        if isinstance(force, CustomGBForce) or isinstance(
-                            force, GBSAOBCForce
+                        if isinstance(force, openmm.CustomGBForce) or isinstance(
+                            force, openmm.GBSAOBCForce
                         ):
                             gbsa_force = force
 

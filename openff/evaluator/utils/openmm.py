@@ -492,6 +492,8 @@ def perturbed_gaff_system(
         The created system as well as the value of the specified ``parameter``.
     """
 
+    import parmed
+
     if not os.path.isfile(topology_path):
         logger.info(
             "GAFF topology file not found, returning an empty `system` object and "
@@ -535,7 +537,7 @@ def perturbed_gaff_system(
         return perturbed_system, parameter_value
 
     # Load Topology and System XML
-    structure = pmd.load_file(topology_path)
+    structure = parmed.load_file(topology_path)
     with open(system_path, "r") as f:
         original_system = openmm.XmlSerializer.deserialize(f.read())
     perturbed_system = copy.deepcopy(original_system)
@@ -546,7 +548,7 @@ def perturbed_gaff_system(
         bond_list = []
 
         # Get Bond parameters
-        bonds = str(pmd.tools.printBonds(structure)).split("\n")
+        bonds = str(parmed.tools.printBonds(structure)).split("\n")
         for i, bond in enumerate(bonds):
             if i == 0 or i == len(bonds) - 1:
                 continue
@@ -596,7 +598,7 @@ def perturbed_gaff_system(
         angle_list = []
 
         # Get Angle parameters
-        angles = str(pmd.tools.printAngles(structure)).split("\n")
+        angles = str(parmed.tools.printAngles(structure)).split("\n")
         for i, angle in enumerate(angles):
             if i == 0 or i == len(angles) - 1:
                 continue
@@ -677,7 +679,7 @@ def perturbed_gaff_system(
             parameter_value = lj_depth * openmm_unit.kilocalorie_per_mole
 
         # Update LJ parameters with perturbed parameters
-        pmd.tools.changeLJSingleType(
+        parmed.tools.changeLJSingleType(
             structure,
             f"@%{parameter_key.smirks}",
             lj_radius,
