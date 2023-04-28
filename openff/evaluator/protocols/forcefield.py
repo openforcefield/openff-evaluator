@@ -16,9 +16,11 @@ import requests
 
 try:
     import openmm
+    import openmm.unit as openmm_unit
     from openmm import app
 except ImportError:
     import simtk.openmm as openmm
+    import simtk.unit as openmm_unit
     from simtk.openmm import app
 
 from openff.units import unit
@@ -88,7 +90,7 @@ class BaseBuildSystem(Protocol, abc.ABC):
     )
 
     @staticmethod
-    def _repartition_hydrogen_mass(system, coordinate_path, hydrogen_mass=3.024):
+    def _repartition_hydrogen_mass(system, coordinate_path, hydrogen_mass=3.024*openmm_unit.dalton):
         """Repartitions masses of hydrogen atoms and the heavy atoms it
         is bonded to.
 
@@ -120,13 +122,12 @@ class BaseBuildSystem(Protocol, abc.ABC):
             ):
                 transfer_mass = hydrogen_mass - system.getParticleMass(
                     atom2.index
-                ) / to_openmm(unit.dalton)
+                )
 
                 system.setParticleMass(atom2.index, hydrogen_mass)
                 system.setParticleMass(
                     atom1.index,
-                    system.getParticleMass(atom1.index) / to_openmm(unit.dalton)
-                    - transfer_mass,
+                    system.getParticleMass(atom1.index) - transfer_mass,
                 )
 
     @staticmethod

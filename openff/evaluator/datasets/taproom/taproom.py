@@ -473,13 +473,10 @@ class TaproomDataSet(PhysicalPropertyDataSet):
             "wall_restraints": cls._unnest_restraint_specs(
                 guest_spec["restraints"]["wall_restraints"]
             ),
-            "symmetry_restraints": cls._unnest_restraint_spec(
+            "symmetry_restraints": cls._unnest_restraint_specs(
                 guest_spec["symmetry_correction"]["restraints"]
             ),
         }
-
-        for restraint in metadata["symmetry_restraints"]:
-            del restraint["restraint"]
 
         dummy_atom_offset = unit.Quantity(
             metadata["guest_restraints"][0]["attach"]["target"]

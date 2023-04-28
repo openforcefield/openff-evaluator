@@ -29,10 +29,10 @@ class _GenerateRestraints(Protocol, abc.ABC):
         """Converts a list of ``paprika`` restraint objects to
         a list of JSON compatible dictionary representations
         """
-        from paprika.io import NumpyEncoder
+        from paprika.io import PaprikaEncoder
 
         return [
-            json.loads(json.dumps(restraint.__dict__, cls=NumpyEncoder))
+            json.loads(json.dumps(restraint.__dict__, cls=PaprikaEncoder))
             for restraint in restraints
         ]
 
@@ -417,10 +417,10 @@ class ApplyRestraints(Protocol):
             The loaded `paprika` restraint objects.
         """
 
-        from paprika.io import json_numpy_obj_hook
+        from paprika.io import PaprikaDecoder
 
         with open(file_path) as file:
-            restraints_dictionary = json.load(file, object_hook=json_numpy_obj_hook)
+            restraints_dictionary = json.load(file, cls=PaprikaDecoder)
 
         restraints = {
             restraint_type: cls._parse_restraints(restraints_dictionary[restraint_type])
@@ -462,7 +462,7 @@ class ApplyRestraints(Protocol):
                     restraint,
                     self.phase,
                     self.window_index,
-                    flat_bottom=restraint_type in ["symmetry", "wall"],
+                    #flat_bottom=restraint_type in ["symmetry", "wall"],
                     force_group=force_groups[restraint_type],
                 )
 

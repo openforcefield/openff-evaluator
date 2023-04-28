@@ -16,10 +16,12 @@ from openff.units import unit
 from openff.units.openmm import from_openmm, to_openmm
 
 try:
+    import openmm
     import openmm.app as app
     import openmm.unit as openmm_unit
 except ImportError:
-    from simtk.openmm import app
+    import simtk.openmm.app as app
+    import simtk.openmm as openmm
     import simtk.unit as openmm_unit
 
 from openff.evaluator.backends import ComputeResources
@@ -480,11 +482,12 @@ class OpenMMSimulation(BaseSimulation):
         temperature = self.thermodynamic_state.temperature
         openmm_temperature = to_openmm(temperature)
 
-        pressure = (
-            None if self.ensemble == Ensemble.NVT else self.thermodynamic_state.pressure
-        )
-
-        openmm_pressure = to_openmm(pressure)
+        if self.ensemble == Ensemble.NVT:
+            pressure = None
+            openmm_pressure = None
+        else:
+            pressure = self.thermodynamic_state.pressure
+            openmm_pressure = to_openmm(pressure)
 
         if openmm_temperature is None:
             raise ValueError(
