@@ -11,9 +11,6 @@
 .. |parameter_gradient|      replace:: :py:class:`~openff.evaluator.forcefield.ParameterGradient`
 .. |parameter_gradient_key|  replace:: :py:class:`~openff.evaluator.forcefield.ParameterGradientKey`
 
-.. |quantity|                replace:: :py:class:`~openff.evaluator.utils.units.Quantity`
-.. |measurement|             replace:: :py:class:`~openff.evaluator.utils.units.Measurement`
-
 .. |float|                   replace:: :py:class:`~float`
 .. |int|                     replace:: :py:class:`~int`
 

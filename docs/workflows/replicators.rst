@@ -33,8 +33,6 @@
 .. |replicator_value|             replace:: :py:class:`~openff.evaluator.workflow.utils.ReplicatorValue`
 .. |placeholder_id|               replace:: :py:attr:`~openff.evaluator.workflow.schemas.ProtocolReplicator.placeholder_id`
 
-.. |quantity|                     replace:: :py:class:`~openff.evaluator.utils.units.Quantity`
-
 Replicators
 ===========
 
