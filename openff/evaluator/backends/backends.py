@@ -144,7 +144,7 @@ class QueueWorkerResources(ComputeResources):
         self,
         number_of_threads=1,
         number_of_gpus=0,
-        preferred_gpu_toolkit=ComputeResources.GPUPrecision.auto,
+        preferred_gpu_toolkit=ComputeResources.GPUToolkit.auto,
         preferred_gpu_precision=ComputeResources.GPUPrecision.mixed,
         per_thread_memory_limit=1 * unit.gigabytes,
         wallclock_time_limit="01:00",
