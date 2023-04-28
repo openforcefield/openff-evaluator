@@ -90,7 +90,9 @@ class BaseBuildSystem(Protocol, abc.ABC):
     )
 
     @staticmethod
-    def _repartition_hydrogen_mass(system, coordinate_path, hydrogen_mass=3.024*openmm_unit.dalton):
+    def _repartition_hydrogen_mass(
+        system, coordinate_path, hydrogen_mass=3.024 * openmm_unit.dalton
+    ):
         """Repartitions masses of hydrogen atoms and the heavy atoms it
         is bonded to.
 
@@ -120,9 +122,7 @@ class BaseBuildSystem(Protocol, abc.ABC):
                 app.element.hydrogen,
                 None,
             ):
-                transfer_mass = hydrogen_mass - system.getParticleMass(
-                    atom2.index
-                )
+                transfer_mass = hydrogen_mass - system.getParticleMass(atom2.index)
 
                 system.setParticleMass(atom2.index, hydrogen_mass)
                 system.setParticleMass(

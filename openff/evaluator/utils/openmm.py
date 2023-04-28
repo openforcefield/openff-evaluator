@@ -6,20 +6,15 @@ import logging
 import os
 import shutil
 import tempfile
-from typing import TYPE_CHECKING, Optional, Tuple
+from typing import TYPE_CHECKING, List, Optional, Tuple
 
 import numpy
-import parmed as pmd
+import openmm
+from openff.units import unit
+from openmm import app
+from openmm import unit as openmm_unit
 
-try:
-    import openmm
-    import openmm.app as app
-    import openmm.unit as _openmm_unit
-except ImportError:
-    from simtk import openmm
-    import simtk.openmm.app as app
-    import simtk.unit as _openmm_unit
-
+from openff.evaluator.attributes.attributes import UndefinedAttribute
 from openff.evaluator.forcefield import ParameterGradientKey
 
 if TYPE_CHECKING:
@@ -41,16 +36,18 @@ def setup_platform_with_resources(compute_resources, high_precision=False):
     high_precision: bool
         If true, a platform with the highest possible precision (double
         for CUDA and OpenCL, Reference for CPU only) will be returned.
+        For GPU platforms, this overrides the precision level in
+        `compute_resources`.
+
     Returns
     -------
     Platform
         The created platform
     """
-    from simtk.openmm import Platform
+    from openmm import Platform
 
     # Setup the requested platform:
     if compute_resources.number_of_gpus > 0:
-        # TODO: Make sure use mixing precision - CUDA, OpenCL.
         # TODO: Deterministic forces = True
 
         from openff.evaluator.backends import ComputeResources
@@ -58,34 +55,47 @@ def setup_platform_with_resources(compute_resources, high_precision=False):
         toolkit_enum = ComputeResources.GPUToolkit(
             compute_resources.preferred_gpu_toolkit
         )
-
-        # A platform which runs on GPUs has been requested.
-        platform_name = (
-            "CUDA"
-            if toolkit_enum == ComputeResources.GPUToolkit.CUDA
-            else ComputeResources.GPUToolkit.OpenCL
+        precision_level = ComputeResources.GPUPrecision(
+            compute_resources.preferred_gpu_precision
         )
 
-        # noinspection PyCallByClass,PyTypeChecker
-        platform = Platform.getPlatformByName(platform_name)
+        # Get platform for running on GPUs.
+        if toolkit_enum == ComputeResources.GPUToolkit.auto:
+            from openmmtools.utils import get_fastest_platform
 
+            # noinspection PyCallByClass,PyTypeChecker
+            platform = get_fastest_platform(minimum_precision=precision_level)
+
+        elif toolkit_enum == ComputeResources.GPUToolkit.CUDA:
+            # noinspection PyCallByClass,PyTypeChecker
+            platform = Platform.getPlatformByName("CUDA")
+
+        elif toolkit_enum == ComputeResources.GPUToolkit.OpenCL:
+            # noinspection PyCallByClass,PyTypeChecker
+            platform = Platform.getPlatformByName("OpenCL")
+
+        else:
+            raise KeyError(f"Specified GPU toolkit {toolkit_enum} is not supported.")
+
+        # Set GPU device index
         if compute_resources.gpu_device_indices is not None:
-            property_platform_name = platform_name
-
-            if toolkit_enum == ComputeResources.GPUToolkit.CUDA:
-                property_platform_name = platform_name.lower().capitalize()
-
+            # `DeviceIndex` is used by both CUDA and OpenCL
             platform.setPropertyDefaultValue(
-                property_platform_name + "DeviceIndex",
+                "DeviceIndex",
                 compute_resources.gpu_device_indices,
             )
 
+        # Set GPU precision level
+        platform.setPropertyDefaultValue("Precision", precision_level.value)
         if high_precision:
             platform.setPropertyDefaultValue("Precision", "double")
 
+        # Print platform information
         logger.info(
-            "Setting up an openmm platform on GPU {}".format(
-                compute_resources.gpu_device_indices or 0
+            "Setting up an openmm platform on GPU {} with {} kernel and {} precision".format(
+                compute_resources.gpu_device_indices or 0,
+                platform.getName(),
+                platform.getPropertyDefaultValue("Precision"),
             )
         )
 
@@ -96,6 +106,7 @@ def setup_platform_with_resources(compute_resources, high_precision=False):
             platform.setPropertyDefaultValue(
                 "Threads", str(compute_resources.number_of_threads)
             )
+
         else:
             # noinspection PyCallByClass,PyTypeChecker
             platform = Platform.getPlatformByName("Reference")
@@ -116,7 +127,7 @@ def disable_pbc(system):
 
     Parameters
     ----------
-    system: simtk.openmm.system
+    system: openmm.system
         The system which should have periodic boundary conditions
         disabled.
     """
@@ -141,12 +152,14 @@ def system_subset(
     force_field: "ForceField",
     topology: "Topology",
     scale_amount: Optional[float] = None,
-) -> Tuple["openmm.System", "_openmm_unit.Quantity"]:
+) -> Tuple["openmm.System", "unit.Quantity"]:
     """Produces an OpenMM system containing the minimum number of forces while
     still containing a specified force field parameter, and those other parameters
     which may interact with it (e.g. in the case of vdW parameters).
+
     The value of the parameter of interest may optionally be perturbed by an amount
     specified by ``scale_amount``.
+
     Parameters
     ----------
     parameter_key
@@ -158,13 +171,14 @@ def system_subset(
     scale_amount: float, optional
         The optional amount to perturb the ``parameter`` by such that
         ``parameter = (1.0 + scale_amount) * parameter``.
+
     Returns
     -------
         The created system as well as the value of the specified ``parameter``.
     """
 
     # As this method deals mainly with the toolkit, we stick to
-    # simtk units here.
+    # openmm units here.
     from openff.toolkit.typing.engines.smirnoff import ForceField
 
     # Create the force field subset.
@@ -205,6 +219,18 @@ def system_subset(
 
     handler = force_field_subset.get_parameter_handler(parameter_key.tag)
 
+    if handler._OPENMMTYPE == openmm.CustomNonbondedForce:
+        vdw_handler = force_field_subset.get_parameter_handler("vdW")
+        # we need a generic blank parameter to work around this toolkit issue
+        # <https://github.com/openforcefield/openff-toolkit/issues/1102>
+        vdw_handler.add_parameter(
+            parameter_kwargs={
+                "smirks": "[*:1]",
+                "epsilon": 0.0 * unit.kilocalories_per_mole,
+                "sigma": 1.0 * unit.angstrom,
+            }
+        )
+
     parameter = (
         handler
         if parameter_key.smirks is None
@@ -212,37 +238,226 @@ def system_subset(
     )
 
     parameter_value = getattr(parameter, parameter_key.attribute)
-    is_quantity = isinstance(parameter_value, _openmm_unit.Quantity)
+    is_quantity = isinstance(parameter_value, unit.Quantity)
 
     if not is_quantity:
-        parameter_value = parameter_value * _openmm_unit.dimensionless
+        parameter_value = parameter_value * unit.dimensionless
 
     # Optionally perturb the parameter of interest.
     if scale_amount is not None:
-        if numpy.isclose(parameter_value.value_in_unit(parameter_value.unit), 0.0):
+        if numpy.isclose(parameter_value.m, 0.0):
             # Careful thought needs to be given to this. Consider cases such as
             # epsilon or sigma where negative values are not allowed.
             parameter_value = (
                 scale_amount if scale_amount > 0.0 else 0.0
-            ) * parameter_value.unit
+            ) * parameter_value.units
         else:
             parameter_value *= 1.0 + scale_amount
 
-    if not isinstance(parameter_value, _openmm_unit.Quantity):
-        # Handle the case where OMM down-converts a dimensionless quantity to a float.
-        parameter_value = parameter_value * _openmm_unit.dimensionless
+    # Pretty sure Pint doesn't do this, but need to check
+    # if not isinstance(parameter_value, unit.Quantity):
+    #     # Handle the case where OMM down-converts a dimensionless quantity to a float.
+    #     parameter_value = parameter_value * unit.dimensionless
 
     setattr(
         parameter,
         parameter_key.attribute,
-        parameter_value
-        if is_quantity
-        else parameter_value.value_in_unit(_openmm_unit.dimensionless),
+        parameter_value if is_quantity else parameter_value.m_as(unit.dimensionless),
     )
 
     # Create the parameterized sub-system.
+
     system = force_field_subset.create_openmm_system(topology)
     return system, parameter_value
+
+
+def update_context_with_positions(
+    context: openmm.Context,
+    positions: openmm_unit.Quantity,
+    box_vectors: Optional[openmm_unit.Quantity],
+):
+    """Set a collection of positions and box vectors on an OpenMM context and compute
+    any extra positions such as v-site positions.
+    Parameters
+    ----------
+    context
+        The OpenMM context to set the positions on.
+    positions
+        A unit wrapped numpy array with shape=(n_atoms, 3) that contains the positions
+        to set.
+    box_vectors
+        An optional unit wrapped numpy array with shape=(3, 3) that contains the box
+        vectors to set.
+    """
+
+    system = context.getSystem()
+
+    n_vsites = sum(
+        1 for i in range(system.getNumParticles()) if system.isVirtualSite(i)
+    )
+
+    n_atoms = system.getNumParticles() - n_vsites
+
+    if len(positions) != n_atoms and len(positions) != (n_atoms + n_vsites):
+        raise ValueError(
+            "The length of the positions array does not match either the "
+            "the number of atoms or the number of atoms + v-sites."
+        )
+
+    if n_vsites > 0 and len(positions) != (n_atoms + n_vsites):
+        new_positions = numpy.zeros((system.getNumParticles(), 3))
+
+        i = 0
+
+        for j in range(system.getNumParticles()):
+            if not system.isVirtualSite(j):
+                # take an old position and update the index
+                new_positions[j] = positions[i].value_in_unit(openmm_unit.nanometers)
+                i += 1
+
+        positions = new_positions * openmm_unit.nanometers
+
+    if box_vectors is not None:
+        context.setPeriodicBoxVectors(*box_vectors)
+
+    context.setPositions(positions)
+
+    if n_vsites > 0:
+        context.computeVirtualSites()
+
+
+def update_context_with_pdb(
+    context: openmm.Context,
+    pdb_file: app.PDBFile,
+):
+    """Extracts the positions and box vectors from a PDB file object and set these
+    on an OpenMM context and compute any extra positions such as v-site positions.
+    Parameters
+    ----------
+    context
+        The OpenMM context to set the positions on.
+    pdb_file
+        The PDB file object to extract the positions and box vectors from.
+    """
+
+    positions = pdb_file.getPositions(asNumpy=True)
+
+    box_vectors = pdb_file.topology.getPeriodicBoxVectors()
+
+    if box_vectors is None:
+        box_vectors = context.getSystem().getDefaultPeriodicBoxVectors()
+
+    update_context_with_positions(context, positions, box_vectors)
+
+
+def extract_atom_indices(system: openmm.System) -> List[int]:
+    """Returns the indices of atoms in a system excluding any virtual sites."""
+
+    return [i for i in range(system.getNumParticles()) if not system.isVirtualSite(i)]
+
+
+def extract_positions(
+    state: openmm.State,
+    particle_indices: Optional[List[int]] = None,
+) -> openmm_unit.Quantity:
+    """Extracts the positions from an OpenMM context, optionally excluding any v-site
+    positions which should be uniquely defined by the atomic positions.
+    """
+
+    positions = state.getPositions(asNumpy=True)
+
+    if particle_indices is not None:
+        positions = positions[particle_indices]
+
+    return positions
+
+
+def openmm_quantity_to_pint(openmm_quantity):
+    """Converts a `openmm.unit.Quantity` to a `openff.evaluator.unit.Quantity`.
+    Parameters
+    ----------
+    openmm_quantity: openmm.unit.Quantity
+        The quantity to convert.
+    Returns
+    -------
+    openff.evaluator.unit.Quantity
+        The converted quantity.
+    """
+
+    from openff.units.openmm import from_openmm
+
+    if openmm_quantity is None or isinstance(openmm_quantity, UndefinedAttribute):
+        return None
+
+    return from_openmm(openmm_quantity)
+
+
+def pint_quantity_to_openmm(pint_quantity):
+    """Converts a `openff.evaluator.unit.Quantity` to a `openmm.unit.Quantity`.
+    Notes
+    -----
+    Not all pint units are available in OpenMM.
+    Parameters
+    ----------
+    pint_quantity: openff.evaluator.unit.Quantity
+        The quantity to convert.
+    Returns
+    -------
+    openmm.unit.Quantity
+        The converted quantity.
+    """
+
+    from openff.units.openmm import to_openmm
+
+    if pint_quantity is None or isinstance(pint_quantity, UndefinedAttribute):
+        return None
+
+    return to_openmm(pint_quantity)
+
+
+def openmm_unit_to_string(input_unit: openmm.unit.Unit) -> str:
+    """
+    Serialize an openmm.unit.Unit to string.
+    Taken from https://github.com/openforcefield/openff-toolkit/blob/97462b88a4b50a608e10f735ee503c655f9b64d3/openff/toolkit/utils/utils.py#L170-L204
+    """
+    if input_unit == openmm_unit.dimensionless:
+        return "dimensionless"
+
+    # Decompose output_unit into a tuples of (base_dimension_unit, exponent)
+    unit_string = None
+
+    for unit_component in input_unit.iter_base_or_scaled_units():
+        unit_component_name = unit_component[0].name
+        # Convert, for example "elementary charge" --> "elementary_charge"
+        unit_component_name = unit_component_name.replace(" ", "_")
+        if unit_component[1] == 1:
+            contribution = "{}".format(unit_component_name)
+        else:
+            contribution = "{}**{}".format(unit_component_name, int(unit_component[1]))
+        if unit_string is None:
+            unit_string = contribution
+        else:
+            unit_string += " * {}".format(contribution)
+
+    return unit_string
+
+
+def openmm_quantity_to_string(input_quantity: openmm.unit.Quantity) -> str:
+    """
+    Serialize a openmm.unit.Quantity to string.
+    Taken from https://github.com/openforcefield/openff-toolkit/blob/97462b88a4b50a608e10f735ee503c655f9b64d3/openff/toolkit/utils/utils.py
+    """
+    if input_quantity is None:
+        return None
+
+    unitless_value = input_quantity.value_in_unit(input_quantity.unit)
+
+    if isinstance(unitless_value, numpy.ndarray):
+        unitless_value = list(unitless_value)
+
+    unit_string = openmm_unit_to_string(input_quantity.unit)
+
+    return f"{unitless_value} * {unit_string}"
 
 
 def perturbed_gaff_system(
@@ -251,7 +466,7 @@ def perturbed_gaff_system(
     topology_path: str,
     enable_pbc: bool,
     scale_amount: Optional[float] = None,
-) -> Tuple["openmm.System", "_openmm_unit.Quantity"]:
+) -> Tuple["openmm.System", "openmm_unit.Quantity"]:
     """Produces an OpenMM system with perturbed parameters used in gradient
     calculations.
 
@@ -291,31 +506,31 @@ def perturbed_gaff_system(
 
         if parameter_key.tag == "Bond":
             if parameter_key.attribute == "length":
-                parameter_value *= _openmm_unit.angstrom
+                parameter_value *= openmm_unit.angstrom
             elif parameter_key.attribute == "k":
                 parameter_value *= (
-                    _openmm_unit.kilocalorie_per_mole / _openmm_unit.angstrom**2
+                    openmm_unit.kilocalorie_per_mole / openmm_unit.angstrom**2
                 )
 
         elif parameter_key.tag == "Angle":
             if parameter_key.attribute == "theta":
-                parameter_value *= _openmm_unit.degree
+                parameter_value *= openmm_unit.degree
             elif parameter_key.attribute == "k":
                 parameter_value *= (
-                    _openmm_unit.kilocalorie_per_mole / _openmm_unit.radians**2
+                    openmm_unit.kilocalorie_per_mole / openmm_unit.radians**2
                 )
 
         elif parameter_key.tag == "vdW":
             if parameter_key.attribute == "rmin_half":
-                parameter_value *= _openmm_unit.angstrom
+                parameter_value *= openmm_unit.angstrom
             elif parameter_key.attribute == "epsilon":
-                parameter_value *= _openmm_unit.kilocalorie_per_mole
+                parameter_value *= openmm_unit.kilocalorie_per_mole
 
         elif parameter_key.tag == "GBSA":
             if parameter_key.attribute == "radius":
-                parameter_value *= _openmm_unit.nanometer
+                parameter_value *= openmm_unit.nanometer
             elif parameter_key.attribute == "scale":
-                parameter_value *= _openmm_unit.dimensionless
+                parameter_value *= openmm_unit.dimensionless
 
         return perturbed_system, parameter_value
 
@@ -350,13 +565,13 @@ def perturbed_gaff_system(
 
         # Set parameter_value with simtk units
         if parameter_key.attribute == "length":
-            rbond *= (1.0 + scale_amount) * _openmm_unit.angstrom
+            rbond *= (1.0 + scale_amount) * openmm_unit.angstrom
             parameter_value = rbond
         elif parameter_key.attribute == "k":
             kbond *= (
                 (1.0 + scale_amount)
-                * _openmm_unit.kilocalorie_per_mole
-                / _openmm_unit.angstrom**2
+                * openmm_unit.kilocalorie_per_mole
+                / openmm_unit.angstrom**2
             )
             parameter_value = kbond
 
@@ -404,13 +619,13 @@ def perturbed_gaff_system(
 
         # Set parameter_value with simtk units
         if parameter_key.attribute == "theta":
-            theta *= (1.0 + scale_amount) * _openmm_unit.degree
+            theta *= (1.0 + scale_amount) * openmm_unit.degree
             parameter_value = theta
         elif parameter_key.attribute == "k":
             kangle *= (
                 (1.0 + scale_amount)
-                * _openmm_unit.kilocalorie_per_mole
-                / _openmm_unit.radians**2
+                * openmm_unit.kilocalorie_per_mole
+                / openmm_unit.radians**2
             )
             parameter_value = kangle
 
@@ -456,10 +671,10 @@ def perturbed_gaff_system(
         # Determine which parameter to perturb
         if parameter_key.attribute == "rmin_half":
             lj_radius *= 1.0 + scale_amount
-            parameter_value = lj_radius * _openmm_unit.angstrom
+            parameter_value = lj_radius * openmm_unit.angstrom
         elif parameter_key.attribute == "epsilon":
             lj_depth *= 1.0 + scale_amount
-            parameter_value = lj_depth * _openmm_unit.kilocalorie_per_mole
+            parameter_value = lj_depth * openmm_unit.kilocalorie_per_mole
 
         # Update LJ parameters with perturbed parameters
         pmd.tools.changeLJSingleType(
@@ -524,9 +739,9 @@ def perturbed_gaff_system(
             empty_system = openmm.System()
             parameter_value = scale_amount if scale_amount > 0.0 else 0.0
             if parameter_key.attribute == "radius":
-                parameter_value *= _openmm_unit.nanometer
+                parameter_value *= openmm_unit.nanometer
             elif parameter_key.attribute == "scale":
-                parameter_value *= _openmm_unit.dimensionless
+                parameter_value *= openmm_unit.dimensionless
 
             return empty_system, parameter_value
 
@@ -570,9 +785,9 @@ def perturbed_gaff_system(
 
         # Convert parameter to a openmm.unit.Quantity
         if parameter_key.attribute == "radius":
-            parameter_value = GB_radii * _openmm_unit.nanometer
+            parameter_value = GB_radii * openmm_unit.nanometer
         elif parameter_key.attribute == "scale":
-            parameter_value = GB_scale * _openmm_unit.dimensionless
+            parameter_value = GB_scale * openmm_unit.dimensionless
 
     else:
         raise ValueError(
@@ -580,7 +795,3 @@ def perturbed_gaff_system(
         )
 
     return perturbed_system, parameter_value
-
-
-def extract_atom_indices():
-    return None

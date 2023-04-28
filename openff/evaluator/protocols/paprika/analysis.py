@@ -114,8 +114,7 @@ class AnalyzeAPRPhase(Protocol):
 
         self.result = Observable(
             unit.Measurement(
-                multiplier
-                * results[self.phase]["ti-block"]["fe"],
+                multiplier * results[self.phase]["ti-block"]["fe"],
                 results[self.phase]["ti-block"]["sem"],
             )
         )

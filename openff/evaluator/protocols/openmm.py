@@ -15,15 +15,6 @@ import pandas as pd
 from openff.units import unit
 from openff.units.openmm import from_openmm, to_openmm
 
-try:
-    import openmm
-    import openmm.app as app
-    import openmm.unit as openmm_unit
-except ImportError:
-    import simtk.openmm.app as app
-    import simtk.openmm as openmm
-    import simtk.unit as openmm_unit
-
 from openff.evaluator.backends import ComputeResources
 from openff.evaluator.forcefield import (
     ParameterGradient,
@@ -40,23 +31,23 @@ from openff.evaluator.utils.observables import (
 )
 from openff.evaluator.utils.openmm import (
     disable_pbc,
+    extract_atom_indices,
+    extract_positions,
     perturbed_gaff_system,
     setup_platform_with_resources,
     system_subset,
+    update_context_with_pdb,
+    update_context_with_positions,
 )
 from openff.evaluator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
 from openff.evaluator.utils.utils import is_file_and_not_empty
 from openff.evaluator.workflow import workflow_protocol
 
 if TYPE_CHECKING:
+    import openmm
     from mdtraj import Trajectory
     from openff.toolkit.topology import Topology
     from openff.toolkit.typing.engines.smirnoff import ForceField
-
-    try:
-        import openmm
-    except ImportError:
-        from simtk import openmm
 
 logger = logging.getLogger(__name__)
 
@@ -92,6 +83,8 @@ def _evaluate_energies(
     -------
         The array containing the evaluated potentials.
     """
+    import openmm
+    from openmm import unit as openmm_unit
 
     integrator = openmm.VerletIntegrator(0.1 * openmm_unit.femtoseconds)
 
@@ -104,16 +97,19 @@ def _evaluate_energies(
     temperature = to_openmm(thermodynamic_state.temperature)
     beta = 1.0 / (openmm_unit.BOLTZMANN_CONSTANT_kB * temperature)
 
-    pressure = to_openmm(thermodynamic_state.pressure)
+    if thermodynamic_state.pressure is None:
+        pressure = None
+    else:
+        pressure = to_openmm(thermodynamic_state.pressure)
 
     for frame_index in range(trajectory.n_frames):
         positions = trajectory.xyz[frame_index]
+        box_vectors = None
 
         if enable_pbc:
             box_vectors = trajectory.openmm_boxes(frame_index)
-            openmm_context.setPeriodicBoxVectors(*box_vectors)
 
-        openmm_context.setPositions(positions)
+        update_context_with_positions(openmm_context, positions, box_vectors)
 
         state = openmm_context.getState(getEnergy=True)
 
@@ -191,6 +187,8 @@ def _compute_gradients(
         The amount to perturb for the force field parameter by.
     """
 
+    import openmm
+
     use_gaff_system = False
     if gaff_system_path is not None or gaff_topology_path is not None:
         assert gaff_system_path is not None and gaff_topology_path is not None
@@ -199,9 +197,10 @@ def _compute_gradients(
     gradients = defaultdict(list)
     observables.clear_gradients()
 
-    # Make sure the PBC are set on the topology otherwise the cut-off will be
-    # set incorrectly.
-    topology.box_vectors = trajectory.openmm_boxes(0) if enable_pbc else None
+    if enable_pbc:
+        # Make sure the PBC are set on the topology otherwise the cut-off will be
+        # set incorrectly.
+        topology.box_vectors = from_openmm(trajectory.openmm_boxes(0))
 
     for parameter_key in gradient_parameters:
         # Build the slightly perturbed systems.
@@ -236,9 +235,6 @@ def _compute_gradients(
         if not enable_pbc:
             disable_pbc(reverse_system)
             disable_pbc(forward_system)
-
-        reverse_parameter_value = from_openmm(reverse_parameter_value)
-        forward_parameter_value = from_openmm(forward_parameter_value)
 
         # Evaluate the energies using the reverse and forward sub-systems.
         if reverse_xml != forward_xml and (
@@ -363,21 +359,17 @@ class OpenMMEnergyMinimisation(BaseEnergyMinimisation):
     """
 
     def _execute(self, directory, available_resources):
+        import openmm
+        from openmm import app
+        from openmm import unit as openmm_unit
+
         platform = setup_platform_with_resources(available_resources)
 
         input_pdb_file = app.PDBFile(self.input_coordinate_file)
         system = self.parameterized_system.system
 
         if not self.enable_pbc:
-            for force_index in range(system.getNumForces()):
-                force = system.getForce(force_index)
-
-                if not isinstance(force, openmm.NonbondedForce):
-                    continue
-
-                force.setNonbondedMethod(
-                    0
-                )  # NoCutoff = 0, NonbondedMethod.CutoffNonPeriodic = 1
+            disable_pbc(system=system)
 
         # TODO: Expose the constraint tolerance
         integrator = openmm.VerletIntegrator(0.002 * openmm_unit.picoseconds)
@@ -385,17 +377,15 @@ class OpenMMEnergyMinimisation(BaseEnergyMinimisation):
             input_pdb_file.topology, system, integrator, platform
         )
 
-        box_vectors = input_pdb_file.topology.getPeriodicBoxVectors()
-
-        if box_vectors is None:
-            box_vectors = simulation.system.getDefaultPeriodicBoxVectors()
-
-        simulation.context.setPeriodicBoxVectors(*box_vectors)
-        simulation.context.setPositions(input_pdb_file.positions)
+        update_context_with_pdb(simulation.context, input_pdb_file)
 
         simulation.minimizeEnergy(to_openmm(self.tolerance), self.max_iterations)
 
-        positions = simulation.context.getState(getPositions=True).getPositions()
+        positions = extract_positions(
+            simulation.context.getState(getPositions=True),
+            # Discard any v-sites.
+            extract_atom_indices(system),
+        )
 
         self.output_coordinate_file = os.path.join(directory, "minimised.pdb")
 
@@ -411,7 +401,7 @@ class OpenMMSimulation(BaseSimulation):
     This protocol employs the Langevin integrator implemented in the ``openmmtools``
     package to propagate the state of the system using the default BAOAB splitting [1]_.
     Further, simulations which are run in the NPT simulation will have a Monte Carlo
-    barostat (simtk.openmm.MonteCarloBarostat) applied every 25 steps (the OpenMM
+    barostat (openmm.MonteCarloBarostat) applied every 25 steps (the OpenMM
     default).
 
     References
@@ -457,11 +447,48 @@ class OpenMMSimulation(BaseSimulation):
         openmm file reporters.
         """
 
-        def __init__(self, integrator, topology, system, current_step):
+        def __init__(self, integrator, topology, system, context, current_step):
             self.integrator = integrator
             self.topology = topology
             self.system = system
+            self.context = context
             self.currentStep = current_step
+
+    class _DCDReporter:
+        def __init__(self, file, append=False):
+            self._append = append
+
+            mode = "r+b" if append else "wb"
+
+            self._out = open(file, mode)
+
+            self._dcd = None
+            self._atom_indices = None
+
+        def report(self, simulation, state):
+            from openmm import app
+
+            if self._dcd is None:
+                self._dcd = app.DCDFile(
+                    self._out,
+                    simulation.topology,
+                    simulation.integrator.getStepSize(),
+                    simulation.currentStep,
+                    0,
+                    self._append,
+                )
+
+                system = simulation.system
+
+                self._atom_indices = extract_atom_indices(system)
+
+            self._dcd.writeModel(
+                extract_positions(state, self._atom_indices),
+                periodicBoxVectors=state.getPeriodicBoxVectors(),
+            )
+
+        def __del__(self):
+            self._out.close()
 
     def __init__(self, protocol_id):
         super().__init__(protocol_id)
@@ -477,6 +504,7 @@ class OpenMMSimulation(BaseSimulation):
 
     def _execute(self, directory, available_resources):
         import mdtraj
+        from openmm import app
 
         # We handle most things in OMM units here.
         temperature = self.thermodynamic_state.temperature
@@ -576,7 +604,7 @@ class OpenMMSimulation(BaseSimulation):
 
         Returns
         -------
-        simtk.openmm.Context
+        openmm.Context
             The created openmm context which takes advantage
             of the available compute resources.
         openmmtools.integrators.LangevinIntegrator
@@ -584,7 +612,9 @@ class OpenMMSimulation(BaseSimulation):
             the simulation.
         """
 
+        import openmm
         import openmmtools
+        from openmm import app
 
         # Create a platform with the correct resources.
         if not self.allow_gpu_platforms:
@@ -630,6 +660,7 @@ class OpenMMSimulation(BaseSimulation):
 
         # Initialize the context with the correct positions etc.
         input_pdb_file = app.PDBFile(self.input_coordinate_file)
+        box_vectors = None
 
         if self.enable_pbc:
             # Optionally set up the box vectors.
@@ -640,9 +671,10 @@ class OpenMMSimulation(BaseSimulation):
                     "The input file must contain box vectors when running with PBC."
                 )
 
-            context.setPeriodicBoxVectors(*box_vectors)
+        update_context_with_positions(
+            context, input_pdb_file.getPositions(asNumpy=True), box_vectors
+        )
 
-        context.setPositions(input_pdb_file.positions)
         context.setVelocitiesToTemperature(temperature)
 
         return context, integrator
@@ -655,10 +687,10 @@ class OpenMMSimulation(BaseSimulation):
         current_step_number: int
             The total number of steps which have been taken so
             far.
-        context: simtk.openmm.Context
+        context: openmm.Context
             The current OpenMM context.
         """
-        from simtk import openmm
+        import openmm
 
         # Write the current state to disk
         state = context.getState(
@@ -796,7 +828,7 @@ class OpenMMSimulation(BaseSimulation):
 
         Parameters
         ----------
-        context: simtk.openmm.Context
+        context: openmm.Context
             The current OpenMM context.
 
         Returns
@@ -804,7 +836,7 @@ class OpenMMSimulation(BaseSimulation):
         int
             The current step number.
         """
-        from simtk import openmm
+        import openmm
 
         current_step_number = 0
 
@@ -918,12 +950,12 @@ class OpenMMSimulation(BaseSimulation):
 
         Parameters
         ----------
-        context: simtk.openmm.Context
+        context: openmm.Context
             The OpenMM context to run with.
-        integrator: simtk.openmm.Integrator
+        integrator: openmm.Integrator
             The integrator to evolve the simulation with.
         """
-        from simtk.openmm import app
+        from openmm import app
 
         # Define how many steps should be taken.
         total_number_of_steps = (
@@ -939,9 +971,7 @@ class OpenMMSimulation(BaseSimulation):
         # Build the reporters which we will use to report the state
         # of the simulation.
         append_trajectory = is_file_and_not_empty(self._local_trajectory_path)
-        dcd_reporter = app.DCDReporter(
-            self._local_trajectory_path, 0, append_trajectory
-        )
+        dcd_reporter = self._DCDReporter(self._local_trajectory_path, append_trajectory)
 
         statistics_file = open(self._local_statistics_path, "a+")
 
@@ -962,7 +992,13 @@ class OpenMMSimulation(BaseSimulation):
         # reporters.
         topology = app.PDBFile(self.input_coordinate_file).topology
         system = self.parameterized_system.system
-        simulation = self._Simulation(integrator, topology, system, current_step)
+        simulation = self._Simulation(
+            integrator,
+            topology,
+            system,
+            context,
+            current_step,
+        )
 
         # Perform the simulation.
         checkpoint_counter = 0
@@ -1002,7 +1038,7 @@ class OpenMMSimulation(BaseSimulation):
 
         final_state = context.getState(getPositions=True)
 
-        positions = final_state.getPositions()
+        positions = extract_positions(final_state, extract_atom_indices(system))
         topology.setPeriodicBoxVectors(final_state.getPeriodicBoxVectors())
 
         with open(self.output_coordinate_file, "w+") as configuration_file:
