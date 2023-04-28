@@ -100,6 +100,7 @@ class _Multiprocessor:
                             worker_logger.info(
                                 f"SLURMJOBID: {os.environ.get('SLURM_JOBID')}"
                             )
+
                         worker_logger.info(f"PLATFORM: {platform.platform()}")
                         worker_logger.info("-----------------------------------------")
                         worker_logger.info(
@@ -287,12 +288,6 @@ class BaseDaskJobQueueBackend(BaseDaskBackend):
         assert cluster_type is not None
 
         if resources_per_worker.number_of_gpus > 0:
-            if (
-                resources_per_worker.preferred_gpu_toolkit
-                == ComputeResources.GPUToolkit.OpenCL
-            ):
-                raise ValueError("The OpenCL gpu backend is not currently supported.")
-
             if resources_per_worker.number_of_gpus > 1:
                 raise ValueError("Only one GPU per worker is currently supported.")
 
@@ -330,7 +325,7 @@ class BaseDaskJobQueueBackend(BaseDaskBackend):
             The extra commands to run.
         """
         env_extra = dask.config.get(
-            f"jobqueue.{self._cluster_type}.env-extra", default=[]
+            f"jobqueue.{self._cluster_type}.job-script-prologue", default=[]
         )
 
         if self._setup_script_commands is not None:
@@ -348,7 +343,7 @@ class BaseDaskJobQueueBackend(BaseDaskBackend):
             The extra header options to add.
         """
         job_extra = dask.config.get(
-            f"jobqueue.{self._cluster_type}.job-extra", default=[]
+            f"jobqueue.{self._cluster_type}.job-extra-directives", default=[]
         )
 
         if self._extra_script_options is not None:
@@ -495,7 +490,6 @@ class DaskLSFBackend(BaseDaskJobQueueBackend):
     --------
     dask_jobqueue.LSFCluster
     DaskPBSBackend
-    DaskSLURMBackend
     """
 
     def __init__(
@@ -524,6 +518,7 @@ class DaskLSFBackend(BaseDaskJobQueueBackend):
         >>> resources = QueueWorkerResources(number_of_threads=1,
         >>>                                  number_of_gpus=1,
         >>>                                  preferred_gpu_toolkit=QueueWorkerResources.GPUToolkit.CUDA,
+        >>>                                  preferred_gpu_precision=QueueWorkerResources.GPUPrecision.mixed,
         >>>                                  wallclock_time_limit='05:00')
         >>>
         >>> # Define the set of commands which will set up the correct environment
@@ -596,9 +591,8 @@ class DaskPBSBackend(BaseDaskJobQueueBackend):
 
     See Also
     --------
-    dask_jobqueue.PBSCluster
+    dask_jobqueue.LSFCluster
     DaskLSFBackend
-    DaskSLURMBackend
     """
 
     def __init__(
@@ -614,7 +608,7 @@ class DaskPBSBackend(BaseDaskJobQueueBackend):
         resource_line=None,
         adaptive_class=None,
     ):
-        """Constructs a new DaskPBSBackend object
+        """Constructs a new DaskLSFBackend object
 
         Parameters
         ----------
@@ -633,6 +627,7 @@ class DaskPBSBackend(BaseDaskJobQueueBackend):
         >>> resources = QueueWorkerResources(number_of_threads=1,
         >>>                                  number_of_gpus=1,
         >>>                                  preferred_gpu_toolkit=QueueWorkerResources.GPUToolkit.CUDA,
+        >>>                                  preferred_gpu_precision=QueueWorkerResources.GPUPrecision.mixed,
         >>>                                  wallclock_time_limit='05:00')
         >>>
         >>> # Define the set of commands which will set up the correct environment
@@ -682,7 +677,6 @@ class DaskPBSBackend(BaseDaskJobQueueBackend):
 class DaskSLURMBackend(BaseDaskJobQueueBackend):
     """An openff-evaluator backend which uses a `dask_jobqueue.SLURMCluster`
     object to run calculations within an existing SLURM queue.
-
     See Also
     --------
     dask_jobqueue.SLURMCluster
@@ -706,7 +700,6 @@ class DaskSLURMBackend(BaseDaskJobQueueBackend):
         --------
         To create a SLURM queueing compute backend which will attempt to spin up
         workers which have access to a single GPU.
-
         >>> # Create a resource object which will request a worker with
         >>> # one gpu which will stay alive for five hours.
         >>> from openff.evaluator.backends import QueueWorkerResources
@@ -714,6 +707,7 @@ class DaskSLURMBackend(BaseDaskJobQueueBackend):
         >>> resources = QueueWorkerResources(number_of_threads=1,
         >>>                                  number_of_gpus=1,
         >>>                                  preferred_gpu_toolkit=QueueWorkerResources.GPUToolkit.CUDA,
+        >>>                                  preferred_gpu_precision=QueueWorkerResources.GPUPrecision.mixed,
         >>>                                  wallclock_time_limit='05:00')
         >>>
         >>> # Define the set of commands which will set up the correct environment
@@ -726,7 +720,7 @@ class DaskSLURMBackend(BaseDaskJobQueueBackend):
         >>> # ten workers with the requested resources depending on the calculation load.
         >>> from openff.evaluator.backends.dask import DaskSLURMBackend
         >>>
-        >>> pbs_backend = DaskPBSBackend(minimum_number_of_workers=1,
+        >>> slurm_backend = DaskSLURMBackend(minimum_number_of_workers=1,
         >>>                              maximum_number_of_workers=10,
         >>>                              resources_per_worker=resources,
         >>>                              queue_name='gpuqueue',
@@ -778,12 +772,6 @@ class DaskLocalCluster(BaseDaskBackend):
             )
 
         if resources_per_worker.number_of_gpus > 0:
-            if (
-                resources_per_worker.preferred_gpu_toolkit
-                == ComputeResources.GPUToolkit.OpenCL
-            ):
-                raise ValueError("The OpenCL gpu backend is not currently supported.")
-
             if resources_per_worker.number_of_gpus > 1:
                 raise ValueError("Only one GPU per worker is currently supported.")
 
@@ -802,7 +790,10 @@ class DaskLocalCluster(BaseDaskBackend):
 
     def start(self):
         self._cluster = distributed.LocalCluster(
-            n_workers=self._number_of_workers, threads_per_worker=1, processes=False
+            name=None,
+            n_workers=self._number_of_workers,
+            threads_per_worker=1,
+            processes=False,
         )
 
         if self._resources_per_worker.number_of_gpus > 0:

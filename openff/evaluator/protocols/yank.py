@@ -249,7 +249,7 @@ class BaseYankProtocol(Protocol, abc.ABC):
             A yaml compatible dictionary of YANK options.
         """
 
-        from openff.toolkit.utils import quantity_to_string
+        from openff.evaluator.utils.openmm import openmm_quantity_to_string
 
         platform_name = "CPU"
 
@@ -262,19 +262,27 @@ class BaseYankProtocol(Protocol, abc.ABC):
             )
 
             # A platform which runs on GPUs has been requested.
-            platform_name = (
-                "CUDA"
-                if toolkit_enum == ComputeResources.GPUToolkit.CUDA
-                else ComputeResources.GPUToolkit.OpenCL
-            )
+            if toolkit_enum == ComputeResources.GPUToolkit.auto:
+                platform_name = "fastest"
+
+            elif toolkit_enum == ComputeResources.GPUToolkit.CUDA:
+                platform_name = "CUDA"
+
+            elif toolkit_enum == ComputeResources.GPUToolkit.OpenCL:
+                platform_name = "OpenCL"
+
+            else:
+                raise KeyError(
+                    f"Specified GPU toolkit {toolkit_enum} is not supported in Yank."
+                )
 
         return {
             "verbose": self.verbose,
             "output_dir": ".",
-            "temperature": quantity_to_string(
+            "temperature": openmm_quantity_to_string(
                 to_openmm(self.thermodynamic_state.temperature)
             ),
-            "pressure": quantity_to_string(
+            "pressure": openmm_quantity_to_string(
                 to_openmm(self.thermodynamic_state.pressure)
             ),
             "minimize": False,
@@ -285,7 +293,7 @@ class BaseYankProtocol(Protocol, abc.ABC):
             "default_nsteps_per_iteration": self.steps_per_iteration,
             "start_from_trailblaze_samples": False,
             "checkpoint_interval": self.checkpoint_interval,
-            "default_timestep": quantity_to_string(to_openmm(self.timestep)),
+            "default_timestep": openmm_quantity_to_string(to_openmm(self.timestep)),
             "annihilate_electrostatics": True,
             "annihilate_sterics": False,
             "platform": platform_name,

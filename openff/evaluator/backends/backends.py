@@ -20,6 +20,14 @@ class ComputeResources:
 
         CUDA = "CUDA"
         OpenCL = "OpenCL"
+        auto = "auto"
+
+    class GPUPrecision(Enum):
+        """An enumeration of the different precision for GPU calculations."""
+
+        single = "single"
+        mixed = "mixed"
+        double = "double"
 
     @property
     def number_of_threads(self):
@@ -37,6 +45,11 @@ class ComputeResources:
         return self._preferred_gpu_toolkit
 
     @property
+    def preferred_gpu_precision(self):
+        """ComputeResources.GPUPrecision: The preferred precision level to use when running on GPUs."""
+        return self._preferred_gpu_precision
+
+    @property
     def gpu_device_indices(self):
         """str: The indices of the GPUs to run on. This is purely an internal
         implementation detail and should not be relied upon externally."""
@@ -46,7 +59,8 @@ class ComputeResources:
         self,
         number_of_threads=1,
         number_of_gpus=0,
-        preferred_gpu_toolkit=GPUToolkit.CUDA,
+        preferred_gpu_toolkit=GPUToolkit.auto,
+        preferred_gpu_precision=GPUPrecision.mixed,
     ):
         """Constructs a new ComputeResources object.
 
@@ -58,12 +72,15 @@ class ComputeResources:
             The number of GPUs available to a calculation worker.
         preferred_gpu_toolkit: ComputeResources.GPUToolkit, optional
             The preferred toolkit to use when running on GPUs.
+        preferred_gpu_precision: ComputeResources.GPUPrecision, optional
+            The preferred precision level to use when runnin on GPUs.
         """
 
         self._number_of_threads = number_of_threads
         self._number_of_gpus = number_of_gpus
 
         self._preferred_gpu_toolkit = preferred_gpu_toolkit
+        self._preferred_gpu_precision = preferred_gpu_precision
         # A workaround for when using a local cluster backend which is
         # strictly for internal purposes only for now.
         self._gpu_device_indices = None
@@ -81,6 +98,7 @@ class ComputeResources:
             "number_of_threads": self.number_of_threads,
             "number_of_gpus": self.number_of_gpus,
             "preferred_gpu_toolkit": self.preferred_gpu_toolkit,
+            "preferred_gpu_precision": self.preferred_gpu_precision,
             "_gpu_device_indices": self._gpu_device_indices,
         }
 
@@ -88,6 +106,7 @@ class ComputeResources:
         self._number_of_threads = state["number_of_threads"]
         self._number_of_gpus = state["number_of_gpus"]
         self._preferred_gpu_toolkit = state["preferred_gpu_toolkit"]
+        self._preferred_gpu_precision = state["preferred_gpu_precision"]
         self._gpu_device_indices = state["_gpu_device_indices"]
 
     def __eq__(self, other):
@@ -95,6 +114,7 @@ class ComputeResources:
             self.number_of_threads == other.number_of_threads
             and self.number_of_gpus == other.number_of_gpus
             and self.preferred_gpu_toolkit == other.preferred_gpu_toolkit
+            and self.preferred_gpu_precision == other.preferred_gpu_precision
         )
 
     def __ne__(self, other):
@@ -109,7 +129,7 @@ class QueueWorkerResources(ComputeResources):
 
     @property
     def per_thread_memory_limit(self):
-        """simtk.Quantity: The maximum amount of memory available to each thread, such that
+        """openmm.unit.Quantity: The maximum amount of memory available to each thread, such that
         the total memory limit will be `per_cpu_memory_limit * number_of_threads`."""
         return self._per_thread_memory_limit
 
@@ -124,7 +144,8 @@ class QueueWorkerResources(ComputeResources):
         self,
         number_of_threads=1,
         number_of_gpus=0,
-        preferred_gpu_toolkit=None,
+        preferred_gpu_toolkit=GPUToolkit.auto,
+        preferred_gpu_precision=GPUPrecision.mixed,
         per_thread_memory_limit=1 * unit.gigabytes,
         wallclock_time_limit="01:00",
     ):
@@ -139,7 +160,7 @@ class QueueWorkerResources(ComputeResources):
 
         Parameters
         ----------
-        per_thread_memory_limit: simtk.Quantity
+        per_thread_memory_limit: openmm.unit.Quantity
             The maximum amount of memory available to each thread.
         wallclock_time_limit: str
             The maximum amount of wall clock time that a worker can run for. This should
@@ -147,7 +168,7 @@ class QueueWorkerResources(ComputeResources):
             of minutes
         """
 
-        super().__init__(number_of_threads, number_of_gpus, preferred_gpu_toolkit)
+        super().__init__(number_of_threads, number_of_gpus, preferred_gpu_toolkit, preferred_gpu_precision)
 
         self._per_thread_memory_limit = per_thread_memory_limit
         self._wallclock_time_limit = wallclock_time_limit
