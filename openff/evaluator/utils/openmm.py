@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, List, Optional, Tuple
 
 import numpy
 import openmm
+from openff.interchange.exceptions import PluginCompatibilityError
 from openff.units import unit
 from openmm import app
 from openmm import unit as openmm_unit
@@ -247,7 +248,13 @@ def system_subset(
 
     # Create the parameterized sub-system.
 
-    system = force_field_subset.create_openmm_system(topology)
+    try:
+        system = force_field_subset.create_openmm_system(topology)
+    except PluginCompatibilityError:
+        system = force_field_subset.create_interchange(
+            topology,
+        ).to_openmm(combine_nonbonded_forces=False)
+
     return system, parameter_value
 
 
