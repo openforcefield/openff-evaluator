@@ -175,14 +175,14 @@ def test_smirnoff_plugin_gradients():
     topology = Topology.from_molecules([Molecule.from_smiles("C")] * 2)
     topology.box_vectors = [4, 4, 4] * unit.nanometer
 
-    epsilon = 0.1094
+    epsilon = 0.1094 * unit.kilocalories_per_mole
 
     custom_handler = DoubleExponentialHandler(version="0.3")
     custom_handler.add_parameter(
         parameter_kwargs={
             "smirks": "[#6X4:1]",
             "r_min": 1.908 * unit.angstrom,
-            "epsilon": epsilon * unit.kilocalories_per_mole,
+            "epsilon": epsilon,
         }
     )
     custom_handler.add_parameter(
@@ -224,6 +224,7 @@ def test_smirnoff_plugin_gradients():
         ComputeResources(),
         enable_pbc=False,
     )
+
     _compute_gradients(
         [
             ParameterGradientKey(
@@ -243,6 +244,5 @@ def test_smirnoff_plugin_gradients():
 
     assert numpy.isclose(
         observables[ObservableType.PotentialEnergy].gradients[0].value,
-        observables[ObservableType.PotentialEnergy].value
-        / (epsilon * unit.kilocalorie / unit.mole),
+        observables[ObservableType.PotentialEnergy].value / epsilon,
     )
