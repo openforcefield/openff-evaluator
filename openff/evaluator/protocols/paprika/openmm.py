@@ -6,7 +6,8 @@ import numpy as np
 import openmm.app as app
 from openff.units import unit
 from openff.units.openmm import to_openmm
-from paprika.analysis import get_block_sem, load_trajectory, read_restraint_data
+from paprika.analysis.utils import get_block_sem
+from paprika.io import load_trajectory, read_restraint_data
 
 from openff.evaluator.forcefield.system import ParameterizedSystem
 from openff.evaluator.protocols.openmm import OpenMMSimulation
