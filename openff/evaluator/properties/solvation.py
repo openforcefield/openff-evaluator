@@ -200,12 +200,12 @@ class SolvationFreeEnergy(PhysicalProperty):
             "parameterized_system", assign_vacuum_parameters.id
         )
         run_yank.gradient_parameters = ProtocolPath("parameter_gradient_keys", "global")
-        if use_implicit_solvent:
-            run_yank.use_implicit_solvent = True
-            run_yank.electrostatic_lambdas_1 = [1.0, 0.0, 0.0]
-            run_yank.steric_lambdas_1 = [1.0, 1.0, 0.0]
-            run_yank.electrostatic_lambdas_2 = [1.0, 0.0, 0.0]
-            run_yank.steric_lambdas_2 = [1.0, 1.0, 0.0]
+        # if use_implicit_solvent:
+        run_yank.use_implicit_solvent = use_implicit_solvent
+        # run_yank.electrostatic_lambdas_1 = [1.0, 0.0, 0.0]
+        # run_yank.steric_lambdas_1 = [1.0, 1.0, 0.0]
+        # run_yank.electrostatic_lambdas_2 = [1.0, 0.0, 0.0]
+        # run_yank.steric_lambdas_2 = [1.0, 1.0, 0.0]
         if lambda_values:
             run_yank.electrostatic_lambdas_1 = lambda_values["elec_1"]
             run_yank.steric_lambdas_1 = lambda_values["vdw_1"]
