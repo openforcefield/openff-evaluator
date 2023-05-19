@@ -4,6 +4,7 @@ import os
 import subprocess
 from typing import Optional, Union
 
+# import mdtraj
 import numpy as np
 import parmed as pmd
 from paprika.build.system import TLeap
@@ -29,7 +30,7 @@ from openff.evaluator.forcefield import (
     TLeapForceFieldSource,
 )
 from openff.evaluator.forcefield.system import ParameterizedSystem
-from openff.evaluator.protocols.forcefield import BaseBuildSystem, BuildSmirnoffSystem
+from openff.evaluator.protocols.forcefield import BaseBuildSystem
 from openff.evaluator.substances import Substance
 from openff.evaluator.utils import is_file_and_not_empty
 from openff.evaluator.utils.utils import temporarily_change_directory
@@ -83,7 +84,9 @@ class PaprikaBuildSystem(Protocol, abc.ABC):
         force_field_source = ForceFieldSource.from_json(self.force_field_path)
 
         if isinstance(force_field_source, SmirnoffForceFieldSource):
-            build_protocol = BuildSmirnoffSystem("")
+            build_protocol = PaprikaBuildSmirnoffSystem("")
+            build_protocol.host_file_paths = self.host_file_paths
+            build_protocol.guest_file_paths = self.guest_file_paths
 
         elif isinstance(force_field_source, TLeapForceFieldSource):
             build_protocol = PaprikaBuildTLeapSystem("")
@@ -102,6 +105,101 @@ class PaprikaBuildSystem(Protocol, abc.ABC):
         build_protocol.execute(directory, available_resources)
 
         self.parameterized_system = build_protocol.parameterized_system
+
+
+@workflow_protocol()
+class PaprikaBuildSmirnoffSystem(BaseBuildSystem):
+    """Parameterise a host-guest system with a given sminroff force field
+    using the `OpenFF toolkit` and charges from molecules.
+    """
+
+    host_file_paths = InputAttribute(
+        docstring="The paths for host related files.",
+        type_hint=dict,
+        default_value=UNDEFINED,
+    )
+    guest_file_paths = InputAttribute(
+        docstring="The paths for guest related files.",
+        type_hint=Union[dict, None],
+        default_value=None,
+    )
+
+    def _execute(self, directory, available_resources):
+        from openff.toolkit.topology import Molecule, Topology
+
+        pdb_file = app.PDBFile(self.coordinate_file_path)
+        # mdtraj_trajectory = mdtraj.load_pdb(self.coordinate_file_path)
+
+        force_field_source = ForceFieldSource.from_json(self.force_field_path)
+
+        if not isinstance(force_field_source, SmirnoffForceFieldSource):
+            raise ValueError(
+                "Only SMIRNOFF force fields are supported by this protocol."
+            )
+
+        force_field = force_field_source.to_force_field()
+
+        # Remove periodic vectors in PDB file if running implicit solvent or vacuum systems
+        if (
+            "GBSA" in force_field.registered_parameter_handlers
+            or "CustomGBSA" in force_field.registered_parameter_handlers
+            or self.create_system_in_vacuum
+        ):
+            pdb_file.topology.setPeriodicBoxVectors(None)
+
+        # Remove GBSA parameters in force field for vacuum environment
+        if self.create_system_in_vacuum:
+            for gbsa in ["GBSA", "CustomGBSA"]:
+                if gbsa in force_field.registered_parameter_handlers:
+                    force_field.deregister_parameter_handler(gbsa)
+
+        # Create the molecules to parameterize from the input substance
+        host_sdf_path = self.host_file_paths["host_sdf_path"]
+
+        unique_molecules = [
+            Molecule.from_file(host_sdf_path, allow_undefined_stereo=True),
+        ]
+
+        if self.guest_file_paths is not None:
+            guest_sdf_path = self.guest_file_paths["guest_sdf_path"]
+            unique_molecules.append(
+                Molecule.from_file(guest_sdf_path, allow_undefined_stereo=True),
+            )
+
+        # Create the topology to parameterize from the input coordinates and the
+        # expected molecule species.
+        topology = Topology.from_openmm(
+            pdb_file.topology, unique_molecules=unique_molecules
+        )
+        # topology = Topology.from_mdtraj(
+        #    mdtraj_trajectory.topology, unique_molecules
+        # )
+
+        system = force_field.create_openmm_system(
+            topology,
+            charge_from_molecules=unique_molecules,
+        )
+
+        if system is None:
+            raise RuntimeError(
+                "Failed to create a system from the specified topology and molecules."
+            )
+
+        if self.enable_hmr:
+            self._repartition_hydrogen_mass(system, self.coordinate_file_path)
+
+        system_xml = openmm.XmlSerializer.serialize(system)
+        system_path = os.path.join(directory, "system.xml")
+
+        with open(system_path, "w") as file:
+            file.write(system_xml)
+
+        self.parameterized_system = ParameterizedSystem(
+            substance=self.substance,
+            force_field=force_field_source,
+            topology_path=self.coordinate_file_path,
+            system_path=system_path,
+        )
 
 
 @workflow_protocol()

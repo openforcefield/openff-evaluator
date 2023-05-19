@@ -3,7 +3,7 @@ openff-evaluator
 A physical property evaluation toolkit from the Open Forcefield Consortium.
 """
 
-from openff.units import unit
+from openff.units import unit  # noqa: F401
 
 from ._version import get_versions
 from .plugins import register_default_plugins, register_external_plugins

@@ -15,7 +15,8 @@ from openff.evaluator.datasets import PhysicalPropertyDataSet, PropertyPhase, So
 from openff.evaluator.properties import HostGuestBindingAffinity
 from openff.evaluator.substances import Component, ExactAmount, MoleFraction, Substance
 from openff.evaluator.thermodynamics import ThermodynamicState
-from openff.evaluator.utils.exceptions import MissingOptionalDependency
+
+# from openff.evaluator.utils.exceptions import MissingOptionalDependency
 
 logger = logging.getLogger(__name__)
 
@@ -150,15 +151,12 @@ class TaproomDataSet(PhysicalPropertyDataSet):
         """
         super().__init__()
 
+        unlicensed_library = None
         try:
-            from openeye import oechem
+            from openeye import oechem  # noqa: F401
         except ImportError:
-            raise MissingOptionalDependency("openeye.oechem", False)
-
-        unlicensed_library = "openeye.oechem" if not oechem.OEChemIsLicensed() else None
-
-        # if unlicensed_library is not None:
-        #    raise MissingOptionalDependency(unlicensed_library, True)
+            logger.warn("OpenEye Toolkits not available, using RDKit instead.")
+            unlicensed_library = "openeye.oechem"
 
         self.toolkit = "rdkit" if unlicensed_library is not None else "openeye"
 
@@ -265,8 +263,8 @@ class TaproomDataSet(PhysicalPropertyDataSet):
         -------
             The built substance.
         """
+        import openmm.unit as openmm_unit
         from openff.toolkit.topology import Molecule
-        from simtk import unit as simtk_unit
 
         substance = Substance()
 
@@ -322,7 +320,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
 
             host_molecule_charge = Molecule.from_smiles(host_smiles).total_charge
             guest_molecule_charge = (
-                0.0 * simtk_unit.elementary_charge
+                0.0 * openmm_unit.elementary_charge
                 if guest_smiles is None
                 else Molecule.from_smiles(
                     guest_smiles, allow_undefined_stereo=True
@@ -330,7 +328,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
             )
 
             net_charge = (host_molecule_charge + guest_molecule_charge).value_in_unit(
-                simtk_unit.elementary_charge
+                openmm_unit.elementary_charge
             )
             n_counter_ions = abs(int(net_charge))
 

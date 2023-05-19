@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, List, Optional, Tuple
 import numpy
 import openmm
 from openff.units import unit
+from openff.units.openmm import from_openmm
 from openmm import app
 from openmm import unit as openmm_unit
 
@@ -238,35 +239,37 @@ def system_subset(
     )
 
     parameter_value = getattr(parameter, parameter_key.attribute)
-    is_quantity = isinstance(parameter_value, unit.Quantity)
+    is_quantity = isinstance(parameter_value, openmm_unit.Quantity)
 
     if not is_quantity:
-        parameter_value = parameter_value * unit.dimensionless
+        parameter_value = parameter_value * openmm_unit.dimensionless
 
     # Optionally perturb the parameter of interest.
     if scale_amount is not None:
-        if numpy.isclose(parameter_value.m, 0.0):
+        if numpy.isclose(parameter_value.value_in_unit(parameter_value.unit), 0.0):
             # Careful thought needs to be given to this. Consider cases such as
             # epsilon or sigma where negative values are not allowed.
             parameter_value = (
                 scale_amount if scale_amount > 0.0 else 0.0
-            ) * parameter_value.units
+            ) * parameter_value.unit
         else:
             parameter_value *= 1.0 + scale_amount
 
     # Pretty sure Pint doesn't do this, but need to check
-    # if not isinstance(parameter_value, unit.Quantity):
-    #     # Handle the case where OMM down-converts a dimensionless quantity to a float.
-    #     parameter_value = parameter_value * unit.dimensionless
+    if not isinstance(parameter_value, openmm_unit.Quantity):
+        # Handle the case where OMM down-converts a dimensionless quantity to a float.
+        parameter_value = parameter_value * openmm_unit.dimensionless
 
     setattr(
         parameter,
         parameter_key.attribute,
-        parameter_value if is_quantity else parameter_value.m_as(unit.dimensionless),
+        parameter_value
+        if is_quantity
+        else parameter_value.value_in_unit(openmm_unit.dimensionless),
     )
+    logger.info("The parameter value is {parameter_value}")
 
     # Create the parameterized sub-system.
-
     system = force_field_subset.create_openmm_system(topology)
     return system, parameter_value
 
@@ -384,7 +387,7 @@ def openmm_quantity_to_pint(openmm_quantity):
         The converted quantity.
     """
 
-    from openff.units.openmm import from_openmm
+    # from openff.units.openmm import from_openmm
 
     if openmm_quantity is None or isinstance(openmm_quantity, UndefinedAttribute):
         return None

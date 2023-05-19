@@ -227,6 +227,9 @@ def _compute_gradients(
                 perturbation_amount,
             )
 
+        logger.info("Reverse parameter values: {reverse_parameter_value}")
+        logger.info("Forward parameter values: {forward_parameter_value}")
+
         # Perform a cheap check to try and catch most cases where the systems energy
         # does not depend on this parameter.
         reverse_xml = openmm.XmlSerializer.serialize(reverse_system)
@@ -344,7 +347,7 @@ def _compute_gradients(
                     ),
                 )
             )
-
+    logger.info("Observables {observables}")
     for observable_type in observables:
         observables[observable_type] = ObservableArray(
             value=observables[observable_type].value,
