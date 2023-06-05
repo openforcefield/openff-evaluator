@@ -1,4 +1,5 @@
 import os
+from typing import Union
 
 import numpy as np
 from openff.units import unit
@@ -157,6 +158,16 @@ class ComputePotentialEnergyGradient(Protocol):
         type_hint=list,
         default_value=lambda: list(),
     )
+    host_file_paths = InputAttribute(
+        docstring="The paths for host related files.",
+        type_hint=Union[dict, None],
+        default_value=None,
+    )
+    guest_file_paths = InputAttribute(
+        docstring="The paths for guest related files.",
+        type_hint=Union[dict, None],
+        default_value=None,
+    )
     potential_energy_gradients = OutputAttribute(
         docstring="A list of the gradient of the potential energy w.r.t. to FF parameters.",
         type_hint=list,
@@ -168,7 +179,8 @@ class ComputePotentialEnergyGradient(Protocol):
 
     def _execute(self, directory, available_resources):
         import mdtraj
-        from simtk.openmm.app import Modeller, PDBFile
+        from openff.toolkit.topology import Molecule
+        from openmm.app import Modeller, PDBFile
 
         # Set-up the expected directory structure.
         windows_directory = os.path.join(directory, "window")
@@ -229,6 +241,11 @@ class ComputePotentialEnergyGradient(Protocol):
             gaff_system_path = self.input_system.system_path
             gaff_topology_path = self.input_system.system_path.replace("xml", "prmtop")
 
+        unique_molecules = [
+            Molecule.from_file(self.host_file_paths["host_sdf_path"]),
+            Molecule.from_file(self.guest_file_paths["guest_sdf_path"]),
+        ]
+
         _compute_gradients(
             self.gradient_parameters,
             observables,
@@ -237,6 +254,7 @@ class ComputePotentialEnergyGradient(Protocol):
             self.input_system.topology,
             trajectory,
             available_resources,
+            unique_molecules,
             gaff_system_path,
             gaff_topology_path,
             self.enable_pbc,

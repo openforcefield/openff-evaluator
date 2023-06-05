@@ -19,7 +19,7 @@ from openff.evaluator.attributes.attributes import UndefinedAttribute
 from openff.evaluator.forcefield import ParameterGradientKey
 
 if TYPE_CHECKING:
-    from openff.toolkit.topology import Topology
+    from openff.toolkit.topology import Molecule, Topology
     from openff.toolkit.typing.engines.smirnoff import ForceField
 
 logger = logging.getLogger(__name__)
@@ -152,6 +152,7 @@ def system_subset(
     parameter_key: ParameterGradientKey,
     force_field: "ForceField",
     topology: "Topology",
+    molecules: List["Molecule"] = None,
     scale_amount: Optional[float] = None,
 ) -> Tuple["openmm.System", "unit.Quantity"]:
     """Produces an OpenMM system containing the minimum number of forces while
@@ -169,6 +170,8 @@ def system_subset(
         The force field to create the system from (and optionally perturb).
     topology
         The topology of the system to apply the force field to.
+    molecules
+        A list of `Molecule` -- if set, use for `charge_from_molecules`
     scale_amount: float, optional
         The optional amount to perturb the ``parameter`` by such that
         ``parameter = (1.0 + scale_amount) * parameter``.
@@ -269,7 +272,13 @@ def system_subset(
     )
 
     # Create the parameterized sub-system.
-    system = force_field_subset.create_openmm_system(topology)
+    if molecules:
+        system = force_field_subset.create_openmm_system(
+            topology, charge_from_molecules=molecules
+        )
+    else:
+        system = force_field_subset.create_openmm_system(topology)
+
     return system, parameter_value
 
 

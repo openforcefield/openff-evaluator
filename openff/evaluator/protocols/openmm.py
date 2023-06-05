@@ -46,7 +46,7 @@ from openff.evaluator.workflow import workflow_protocol
 if TYPE_CHECKING:
     import openmm
     from mdtraj import Trajectory
-    from openff.toolkit.topology import Topology
+    from openff.toolkit.topology import Molecule, Topology
     from openff.toolkit.typing.engines.smirnoff import ForceField
 
 logger = logging.getLogger(__name__)
@@ -145,6 +145,7 @@ def _compute_gradients(
     topology: "Topology",
     trajectory: "Trajectory",
     compute_resources: ComputeResources,
+    molecules: List["Molecule"] = None,
     gaff_system_path: str = None,
     gaff_topology_path: str = None,
     enable_pbc: bool = True,
@@ -175,6 +176,8 @@ def _compute_gradients(
         The trajectory over which the observables were collected.
     compute_resources
         The compute resources available for the computations.
+    molecules
+        A list of `Molecule` -- if set, use for `charge_from_molecules`
     gaff_system_path
         The path to the OpenMM XML file with GAFF parameters, for computing
         gradients with GAFF systems.
@@ -206,10 +209,18 @@ def _compute_gradients(
         # Build the slightly perturbed systems.
         if not use_gaff_system:
             reverse_system, reverse_parameter_value = system_subset(
-                parameter_key, force_field, topology, -perturbation_amount
+                parameter_key,
+                force_field,
+                topology,
+                molecules=molecules,
+                scale_amount=-perturbation_amount,
             )
             forward_system, forward_parameter_value = system_subset(
-                parameter_key, force_field, topology, perturbation_amount
+                parameter_key,
+                force_field,
+                topology,
+                molecules=molecules,
+                scale_amount=perturbation_amount,
             )
             reverse_parameter_value = from_openmm(reverse_parameter_value)
             forward_parameter_value = from_openmm(forward_parameter_value)

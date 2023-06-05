@@ -1174,6 +1174,8 @@ class HostGuestBindingAffinity(PhysicalProperty):
         bound_gradients.topology_path = bound_topology
         bound_gradients.trajectory_path = bound_trajectory
         bound_gradients.input_system = parameterized_system
+        bound_gradients.host_file_paths = ProtocolPath("host_file_paths", "global")
+        bound_gradients.guest_file_paths = ProtocolPath("guest_file_paths", "global")
         bound_gradients.gradient_parameters = ProtocolPath(
             "parameter_gradient_keys", "global"
         )
@@ -1189,6 +1191,8 @@ class HostGuestBindingAffinity(PhysicalProperty):
         unbound_gradients.topology_path = unbound_topology
         unbound_gradients.trajectory_path = unbound_trajectory
         unbound_gradients.input_system = parameterized_system
+        unbound_gradients.host_file_paths = ProtocolPath("host_file_paths", "global")
+        unbound_gradients.guest_file_paths = ProtocolPath("guest_file_paths", "global")
         unbound_gradients.gradient_parameters = ProtocolPath(
             "parameter_gradient_keys", "global"
         )
