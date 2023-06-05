@@ -16,8 +16,6 @@ from openff.evaluator.properties import HostGuestBindingAffinity
 from openff.evaluator.substances import Component, ExactAmount, MoleFraction, Substance
 from openff.evaluator.thermodynamics import ThermodynamicState
 
-# from openff.evaluator.utils.exceptions import MissingOptionalDependency
-
 logger = logging.getLogger(__name__)
 
 
@@ -214,7 +212,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
         return variable
 
     @staticmethod
-    def _molecule_to_smiles(file_path: str, file_format="MOL2") -> str:
+    def _molecule_to_smiles(file_path: str) -> str:
         """Converts a mol2 file into a smiles string.
 
         Parameters
@@ -229,9 +227,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
         """
         from openff.toolkit.topology import Molecule
 
-        receptor_molecule = Molecule.from_file(
-            file_path, file_format=file_format, allow_undefined_stereo=True
-        )
+        receptor_molecule = Molecule.from_file(file_path)
 
         return receptor_molecule.to_smiles()
 
@@ -445,7 +441,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
             The constructed metadata dictionary.
         """
 
-        from paprika.restraints.taproom import read_yaml_schema
+        from paprika.taproom import read_yaml_schema
 
         # noinspection PyTypeChecker
         guest_spec = read_yaml_schema(guest_yaml_path)
@@ -746,13 +742,9 @@ class TaproomDataSet(PhysicalPropertyDataSet):
                         host_yaml_path.parent.joinpath(host_yaml["monomer"])
                     )
                 try:
-                    host_smiles = TaproomDataSet._molecule_to_smiles(
-                        host_sdf_path, file_format="SDF"
-                    )
+                    host_smiles = TaproomDataSet._molecule_to_smiles(host_sdf_path)
                 except NotImplementedError:
-                    host_smiles = TaproomDataSet._molecule_to_smiles(
-                        host_mol2_path, file_format="MOL2"
-                    )
+                    host_smiles = TaproomDataSet._molecule_to_smiles(host_mol2_path)
 
                 host_tleap_template = str(
                     systems[host_name]["path"].joinpath(f"build_{host_name}.in")
@@ -770,13 +762,9 @@ class TaproomDataSet(PhysicalPropertyDataSet):
                     )
                 )
                 try:
-                    guest_smiles = TaproomDataSet._molecule_to_smiles(
-                        guest_sdf_path, file_format="SDF"
-                    )
+                    guest_smiles = TaproomDataSet._molecule_to_smiles(guest_sdf_path)
                 except NotImplementedError:
-                    guest_smiles = TaproomDataSet._molecule_to_smiles(
-                        guest_mol2_path, file_format="MOL2"
-                    )
+                    guest_smiles = TaproomDataSet._molecule_to_smiles(guest_mol2_path)
 
                 # Build substance
                 substance = TaproomDataSet._build_substance(

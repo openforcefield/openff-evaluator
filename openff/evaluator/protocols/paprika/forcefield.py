@@ -30,7 +30,7 @@ from openff.evaluator.forcefield import (
     TLeapForceFieldSource,
 )
 from openff.evaluator.forcefield.system import ParameterizedSystem
-from openff.evaluator.protocols.forcefield import BaseBuildSystem
+from openff.evaluator.protocols.forcefield import BaseBuildSystem, BuildSmirnoffSystem
 from openff.evaluator.substances import Substance
 from openff.evaluator.utils import is_file_and_not_empty
 from openff.evaluator.utils.utils import temporarily_change_directory
@@ -56,8 +56,8 @@ class PaprikaBuildSystem(Protocol, abc.ABC):
     )
     host_file_paths = InputAttribute(
         docstring="The paths for host related files.",
-        type_hint=dict,
-        default_value=UNDEFINED,
+        type_hint=Union[dict, None],
+        default_value=None,
     )
     guest_file_paths = InputAttribute(
         docstring="The paths for guest related files.",
@@ -84,6 +84,7 @@ class PaprikaBuildSystem(Protocol, abc.ABC):
         force_field_source = ForceFieldSource.from_json(self.force_field_path)
 
         if isinstance(force_field_source, SmirnoffForceFieldSource):
+            #build_protocol = BuildSmirnoffSystem("")
             build_protocol = PaprikaBuildSmirnoffSystem("")
             build_protocol.host_file_paths = self.host_file_paths
             build_protocol.guest_file_paths = self.guest_file_paths
@@ -154,16 +155,13 @@ class PaprikaBuildSmirnoffSystem(BaseBuildSystem):
                     force_field.deregister_parameter_handler(gbsa)
 
         # Create the molecules to parameterize from the input substance
-        host_sdf_path = self.host_file_paths["host_sdf_path"]
-
         unique_molecules = [
-            Molecule.from_file(host_sdf_path, allow_undefined_stereo=True),
+            Molecule.from_file(self.host_file_paths["host_sdf_path"])
         ]
 
         if self.guest_file_paths is not None:
-            guest_sdf_path = self.guest_file_paths["guest_sdf_path"]
             unique_molecules.append(
-                Molecule.from_file(guest_sdf_path, allow_undefined_stereo=True),
+                Molecule.from_file(self.guest_file_paths["guest_sdf_path"])
             )
 
         # Create the topology to parameterize from the input coordinates and the

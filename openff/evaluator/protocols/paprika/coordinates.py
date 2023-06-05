@@ -47,7 +47,7 @@ def _atom_indices_by_role(
 
     # Create OFF representations of the components
     off_molecules = {
-        component: Molecule.from_smiles(component.smiles)
+        component: Molecule.from_smiles(component.smiles, allow_undefined_stereo=False)
         for components in components_by_role.values()
         for component in components
     }

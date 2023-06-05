@@ -267,7 +267,6 @@ def system_subset(
         if is_quantity
         else parameter_value.value_in_unit(openmm_unit.dimensionless),
     )
-    logger.info("The parameter value is {parameter_value}")
 
     # Create the parameterized sub-system.
     system = force_field_subset.create_openmm_system(topology)

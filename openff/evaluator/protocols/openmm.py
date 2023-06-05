@@ -211,6 +211,8 @@ def _compute_gradients(
             forward_system, forward_parameter_value = system_subset(
                 parameter_key, force_field, topology, perturbation_amount
             )
+            reverse_parameter_value = from_openmm(reverse_parameter_value)
+            forward_parameter_value = from_openmm(forward_parameter_value)
         else:
             reverse_system, reverse_parameter_value = perturbed_gaff_system(
                 parameter_key,
@@ -226,9 +228,6 @@ def _compute_gradients(
                 enable_pbc,
                 perturbation_amount,
             )
-
-        logger.info("Reverse parameter values: {reverse_parameter_value}")
-        logger.info("Forward parameter values: {forward_parameter_value}")
 
         # Perform a cheap check to try and catch most cases where the systems energy
         # does not depend on this parameter.
@@ -347,7 +346,7 @@ def _compute_gradients(
                     ),
                 )
             )
-    logger.info("Observables {observables}")
+
     for observable_type in observables:
         observables[observable_type] = ObservableArray(
             value=observables[observable_type].value,
