@@ -13,7 +13,7 @@ dependencies:
   - pytest-xdist
   - nbval
   - requests-mock # For testing http requests.
-  - smirnoff-plugins # For testing custom nonbonded forces
+  # smirnoff-plugins =0.0.3
   - coverage >=4.4
 
     # Shims

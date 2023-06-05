@@ -13,7 +13,6 @@ from openff.toolkit.topology import Molecule, Topology
 from openff.toolkit.typing.engines.smirnoff import ForceField
 from openff.units import unit
 from openmm import unit as openmm_unit
-from smirnoff_plugins.handlers.nonbonded import DoubleExponential
 
 from openff.evaluator.backends import ComputeResources
 from openff.evaluator.forcefield import ParameterGradientKey
@@ -170,6 +169,8 @@ def test_evaluate_energies_openmm():
     reason="Broken until smirnoff_plugins is made compatible with openff.units"
 )
 def test_smirnoff_plugin_gradients():
+    from smirnoff_plugins.handlers.nonbonded import DoubleExponential
+
     molecule = Molecule.from_smiles("C")
     molecule.generate_conformers(n_conformers=1)
 
