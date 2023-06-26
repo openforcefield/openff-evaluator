@@ -538,9 +538,10 @@ class PaprikaOpenMMSimulation(OpenMMSimulation):
         temperature = self.thermodynamic_state.temperature
         openmm_temperature = to_openmm(temperature)
 
-        pressure = None
-        openmm_pressure = None
         if self.ensemble == Ensemble.NVT:
+            pressure = None
+            openmm_pressure = None
+        else:
             pressure = self.thermodynamic_state.pressure
             openmm_pressure = to_openmm(pressure)
 
