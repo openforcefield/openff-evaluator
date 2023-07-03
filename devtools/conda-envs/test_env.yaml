@@ -1,4 +1,4 @@
-name: test
+name: evaluator-test
 channels:
   - conda-forge
 dependencies:
@@ -13,16 +13,16 @@ dependencies:
 
     # Standard dependencies
   - openff-toolkit >=0.10.0
-  - openff-units >=0.1.4
+  - openff-units >=0.2.0
+  - ambertools >=22
   - smirnoff99frosst
   - numpy
   - pandas
   - openmm
   - networkx
-  - pint >=0.16.1
   - packmol
   - pymbar >=3.0.5
-  - mdtraj >=1.9.3
+  - mdtraj ==1.9.4
   - dask >=2.7.0
   - distributed >=2.7.0
   - dask-jobqueue >=0.7.0
@@ -30,6 +30,7 @@ dependencies:
   - uncertainties
   - openmmtools
   - yank >=0.25.2
+  - pint ==0.20
   - pyyaml
   - requests
   - requests-mock # For testing http requests.

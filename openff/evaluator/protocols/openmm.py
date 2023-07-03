@@ -222,8 +222,6 @@ def _compute_gradients(
                 molecules=molecules,
                 scale_amount=perturbation_amount,
             )
-            reverse_parameter_value = from_openmm(reverse_parameter_value)
-            forward_parameter_value = from_openmm(forward_parameter_value)
         else:
             reverse_system, reverse_parameter_value = perturbed_gaff_system(
                 parameter_key,
