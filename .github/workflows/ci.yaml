@@ -29,33 +29,30 @@ jobs:
           - ubuntu-latest
           - macOS-latest
         python-version:
-          - 3.8
-          - 3.9
+          - "3.9"
         pymbar-version:
-          - 3
-          - 4
+          - "3.1"
         openmm-version:
-          - 7
-          - 8
+          - "7"
+          - "8"
         openeye:
           - true
           - false
-
 
     steps:
       - uses: actions/checkout@v3
 
       - name: Setup Conda Environment
-        uses: mamba-org/provision-with-micromamba@main
+        uses: mamba-org/setup-micromamba@v1
         with:
           environment-file: devtools/conda-envs/test_env.yaml
-          extra-specs: |
+          channel-priority: flexible
+          create-args: >-
             python=${{ matrix.python-version }}
-
-      - name: Update openmm, pymbar versions
-        shell: bash -l {0}
-        run: |
-          micromamba install "openmm =${{ matrix.openmm-version }}" "pymbar =${{ matrix.pymbar-version }}" -c conda-forge -yq
+            pymbar=${{ matrix.pymbar-version }}
+            openmm=${{ matrix.openmm-version }}
+            jax>=0.3
+            jaxlib>=0.3
 
       - name: Install OpenEye
         if: matrix.openeye

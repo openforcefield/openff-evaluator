@@ -128,6 +128,10 @@ intersphinx_mapping = {
         None,
     ),
     "pint": ("https://pint.readthedocs.io/en/latest/", None),
+    "openff.docs": (
+        "https://docs.openforcefield.org/en/latest/",
+        None,
+    ),
 }
 
 # Set up mathjax.
