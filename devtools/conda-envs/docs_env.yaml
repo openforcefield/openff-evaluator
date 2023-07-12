@@ -17,7 +17,7 @@ dependencies:
     - distributed >=2.7.0
     - dask-jobqueue >=0.7.0,<=0.8.0
     - uncertainties
-    - openmmtools
+    - openmmtools =0.21.5
     - yank >=0.25.2
     - pyyaml
     - requests
@@ -26,6 +26,7 @@ dependencies:
     - paprika
     - taproom
     - dataclasses
+    - pandas =1
 
     # Documentation dependencies
     - sphinx >=4.5,<5

@@ -2,10 +2,12 @@ ci:
   autoupdate_schedule: "monthly"
 repos:
 - repo: https://github.com/psf/black
-  rev: 23.1.0
+  rev: 23.3.0
   hooks:
   - id: black
     files: (^openff|^integration-tests)
+  - id: black-jupyter
+    files: ^docs/tutorials
 - repo: https://github.com/PyCQA/isort
   rev: 5.12.0
   hooks:
@@ -16,3 +18,17 @@ repos:
   hooks:
   - id: flake8
     files: (^openff|^integration-tests)
+- repo: https://github.com/nbQA-dev/nbQA
+  rev: 1.7.0
+  hooks:
+    - id: nbqa-pyupgrade
+      files: ^docs/tutorial
+      args:
+        - --py38-plus
+    - id: nbqa-isort
+      files: ^docs/tutorial
+- repo: https://github.com/kynan/nbstripout
+  rev: 0.6.1
+  hooks:
+    - id: nbstripout
+      files: ^docs/tutorial

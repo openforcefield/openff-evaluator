@@ -831,21 +831,69 @@ class FilterBySmirks(CurationComponent):
         list of str
             The matched smirks patterns.
         """
+        from rdkit import Chem
 
-        from openff.toolkit.topology import Molecule
+        def _rdmol_from_smiles(smiles: str) -> Chem.Mol:
+            """
+            Create an RDKit molecule from a SMILES string.
+
+            Parameters
+            ----------
+            smiles: str
+                The SMILES string to convert.
+
+            Returns
+            -------
+            rdmol: rdkit.Chem.rdchem.Mol
+                The RDKit molecule.
+
+            Taken from https://github.com/openforcefield/openff-toolkit/blob/0.12.1/openff/toolkit/utils/rdkit_wrapper.py#L953
+            """
+            # TODO: This function does not handle SMILES parsing failures gracefully.
+            rdmol = Chem.MolFromSmiles(smiles, sanitize=False)
+
+            Chem.SanitizeMol(
+                rdmol,
+                Chem.SANITIZE_ALL
+                ^ Chem.SANITIZE_ADJUSTHS
+                ^ Chem.SANITIZE_SETAROMATICITY,
+            )
+            Chem.SetAromaticity(rdmol, Chem.AromaticityModel.AROMATICITY_MDL)
+            Chem.AssignStereochemistry(rdmol)
+
+            Chem.AddHs(rdmol)
+
+            return rdmol
+
+        def _has_match(rdmol: Chem.Mol, smarts: str) -> bool:
+            """
+            Run substructure matching, returning only whether or not matches were found.
+
+            Parameters
+            ----------
+            rdmol: Chem.Mol
+                The RDKit molecule to match against.
+            smarts: str
+                The SMARTS pattern to match.
+
+            Returns
+            -------
+            bool
+                Whether or not a match(es) was found.
+
+            Taken from https://github.com/openforcefield/openff-toolkit/blob/0.12.1/openff/toolkit/utils/rdkit_wrapper.py#L2306
+            """
+            # TODO: This function does not handle SMILES parsing failures gracefully.
+            qmol = Chem.MolFromSmarts(smarts)
+
+            return len(rdmol.GetSubstructMatch(qmol, useChirality=True)) > 0
 
         if len(smirks_patterns) == 0:
             return []
 
-        molecule = Molecule.from_smiles(smiles_pattern, allow_undefined_stereo=True)
+        rdmol = _rdmol_from_smiles(smiles_pattern)
 
-        matches = [
-            smirks
-            for smirks in smirks_patterns
-            if len(molecule.chemical_environment_matches(smirks)) > 0
-        ]
-
-        return matches
+        return [smirks for smirks in smirks_patterns if _has_match(rdmol, smirks)]
 
     @classmethod
     def _apply(

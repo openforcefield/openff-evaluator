@@ -415,10 +415,11 @@ class OpenMMSimulation(BaseSimulation):
         openmm file reporters.
         """
 
-        def __init__(self, integrator, topology, system, current_step):
+        def __init__(self, integrator, topology, system, context, current_step):
             self.integrator = integrator
             self.topology = topology
             self.system = system
+            self.context = context
             self.currentStep = current_step
 
     class _DCDReporter:
@@ -959,7 +960,13 @@ class OpenMMSimulation(BaseSimulation):
         # reporters.
         topology = app.PDBFile(self.input_coordinate_file).topology
         system = self.parameterized_system.system
-        simulation = self._Simulation(integrator, topology, system, current_step)
+        simulation = self._Simulation(
+            integrator,
+            topology,
+            system,
+            context,
+            current_step,
+        )
 
         # Perform the simulation.
         checkpoint_counter = 0

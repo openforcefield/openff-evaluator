@@ -10,14 +10,19 @@ dependencies:
     # Testing and development
   - pytest
   - pytest-cov
-  - codecov
+  - pytest-xdist
+  - nbval
   - requests-mock # For testing http requests.
+  # smirnoff-plugins =0.0.3
   - coverage >=4.4
+
+    # Shims
+  - pint =0.20.1
 
     # Standard dependencies
   - openff-toolkit >=0.11.0
-  - openmm =7
-  - pymbar >=4
+  - openmm
+  - pymbar
   - dask >=2.7.0
   - distributed >=2.7.0
   - dask-jobqueue >=0.8.0
@@ -30,3 +35,4 @@ dependencies:
   - paprika
   - taproom
   - dataclasses
+  - pandas =1
