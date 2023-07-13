@@ -30,6 +30,8 @@ jobs:
           - macOS-latest
         python-version:
           - "3.9"
+          - "3.10"
+          - "3.11"
         pymbar-version:
           - "3.1"
         openmm-version:
@@ -102,7 +104,7 @@ jobs:
         shell: bash -l {0}
         run: |
 
-          python -m pytest -v --cov=openff openff/evaluator/tests/ --cov-report=xml --color=yes
+          python -m pytest -nauto -v --cov=openff openff/evaluator/tests/ --cov-report=xml --color=yes
 
       - name: Run (non-GPU) tutorials
         shell: bash -l {0}
