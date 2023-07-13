@@ -519,7 +519,7 @@ class Workflow:
 
         molecule_labels = list()
 
-        for molecule_idx, molecule in enumerate(topology.reference_molecules):
+        for _, molecule in enumerate(topology.unique_molecules):
             top_mol = Topology.from_molecules([molecule])
             current_molecule_labels = dict()
             param_is_list = False

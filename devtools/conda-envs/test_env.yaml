@@ -27,8 +27,7 @@ dependencies:
   - distributed >=2.7.0
   - dask-jobqueue >=0.8.0
   - uncertainties
-  - openmmtools =0.21.5
-  - yank >=0.25.2
+  - openmmtools
   - pyyaml
   - requests
   - python-dateutil

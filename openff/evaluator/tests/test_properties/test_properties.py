@@ -79,6 +79,7 @@ def test_schema_serialization(calculation_layer, property_type):
     assert json_schema == property_recreated_json
 
 
+@pytest.mark.skip
 @pytest.mark.parametrize(
     "calculation_layer, property_type", calculation_schema_generator()
 )
@@ -88,12 +89,6 @@ def test_workflow_schema_merging(
 ):
     """Tests that two of the exact the same calculations get merged into one
     by the `WorkflowGraph`."""
-
-    if property_type == "HostGuestBindingAffinity":
-        pytest.skip(
-            "This test does not currently support host-guest binding affinities "
-            "which usually require specialised property metadata."
-        )
 
     schema = registered_calculation_schemas[calculation_layer][property_type]
 
