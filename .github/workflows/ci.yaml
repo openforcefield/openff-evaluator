@@ -30,6 +30,7 @@ jobs:
           - macOS-latest
         python-version:
           - "3.9"
+          - "3.10"
         pymbar-version:
           - "3.1"
         openmm-version:
@@ -38,6 +39,9 @@ jobs:
         openeye:
           - true
           - false
+        exclude:
+          - python-version: "3.10"
+            openmm-version: "7"
 
     steps:
       - uses: actions/checkout@v3
