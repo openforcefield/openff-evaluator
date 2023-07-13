@@ -10,7 +10,7 @@ dependencies:
     # Testing and development
   - pytest
   - pytest-cov
-  - pytest-xdist
+  - pytest-randomly
   - nbval
   - requests-mock # For testing http requests.
   # smirnoff-plugins =0.0.3
