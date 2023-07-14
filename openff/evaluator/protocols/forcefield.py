@@ -1052,3 +1052,10 @@ class BuildTLeapSystem(TemplateBuildSystem):
             )
 
         super(BuildTLeapSystem, self)._execute(directory, available_resources)
+
+@workflow_protocol
+class BuildFoyerSystem(BaseBuildSystem):
+    """Parameterize a set of molecules with a Foyer force field source"""
+
+    def _execute(self, directory, available_resources):
+        pass
