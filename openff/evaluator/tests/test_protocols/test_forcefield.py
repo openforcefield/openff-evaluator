@@ -9,11 +9,12 @@ from openff.toolkit.topology import Molecule
 from openff.toolkit.utils.rdkit_wrapper import RDKitToolkitWrapper
 
 from openff.evaluator.forcefield import LigParGenForceFieldSource, TLeapForceFieldSource
+from openff.evaluator.forcefield.forcefield import FoyerForceFieldSource
 from openff.evaluator.protocols.coordinates import BuildCoordinatesPackmol
 from openff.evaluator.protocols.forcefield import (
     BuildLigParGenSystem,
     BuildSmirnoffSystem,
-    BuildTLeapSystem,
+    BuildTLeapSystem, BuildFoyerSystem,
 )
 from openff.evaluator.substances import Substance
 from openff.evaluator.tests.utils import build_tip3p_smirnoff_force_field
@@ -156,6 +157,28 @@ phase2="3.141592653589793" phase3="0.00" phase4="3.141592653589793"/>
         build_coordinates.execute(directory)
 
         assign_parameters = BuildLigParGenSystem("assign_parameters")
+        assign_parameters.force_field_path = force_field_path
+        assign_parameters.coordinate_file_path = build_coordinates.coordinate_file_path
+        assign_parameters.substance = substance
+        assign_parameters.execute(directory)
+        assert path.isfile(assign_parameters.parameterized_system.system_path)
+
+def test_build_foyer_system():
+    force_field_source = FoyerForceFieldSource("oplsaa")
+    substance = Substance.from_components("C", "O")
+
+    with tempfile.TemporaryDirectory() as directory:
+        force_field_path = path.join(directory, "ff.json")
+
+        with open(force_field_path, "w") as file:
+            file.write(force_field_source.json())
+
+        build_coordinates = BuildCoordinatesPackmol("build_coordinates")
+        build_coordinates.max_molecules = 8
+        build_coordinates.substance = substance
+        build_coordinates.execute(directory)
+
+        assign_parameters = BuildFoyerSystem("assign_parameters")
         assign_parameters.force_field_path = force_field_path
         assign_parameters.coordinate_file_path = build_coordinates.coordinate_file_path
         assign_parameters.substance = substance
