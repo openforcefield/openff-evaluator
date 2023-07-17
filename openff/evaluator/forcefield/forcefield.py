@@ -267,7 +267,7 @@ class FoyerForceFieldSource(ForceFieldSource):
     """A wrapper around Foyer force fields"""
 
     @property
-    def leap_source(self):
+    def foyer_source(self):
         """str: Foyer force field source."""
         return self._foyer_source
 
@@ -282,7 +282,7 @@ class FoyerForceFieldSource(ForceFieldSource):
         Parameters
         ----------
         foyer_source: str
-            The parameter file from Foyer
+            'oplsaa' or a Foyer XML forcefield file
         cutoff: openff.evaluator.unit.Quantity
             The non-bonded interaction cutoff.
 
@@ -290,7 +290,7 @@ class FoyerForceFieldSource(ForceFieldSource):
         --------
         To create a source for the Foyer force field:
 
-        >>> foyer_source = FoyerForceFieldSource('')
+        >>> foyer_source = FoyerForceFieldSource('oplsaa')
         """
         self._foyer_source = foyer_source
         self._cutoff = cutoff

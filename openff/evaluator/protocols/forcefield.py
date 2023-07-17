@@ -230,17 +230,12 @@ class BaseBuildSystem(Protocol, abc.ABC):
 
             elif isinstance(force_to_append, openmm.RBTorsionForce):
                 # Support for RBTorisionForce needed for OPLSAA, etc
-                for index in range(force_to_append.getNumParticles()):
-                    index = index_map[index]
-
+                for index in range(force_to_append.getNumTorsions()):
                     torsion_params = force_to_append.getTorsionParameters(index)
                     for i in range(4):
                         torsion_params[i] = index_map[torsion_params[i]] + index_offset
 
-                    existing_force.addTorsion(
-                        *torsion_params
-                    )
-
+                    existing_force.addTorsion(*torsion_params)
 
             number_of_appended_forces += 1
 
@@ -1094,17 +1089,19 @@ class BuildFoyerSystem(TemplateBuildSystem):
         from openff.interchange import Interchange
         from openff.toolkit import Topology
 
-        if molecule.n_conformers == 0:
-            molecule.generate_conformers(n_conformers=1)
-
         topology: Topology = molecule.to_topology()
         topology.mdtop = md.Topology.from_openmm(topology.to_openmm())
 
-        force_field: Forcefield = Forcefield(name="oplsaa")
+        force_field: Forcefield
+        if force_field_source.foyer_source.lower() == "oplsaa":
+            force_field = Forcefield(name="oplsaa")
+        elif force_field_source.foyer_source.lower() == "trappe-ua":
+            force_field = Forcefield(name="trappe-ua")
+        else:
+            force_field = Forcefield(forcefield_files=force_field_source.foyer_source)
 
         interchange = Interchange.from_foyer(topology=topology, force_field=force_field)
         interchange["vdW"].mixing_rule = "lorentz-berthelot"
-        interchange.positions = molecule.conformers[0]
 
         openmm_system = interchange.to_openmm()
 

@@ -12,9 +12,10 @@ from openff.evaluator.forcefield import LigParGenForceFieldSource, TLeapForceFie
 from openff.evaluator.forcefield.forcefield import FoyerForceFieldSource
 from openff.evaluator.protocols.coordinates import BuildCoordinatesPackmol
 from openff.evaluator.protocols.forcefield import (
+    BuildFoyerSystem,
     BuildLigParGenSystem,
     BuildSmirnoffSystem,
-    BuildTLeapSystem, BuildFoyerSystem,
+    BuildTLeapSystem,
 )
 from openff.evaluator.substances import Substance
 from openff.evaluator.tests.utils import build_tip3p_smirnoff_force_field
@@ -163,9 +164,10 @@ phase2="3.141592653589793" phase3="0.00" phase4="3.141592653589793"/>
         assign_parameters.execute(directory)
         assert path.isfile(assign_parameters.parameterized_system.system_path)
 
-def test_build_foyer_system():
+
+def test_build_foyer_oplsaa_system():
     force_field_source = FoyerForceFieldSource("oplsaa")
-    substance = Substance.from_components("C", "O")
+    substance = Substance.from_components("C", "O", "CCC", "C1CCCC1")
 
     with tempfile.TemporaryDirectory() as directory:
         force_field_path = path.join(directory, "ff.json")
@@ -180,6 +182,45 @@ def test_build_foyer_system():
 
         assign_parameters = BuildFoyerSystem("assign_parameters")
         assign_parameters.force_field_path = force_field_path
+        assign_parameters.coordinate_file_path = build_coordinates.coordinate_file_path
+        assign_parameters.substance = substance
+        assign_parameters.execute(directory)
+        assert path.isfile(assign_parameters.parameterized_system.system_path)
+
+
+def test_build_foyer_xml_system():
+    with tempfile.TemporaryDirectory() as directory:
+        force_field_source_path = path.join(directory, "ff.json")
+        force_field_xml_path = path.join(directory, "foyer_ff.xml")
+        force_field_source = FoyerForceFieldSource(force_field_xml_path)
+        substance = Substance.from_components("O")
+
+        with open(force_field_source_path, "w") as file:
+            file.write(force_field_source.json())
+
+        with open(force_field_xml_path, "w") as file:
+            file.write(
+                """<ForceField name="tip4p" version="0.0.3" combining_rule="geometric">
+ <AtomTypes>
+  <Type name="MW" class="MW" mass="0.0"/>
+  <Type name="HW_tip4pew" class="HW_tip4pew" element="H" mass="1.008"/>
+  <Type name="OW_tip4pew" class="OW_tip4pew" element="O" mass="16.0"/>
+ </AtomTypes>
+ <NonbondedForce coulomb14scale="0.5" lj14scale="0.5">
+  <Atom type="MW" charge="0.0" sigma="1.0" epsilon="0.0"/>
+  <Atom type="HW_tip4pew" charge="0.0" sigma="1.0" epsilon="0.0"/>
+  <Atom type="OW_tip4pew" charge="0.0" sigma="0.316435" epsilon="0.680946"/>
+ </NonbondedForce>
+</ForceField>"""
+            )
+
+        build_coordinates = BuildCoordinatesPackmol("build_coordinates")
+        build_coordinates.max_molecules = 8
+        build_coordinates.substance = substance
+        build_coordinates.execute(directory)
+
+        assign_parameters = BuildFoyerSystem("assign_parameters")
+        assign_parameters.force_field_path = force_field_source_path
         assign_parameters.coordinate_file_path = build_coordinates.coordinate_file_path
         assign_parameters.substance = substance
         assign_parameters.execute(directory)
