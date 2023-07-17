@@ -88,6 +88,7 @@ class BaseBuildSystem(Protocol, abc.ABC):
             openmm.HarmonicAngleForce,
             openmm.PeriodicTorsionForce,
             openmm.NonbondedForce,
+            openmm.RBTorsionForce,
         ]
 
         number_of_appended_forces = 0
@@ -226,6 +227,20 @@ class BaseBuildSystem(Protocol, abc.ABC):
                     existing_force.addException(
                         index_a + index_offset, index_b + index_offset, *parameters
                     )
+
+            elif isinstance(force_to_append, openmm.RBTorsionForce):
+                # Support for RBTorisionForce needed for OPLSAA, etc
+                for index in range(force_to_append.getNumParticles()):
+                    index = index_map[index]
+
+                    torsion_params = force_to_append.getTorsionParameters(index)
+                    for i in range(4):
+                        torsion_params[i] = index_map[torsion_params[i]] + index_offset
+
+                    existing_force.addTorsion(
+                        *torsion_params
+                    )
+
 
             number_of_appended_forces += 1
 
@@ -1056,7 +1071,7 @@ class BuildTLeapSystem(TemplateBuildSystem):
 
 
 @workflow_protocol()
-class BuildFoyerSystem(BaseBuildSystem):
+class BuildFoyerSystem(TemplateBuildSystem):
     """Parameterize a set of molecules with a Foyer force field source"""
 
     def _parameterize_molecule(self, molecule, force_field_source, cutoff):
