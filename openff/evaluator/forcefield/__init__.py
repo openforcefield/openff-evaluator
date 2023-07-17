@@ -1,9 +1,9 @@
 from .forcefield import (
     ForceFieldSource,
+    FoyerForceFieldSource,
     LigParGenForceFieldSource,
     SmirnoffForceFieldSource,
     TLeapForceFieldSource,
-    FoyerForceFieldSource,
 )
 from .gradients import ParameterGradient, ParameterGradientKey
 
