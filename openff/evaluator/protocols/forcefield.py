@@ -24,6 +24,7 @@ from openff.evaluator.forcefield import (
     SmirnoffForceFieldSource,
     TLeapForceFieldSource,
 )
+from openff.evaluator.forcefield.forcefield import FoyerForceFieldSource
 from openff.evaluator.forcefield.system import ParameterizedSystem
 from openff.evaluator.substances import Substance
 from openff.evaluator.utils.utils import (
@@ -1053,9 +1054,53 @@ class BuildTLeapSystem(TemplateBuildSystem):
 
         super(BuildTLeapSystem, self)._execute(directory, available_resources)
 
-@workflow_protocol
+
+@workflow_protocol()
 class BuildFoyerSystem(BaseBuildSystem):
     """Parameterize a set of molecules with a Foyer force field source"""
 
+    def _parameterize_molecule(self, molecule, force_field_source, cutoff):
+        """Parameterize the specified molecule.
+
+        Parameters
+        ----------
+        molecule: openff.toolkit.topology.Molecule
+            The molecule to parameterize.
+        force_field_source: FoyerForceFieldSource
+            The foyer source which describes which parameters to apply.
+
+        Returns
+        -------
+        openmm.System
+            The parameterized system.
+        """
+        import mdtraj as md
+        from foyer import Forcefield
+        from openff.interchange import Interchange
+        from openff.toolkit import Topology
+
+        if molecule.n_conformers == 0:
+            molecule.generate_conformers(n_conformers=1)
+
+        topology: Topology = molecule.to_topology()
+        topology.mdtop = md.Topology.from_openmm(topology.to_openmm())
+
+        force_field: Forcefield = Forcefield(name="oplsaa")
+
+        interchange = Interchange.from_foyer(topology=topology, force_field=force_field)
+        interchange["vdW"].mixing_rule = "lorentz-berthelot"
+        interchange.positions = molecule.conformers[0]
+
+        openmm_system = interchange.to_openmm()
+
+        return openmm_system
+
     def _execute(self, directory, available_resources):
-        pass
+        force_field_source = ForceFieldSource.from_json(self.force_field_path)
+
+        if not isinstance(force_field_source, FoyerForceFieldSource):
+            raise ValueError(
+                "Only Foyer force field sources are supported by this protocol."
+            )
+
+        super(BuildFoyerSystem, self)._execute(directory, available_resources)
