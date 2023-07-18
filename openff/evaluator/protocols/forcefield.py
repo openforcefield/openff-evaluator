@@ -1100,7 +1100,7 @@ class BuildFoyerSystem(TemplateBuildSystem):
 
         interchange = Interchange.from_foyer(topology=topology, force_field=force_field)
 
-        openmm_system = interchange.to_openmm()
+        openmm_system = interchange.to_openmm(combine_nonbonded_forces=False)
 
         return openmm_system
 
