@@ -1084,19 +1084,17 @@ class BuildFoyerSystem(TemplateBuildSystem):
         openmm.System
             The parameterized system.
         """
-        import mdtraj as md
-        from foyer import Forcefield
+        from foyer import Forcefield as FoyerForceField
         from openff.interchange import Interchange
         from openff.toolkit import Topology
 
         topology: Topology = molecule.to_topology()
-        topology.mdtop = md.Topology.from_openmm(topology.to_openmm())
 
-        force_field: Forcefield
+        force_field: FoyerForceField
         if force_field_source.foyer_source.lower() == "oplsaa":
-            force_field = Forcefield(name="oplsaa")
+            force_field = FoyerForceField(name="oplsaa")
         else:
-            force_field = Forcefield(forcefield_files=force_field_source.foyer_source)
+            force_field = FoyerForceField(forcefield_files=force_field_source.foyer_source)
 
         interchange = Interchange.from_foyer(topology=topology, force_field=force_field)
 
