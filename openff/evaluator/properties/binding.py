@@ -392,6 +392,8 @@ class HostGuestBindingAffinity(PhysicalProperty):
         production.window_number = window_number
         production.lambda_scaling = lambda_scaling
         production.restraints_path = restraints_path
+        production.host_file_paths = ProtocolPath("host_file_paths", "global")
+        production.guest_file_paths = ProtocolPath("guest_file_paths", "global")
 
         return minimization, thermalization, equilibration, production
 

@@ -252,6 +252,16 @@ class PaprikaOpenMMSimulation(OpenMMSimulation):
         type_hint=Union[str, None],
         default_value=None,
     )
+    host_file_paths = InputAttribute(
+        docstring="The paths for host related files.",
+        type_hint=Union[dict, None],
+        default_value=None,
+    )
+    guest_file_paths = InputAttribute(
+        docstring="The paths for guest related files.",
+        type_hint=Union[dict, None],
+        default_value=None,
+    )
     total_steps = OutputAttribute(
         docstring="Total number of steps run for this simulation.",
         type_hint=int,
@@ -363,6 +373,8 @@ class PaprikaOpenMMSimulation(OpenMMSimulation):
         gradient.topology_path = self._local_input_coordinate_path
         gradient.trajectory_path = self._local_trajectory_path
         gradient.thermodynamic_state = self.thermodynamic_state
+        gradient.host_file_paths = self.host_file_paths
+        gradient.guest_file_paths = self.guest_file_paths
         gradient.enable_pbc = self.enable_pbc
         gradient.gradient_parameters = self.gradient_parameters
         gradient.execute(self._directory, self._available_resources)
