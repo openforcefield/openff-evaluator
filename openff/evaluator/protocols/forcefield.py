@@ -1099,7 +1099,6 @@ class BuildFoyerSystem(TemplateBuildSystem):
             force_field = Forcefield(forcefield_files=force_field_source.foyer_source)
 
         interchange = Interchange.from_foyer(topology=topology, force_field=force_field)
-        interchange["vdW"].mixing_rule = "lorentz-berthelot"
 
         openmm_system = interchange.to_openmm()
 
