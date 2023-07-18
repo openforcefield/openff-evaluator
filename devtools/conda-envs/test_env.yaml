@@ -15,6 +15,7 @@ dependencies:
   - requests-mock # For testing http requests.
   # smirnoff-plugins =0.0.3
   - coverage >=4.4
+  - foyer
 
     # Shims
   - pint =0.20.1
