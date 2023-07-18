@@ -284,7 +284,7 @@ class FoyerForceFieldSource(ForceFieldSource):
         foyer_source: str
             'oplsaa' or a Foyer XML forcefield file
         cutoff: openff.evaluator.unit.Quantity
-            The non-bonded interaction cutoff.
+            The non-bonded interaction cutoff, default 0.9 nanometers.
 
         Examples
         --------
