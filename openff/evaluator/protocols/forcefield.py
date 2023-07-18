@@ -1094,7 +1094,9 @@ class BuildFoyerSystem(TemplateBuildSystem):
         if force_field_source.foyer_source.lower() == "oplsaa":
             force_field = FoyerForceField(name="oplsaa")
         else:
-            force_field = FoyerForceField(forcefield_files=force_field_source.foyer_source)
+            force_field = FoyerForceField(
+                forcefield_files=force_field_source.foyer_source
+            )
 
         interchange = Interchange.from_foyer(topology=topology, force_field=force_field)
 
