@@ -1095,8 +1095,6 @@ class BuildFoyerSystem(TemplateBuildSystem):
         force_field: Forcefield
         if force_field_source.foyer_source.lower() == "oplsaa":
             force_field = Forcefield(name="oplsaa")
-        elif force_field_source.foyer_source.lower() == "trappe-ua":
-            force_field = Forcefield(name="trappe-ua")
         else:
             force_field = Forcefield(forcefield_files=force_field_source.foyer_source)
 
