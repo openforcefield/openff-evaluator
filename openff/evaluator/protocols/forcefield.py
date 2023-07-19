@@ -272,13 +272,17 @@ class BaseBuildSystem(Protocol, abc.ABC):
 
             elif isinstance(force_to_append, openmm.CustomNonbondedForce):
                 for index in range(force_to_append.getNumParticles()):
-                    nb_params = force_to_append.getParticleParameters(index)
+                    nb_params = force_to_append.getParticleParameters(index_map[index])
                     existing_force.addParticle(nb_params)
 
             elif isinstance(force_to_append, openmm.CustomBondForce):
                 for index in range(force_to_append.getNumBonds()):
-                    bond_params = force_to_append.getBondParameters(index)
-                    existing_force.addBond(*bond_params)
+                    index_a, index_b, bond_params = force_to_append.getBondParameters(index)
+
+                    index_a = index_map[index_a] + index_offset
+                    index_b = index_map[index_b] + index_offset
+
+                    existing_force.addBond(index_a, index_b, bond_params)
 
             number_of_appended_forces += 1
 
