@@ -89,6 +89,8 @@ class BaseBuildSystem(Protocol, abc.ABC):
             openmm.PeriodicTorsionForce,
             openmm.NonbondedForce,
             openmm.RBTorsionForce,
+            openmm.CustomNonbondedForce,
+            openmm.CustomBondForce,
         ]
 
         number_of_appended_forces = 0
@@ -142,8 +144,34 @@ class BaseBuildSystem(Protocol, abc.ABC):
                 break
 
             if existing_force is None:
-                existing_force = type(force_to_append)()
-                existing_system.addForce(existing_force)
+                if isinstance(force_to_append, openmm.CustomNonbondedForce):
+                    existing_force = openmm.CustomNonbondedForce(
+                        force_to_append.getEnergyFunction()
+                    )
+                    for index in range(force_to_append.getNumGlobalParameters()):
+                        existing_force.addGlobalParameter(
+                            force_to_append.getGlobalParameterName(index),
+                            force_to_append.getGlobalParameterDefaultValue(index),
+                        )
+                    for index in range(force_to_append.getNumPerParticleParameters()):
+                        existing_force.addPerParticleParameter(
+                            force_to_append.getPerParticleParameterName(index)
+                        )
+                    existing_system.addForce(existing_force)
+                elif isinstance(force_to_append, openmm.CustomBondForce):
+                    existing_force = openmm.CustomBondForce(force_to_append.getEnergyFunction())
+                    for index in range(force_to_append.getNumGlobalParameters()):
+                        existing_force.addGlobalParameter(
+                            force_to_append.getGlobalParameterName(index),
+                            force_to_append.getGlobalParameterDefaultValue(index),
+                        )
+                    for index in range(force_to_append.getNumPerBondParameters()):
+                        existing_force.addPerBondParameter(
+                            force_to_append.getPerBondParameterName(index)
+                        )
+                else:
+                    existing_force = type(force_to_append)()
+                    existing_system.addForce(existing_force)
 
             if isinstance(force_to_append, openmm.HarmonicBondForce):
                 # Add the bonds.
@@ -236,6 +264,16 @@ class BaseBuildSystem(Protocol, abc.ABC):
                         torsion_params[i] = index_map[torsion_params[i]] + index_offset
 
                     existing_force.addTorsion(*torsion_params)
+
+            elif isinstance(force_to_append, openmm.CustomNonbondedForce):
+                for index in range(force_to_append.getNumParticles()):
+                    nb_params = force_to_append.getParticleParameters(index)
+                    existing_force.addParticle(nb_params)
+
+            elif isinstance(force_to_append, openmm.CustomBondForce):
+                for index in range(force_to_append.getNumBonds()):
+                    bond_params = force_to_append.getBondParameters(index)
+                    existing_force.addBond(*bond_params)
 
             number_of_appended_forces += 1
 
