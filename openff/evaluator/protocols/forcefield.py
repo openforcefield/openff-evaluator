@@ -159,7 +159,9 @@ class BaseBuildSystem(Protocol, abc.ABC):
                         )
                     existing_system.addForce(existing_force)
                 elif isinstance(force_to_append, openmm.CustomBondForce):
-                    existing_force = openmm.CustomBondForce(force_to_append.getEnergyFunction())
+                    existing_force = openmm.CustomBondForce(
+                        force_to_append.getEnergyFunction()
+                    )
                     for index in range(force_to_append.getNumGlobalParameters()):
                         existing_force.addGlobalParameter(
                             force_to_append.getGlobalParameterName(index),
