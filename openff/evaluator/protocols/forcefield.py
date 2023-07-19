@@ -158,8 +158,11 @@ class BaseBuildSystem(Protocol, abc.ABC):
                             force_to_append.getPerParticleParameterName(index)
                         )
                     existing_system.addForce(existing_force)
+
                 elif isinstance(force_to_append, openmm.CustomBondForce):
-                    existing_force = openmm.CustomBondForce(force_to_append.getEnergyFunction())
+                    existing_force = openmm.CustomBondForce(
+                        force_to_append.getEnergyFunction()
+                    )
                     for index in range(force_to_append.getNumGlobalParameters()):
                         existing_force.addGlobalParameter(
                             force_to_append.getGlobalParameterName(index),
@@ -169,6 +172,8 @@ class BaseBuildSystem(Protocol, abc.ABC):
                         existing_force.addPerBondParameter(
                             force_to_append.getPerBondParameterName(index)
                         )
+                    existing_system.addForce(existing_force)
+
                 else:
                     existing_force = type(force_to_append)()
                     existing_system.addForce(existing_force)
