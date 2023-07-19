@@ -1100,6 +1100,10 @@ class BuildFoyerSystem(TemplateBuildSystem):
 
         interchange = Interchange.from_foyer(topology=topology, force_field=force_field)
 
+        openmm_pdb_file = app.PDBFile(self.coordinate_file_path)
+        if openmm_pdb_file.topology.getPeriodicBoxVectors() is not None:
+            interchange.box = openmm_pdb_file.topology.getPeriodicBoxVectors()
+
         openmm_system = interchange.to_openmm(combine_nonbonded_forces=False)
 
         return openmm_system
