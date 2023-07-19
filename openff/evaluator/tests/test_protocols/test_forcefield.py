@@ -200,17 +200,21 @@ def test_build_foyer_xml_system():
 
         with open(force_field_xml_path, "w") as file:
             file.write(
-                """<ForceField name="tip4p" version="0.0.3" combining_rule="geometric">
+                """<ForceField name="tip3p" version="0.0.3" combining_rule="geometric">
  <AtomTypes>
-  <Type name="MW" class="MW" mass="0.0"/>
-  <Type name="HW_tip4pew" class="HW_tip4pew" element="H" mass="1.008"/>
-  <Type name="OW_tip4pew" class="OW_tip4pew" element="O" mass="16.0"/>
+  <Type name="HW_tip3p" class="HW_tip3p" element="H" mass="1.008"/>
+  <Type name="OW_tip3p" class="OW_tip3p" element="O" mass="15.9994"/>
  </AtomTypes>
  <NonbondedForce coulomb14scale="0.5" lj14scale="0.5">
-  <Atom type="MW" charge="0.0" sigma="1.0" epsilon="0.0"/>
-  <Atom type="HW_tip4pew" charge="0.0" sigma="1.0" epsilon="0.0"/>
-  <Atom type="OW_tip4pew" charge="0.0" sigma="0.316435" epsilon="0.680946"/>
+  <Atom type="HW_tip3p" charge="0.417" sigma="1.0" epsilon="0.0"/>
+  <Atom type="OW_tip3p" charge="-0.834" sigma="0.315007" epsilon="0.63681228"/>
  </NonbondedForce>
+ <HarmonicBondForce>
+  <Bond class1="OW_tip3p" class2="HW_tip3p" length="0.09572" k="1884.06"/>
+ </HarmonicBondForce>
+ <HarmonicAngleForce>
+  <Angle class1="HW_tip3p" class2="OW_tip3p" class3="HW_tip3p" angle="1.82421813" k="230.274"/>
+ </HarmonicAngleForce>
 </ForceField>"""
             )
 
