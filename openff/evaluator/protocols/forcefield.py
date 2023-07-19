@@ -277,7 +277,9 @@ class BaseBuildSystem(Protocol, abc.ABC):
 
             elif isinstance(force_to_append, openmm.CustomBondForce):
                 for index in range(force_to_append.getNumBonds()):
-                    index_a, index_b, bond_params = force_to_append.getBondParameters(index)
+                    index_a, index_b, bond_params = force_to_append.getBondParameters(
+                        index
+                    )
 
                     index_a = index_map[index_a] + index_offset
                     index_b = index_map[index_b] + index_offset
