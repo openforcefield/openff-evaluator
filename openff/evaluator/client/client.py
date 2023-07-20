@@ -14,6 +14,7 @@ from openff.evaluator.attributes import UNDEFINED, Attribute, AttributeClass
 from openff.evaluator.datasets import PhysicalPropertyDataSet
 from openff.evaluator.forcefield import (
     ForceFieldSource,
+    FoyerForceFieldSource,
     LigParGenForceFieldSource,
     ParameterGradientKey,
     SmirnoffForceFieldSource,
@@ -513,6 +514,8 @@ class EvaluatorClient:
             replacements["BaseBuildSystem"] = "BuildLigParGenSystem"
         elif isinstance(force_field_source, TLeapForceFieldSource):
             replacements["BaseBuildSystem"] = "BuildTLeapSystem"
+        elif isinstance(force_field_source, FoyerForceFieldSource):
+            replacements["BaseBuildSystem"] = "BuildFoyerSystem"
 
         return replacements
 
