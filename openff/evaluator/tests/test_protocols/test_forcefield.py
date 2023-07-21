@@ -7,7 +7,9 @@ from os import path
 
 from openff.toolkit.topology import Molecule
 from openff.toolkit.utils.rdkit_wrapper import RDKitToolkitWrapper
+from openff.units import unit
 
+from openff.evaluator.backends import ComputeResources
 from openff.evaluator.forcefield import LigParGenForceFieldSource, TLeapForceFieldSource
 from openff.evaluator.forcefield.forcefield import FoyerForceFieldSource
 from openff.evaluator.protocols.coordinates import BuildCoordinatesPackmol
@@ -17,6 +19,7 @@ from openff.evaluator.protocols.forcefield import (
     BuildSmirnoffSystem,
     BuildTLeapSystem,
 )
+from openff.evaluator.protocols.openmm import OpenMMEnergyMinimisation
 from openff.evaluator.substances import Substance
 from openff.evaluator.tests.utils import build_tip3p_smirnoff_force_field
 
@@ -167,7 +170,7 @@ phase2="3.141592653589793" phase3="0.00" phase4="3.141592653589793"/>
 
 def test_build_foyer_oplsaa_system():
     force_field_source = FoyerForceFieldSource("oplsaa")
-    substance = Substance.from_components("C", "O", "CCC", "C1CCCC1")
+    substance = Substance.from_components("C")
 
     with tempfile.TemporaryDirectory() as directory:
         force_field_path = path.join(directory, "ff.json")
@@ -178,6 +181,7 @@ def test_build_foyer_oplsaa_system():
         build_coordinates = BuildCoordinatesPackmol("build_coordinates")
         build_coordinates.max_molecules = 8
         build_coordinates.substance = substance
+        build_coordinates.mass_density = 0.005 * unit.gram / unit.milliliter
         build_coordinates.execute(directory)
 
         assign_parameters = BuildFoyerSystem("assign_parameters")
@@ -187,33 +191,43 @@ def test_build_foyer_oplsaa_system():
         assign_parameters.execute(directory)
         assert path.isfile(assign_parameters.parameterized_system.system_path)
 
+        energy_minimisation = OpenMMEnergyMinimisation("energy_minimisation")
+        energy_minimisation.input_coordinate_file = (
+            build_coordinates.coordinate_file_path
+        )
+        energy_minimisation.parameterized_system = (
+            assign_parameters.parameterized_system
+        )
+        energy_minimisation.execute(directory, ComputeResources())
+        assert path.isfile(energy_minimisation.output_coordinate_file)
+
 
 def test_build_foyer_xml_system():
     with tempfile.TemporaryDirectory() as directory:
         force_field_source_path = path.join(directory, "ff.json")
         force_field_xml_path = path.join(directory, "foyer_ff.xml")
         force_field_source = FoyerForceFieldSource(force_field_xml_path)
-        substance = Substance.from_components("O")
+        substance = Substance.from_components("C")
 
         with open(force_field_source_path, "w") as file:
             file.write(force_field_source.json())
 
         with open(force_field_xml_path, "w") as file:
             file.write(
-                """<ForceField name="tip3p" version="0.0.3" combining_rule="geometric">
+                """<ForceField name="methane_test" version="0.0.3" combining_rule="geometric">
  <AtomTypes>
-  <Type name="HW_tip3p" class="HW_tip3p" element="H" mass="1.008"/>
-  <Type name="OW_tip3p" class="OW_tip3p" element="O" mass="15.9994"/>
+  <Type name="H" class="H" element="H" mass="1.008" def="H"/>
+  <Type name="C" class="C" element="C" mass="12.011" def="C"/>
  </AtomTypes>
  <NonbondedForce coulomb14scale="0.5" lj14scale="0.5">
-  <Atom type="HW_tip3p" charge="0.417" sigma="1.0" epsilon="0.0"/>
-  <Atom type="OW_tip3p" charge="-0.834" sigma="0.315007" epsilon="0.63681228"/>
+  <Atom type="H" charge="0.1" sigma="2.0" epsilon="0.1"/>
+  <Atom type="C" charge="-0.4" sigma="3.0" epsilon="0.5"/>
  </NonbondedForce>
  <HarmonicBondForce>
-  <Bond class1="OW_tip3p" class2="HW_tip3p" length="0.09572" k="1884.06"/>
+  <Bond class1="C" class2="H" length="1.0" k="1000."/>
  </HarmonicBondForce>
  <HarmonicAngleForce>
-  <Angle class1="HW_tip3p" class2="OW_tip3p" class3="HW_tip3p" angle="1.82421813" k="230.274"/>
+  <Angle class1="H" class2="C" class3="H" angle="1.88991" k="100."/>
  </HarmonicAngleForce>
 </ForceField>"""
             )

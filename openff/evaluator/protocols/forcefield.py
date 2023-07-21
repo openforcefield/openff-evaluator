@@ -68,7 +68,7 @@ class BaseBuildSystem(Protocol, abc.ABC):
     )
 
     @staticmethod
-    def _append_system(existing_system, system_to_append, index_map=None):
+    def _append_system(existing_system, system_to_append, cutoff, index_map=None):
         """Appends a system object onto the end of an existing system.
 
         Parameters
@@ -77,6 +77,8 @@ class BaseBuildSystem(Protocol, abc.ABC):
             The base system to extend.
         system_to_append: openmm.System
             The system to append.
+        cutoff: openff.evaluator.unit.Quantity
+            The nonbonded cutoff
         index_map: dict of int and int, optional
             A map to apply to the indices of atoms in the `system_to_append`.
             This is predominantly to be used when the ordering of the atoms
@@ -147,6 +149,10 @@ class BaseBuildSystem(Protocol, abc.ABC):
                 if isinstance(force_to_append, openmm.CustomNonbondedForce):
                     existing_force = openmm.CustomNonbondedForce(
                         force_to_append.getEnergyFunction()
+                    )
+                    existing_force.setCutoffDistance(cutoff)
+                    existing_force.setNonbondedMethod(
+                        openmm.CustomNonbondedForce.CutoffPeriodic
                     )
                     for index in range(force_to_append.getNumGlobalParameters()):
                         existing_force.addGlobalParameter(
@@ -274,6 +280,20 @@ class BaseBuildSystem(Protocol, abc.ABC):
                 for index in range(force_to_append.getNumParticles()):
                     nb_params = force_to_append.getParticleParameters(index_map[index])
                     existing_force.addParticle(nb_params)
+
+                # Add the 1-2, 1-3 and 1-4 exceptions.
+                for index in range(force_to_append.getNumExclusions()):
+                    (
+                        index_a,
+                        index_b,
+                    ) = force_to_append.getExclusionParticles(index)
+
+                    index_a = index_map[index_a]
+                    index_b = index_map[index_b]
+
+                    existing_force.addExclusion(
+                        index_a + index_offset, index_b + index_offset
+                    )
 
             elif isinstance(force_to_append, openmm.CustomBondForce):
                 for index in range(force_to_append.getNumBonds()):
@@ -477,7 +497,7 @@ class TemplateBuildSystem(BaseBuildSystem, abc.ABC):
                 for index, atom in enumerate(duplicate_molecule.atoms):
                     index_map[atom.molecule_particle_index] = index
 
-                self._append_system(system, system_template, index_map)
+                self._append_system(system, system_template, cutoff, index_map)
 
         if openmm_pdb_file.topology.getPeriodicBoxVectors() is not None:
             system.setDefaultPeriodicBoxVectors(
@@ -1149,9 +1169,7 @@ class BuildFoyerSystem(TemplateBuildSystem):
 
         interchange = Interchange.from_foyer(topology=topology, force_field=force_field)
 
-        openmm_pdb_file = app.PDBFile(self.coordinate_file_path)
-        if openmm_pdb_file.topology.getPeriodicBoxVectors() is not None:
-            interchange.box = openmm_pdb_file.topology.getPeriodicBoxVectors()
+        interchange.box = [10, 10, 10] * unit.nanometers
 
         openmm_system = interchange.to_openmm(combine_nonbonded_forces=False)
 
