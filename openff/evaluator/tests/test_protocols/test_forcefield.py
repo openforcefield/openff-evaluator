@@ -233,8 +233,9 @@ def test_build_foyer_xml_system():
             )
 
         build_coordinates = BuildCoordinatesPackmol("build_coordinates")
-        build_coordinates.max_molecules = 8
+        build_coordinates.max_molecules = 1
         build_coordinates.substance = substance
+        build_coordinates.mass_density = 0.005 * unit.gram / unit.milliliter
         build_coordinates.execute(directory)
 
         assign_parameters = BuildFoyerSystem("assign_parameters")
@@ -243,3 +244,13 @@ def test_build_foyer_xml_system():
         assign_parameters.substance = substance
         assign_parameters.execute(directory)
         assert path.isfile(assign_parameters.parameterized_system.system_path)
+
+        energy_minimisation = OpenMMEnergyMinimisation("energy_minimisation")
+        energy_minimisation.input_coordinate_file = (
+            build_coordinates.coordinate_file_path
+        )
+        energy_minimisation.parameterized_system = (
+            assign_parameters.parameterized_system
+        )
+        energy_minimisation.execute(directory, ComputeResources())
+        assert path.isfile(energy_minimisation.output_coordinate_file)
