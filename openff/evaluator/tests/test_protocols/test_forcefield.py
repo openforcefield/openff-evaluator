@@ -170,7 +170,7 @@ phase2="3.141592653589793" phase3="0.00" phase4="3.141592653589793"/>
 
 def test_build_foyer_oplsaa_system():
     force_field_source = FoyerForceFieldSource("oplsaa")
-    substance = Substance.from_components("C")
+    substance = Substance.from_components("C", "CC", "c1ccccc1", "CC(=O)O")
 
     with tempfile.TemporaryDirectory() as directory:
         force_field_path = path.join(directory, "ff.json")

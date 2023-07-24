@@ -142,6 +142,12 @@ class BaseBuildSystem(Protocol, abc.ABC):
                 if type(force_to_append) != type(force):
                     continue
 
+                if isinstance(
+                    force_to_append, openmm.CustomNonbondedForce
+                ) or isinstance(force_to_append, openmm.CustomBondForce):
+                    if force_to_append.getEnergyFunction() != force.getEnergyFunction():
+                        continue
+
                 existing_force = force
                 break
 
