@@ -1,5 +1,6 @@
 from .forcefield import (
     ForceFieldSource,
+    FoyerForceFieldSource,
     LigParGenForceFieldSource,
     SmirnoffForceFieldSource,
     TLeapForceFieldSource,
@@ -11,6 +12,7 @@ __all__ = [
     SmirnoffForceFieldSource,
     LigParGenForceFieldSource,
     TLeapForceFieldSource,
+    FoyerForceFieldSource,
     ParameterGradient,
     ParameterGradientKey,
 ]
