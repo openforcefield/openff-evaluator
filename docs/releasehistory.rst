@@ -8,6 +8,9 @@ Releases follow the ``major.minor.micro`` scheme recommended by
 * ``minor`` increments add features but do not break API compatibility
 * ``micro`` increments represent bugfix releases or improvements in documentation
 
+Current development
+-------------------
+
 0.4.4 - July 24, 2023
 ---------------------
 
