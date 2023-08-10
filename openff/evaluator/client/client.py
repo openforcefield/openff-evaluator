@@ -218,7 +218,7 @@ class RequestOptions(AttributeClass):
         # Make sure the schema is compatible with the layer.
         assert layer_type in registered_calculation_layers
         calculation_layer = registered_calculation_layers[layer_type]
-        assert type(schema) == calculation_layer.required_schema_type()
+        assert type(schema) is calculation_layer.required_schema_type()
 
         if isinstance(property_type, type):
             property_type = property_type.__name__

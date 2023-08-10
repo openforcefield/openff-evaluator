@@ -126,7 +126,7 @@ class Component(AttributeClass):
         return hash(self.identifier)
 
     def __eq__(self, other):
-        return type(self) == type(other) and self.identifier == other.identifier
+        return type(self) is type(other) and self.identifier == other.identifier
 
     def __ne__(self, other):
         return not (self == other)

@@ -139,7 +139,7 @@ class BaseBuildSystem(Protocol, abc.ABC):
                         f"of force: {type(force)}."
                     )
 
-                if type(force_to_append) != type(force):
+                if type(force_to_append) is not type(force):
                     continue
 
                 if isinstance(
