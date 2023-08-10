@@ -24,6 +24,7 @@ from openff.evaluator.forcefield import (
     SmirnoffForceFieldSource,
     TLeapForceFieldSource,
 )
+from openff.evaluator.forcefield.forcefield import FoyerForceFieldSource
 from openff.evaluator.forcefield.system import ParameterizedSystem
 from openff.evaluator.substances import Substance
 from openff.evaluator.utils.utils import (
@@ -67,7 +68,7 @@ class BaseBuildSystem(Protocol, abc.ABC):
     )
 
     @staticmethod
-    def _append_system(existing_system, system_to_append, index_map=None):
+    def _append_system(existing_system, system_to_append, cutoff, index_map=None):
         """Appends a system object onto the end of an existing system.
 
         Parameters
@@ -76,6 +77,8 @@ class BaseBuildSystem(Protocol, abc.ABC):
             The base system to extend.
         system_to_append: openmm.System
             The system to append.
+        cutoff: openff.evaluator.unit.Quantity
+            The nonbonded cutoff
         index_map: dict of int and int, optional
             A map to apply to the indices of atoms in the `system_to_append`.
             This is predominantly to be used when the ordering of the atoms
@@ -87,6 +90,9 @@ class BaseBuildSystem(Protocol, abc.ABC):
             openmm.HarmonicAngleForce,
             openmm.PeriodicTorsionForce,
             openmm.NonbondedForce,
+            openmm.RBTorsionForce,
+            openmm.CustomNonbondedForce,
+            openmm.CustomBondForce,
         ]
 
         number_of_appended_forces = 0
@@ -133,15 +139,56 @@ class BaseBuildSystem(Protocol, abc.ABC):
                         f"of force: {type(force)}."
                     )
 
-                if type(force_to_append) != type(force):
+                if type(force_to_append) is not type(force):
                     continue
+
+                if isinstance(
+                    force_to_append, openmm.CustomNonbondedForce
+                ) or isinstance(force_to_append, openmm.CustomBondForce):
+                    if force_to_append.getEnergyFunction() != force.getEnergyFunction():
+                        continue
 
                 existing_force = force
                 break
 
             if existing_force is None:
-                existing_force = type(force_to_append)()
-                existing_system.addForce(existing_force)
+                if isinstance(force_to_append, openmm.CustomNonbondedForce):
+                    existing_force = openmm.CustomNonbondedForce(
+                        force_to_append.getEnergyFunction()
+                    )
+                    existing_force.setCutoffDistance(cutoff)
+                    existing_force.setNonbondedMethod(
+                        openmm.CustomNonbondedForce.CutoffPeriodic
+                    )
+                    for index in range(force_to_append.getNumGlobalParameters()):
+                        existing_force.addGlobalParameter(
+                            force_to_append.getGlobalParameterName(index),
+                            force_to_append.getGlobalParameterDefaultValue(index),
+                        )
+                    for index in range(force_to_append.getNumPerParticleParameters()):
+                        existing_force.addPerParticleParameter(
+                            force_to_append.getPerParticleParameterName(index)
+                        )
+                    existing_system.addForce(existing_force)
+
+                elif isinstance(force_to_append, openmm.CustomBondForce):
+                    existing_force = openmm.CustomBondForce(
+                        force_to_append.getEnergyFunction()
+                    )
+                    for index in range(force_to_append.getNumGlobalParameters()):
+                        existing_force.addGlobalParameter(
+                            force_to_append.getGlobalParameterName(index),
+                            force_to_append.getGlobalParameterDefaultValue(index),
+                        )
+                    for index in range(force_to_append.getNumPerBondParameters()):
+                        existing_force.addPerBondParameter(
+                            force_to_append.getPerBondParameterName(index)
+                        )
+                    existing_system.addForce(existing_force)
+
+                else:
+                    existing_force = type(force_to_append)()
+                    existing_system.addForce(existing_force)
 
             if isinstance(force_to_append, openmm.HarmonicBondForce):
                 # Add the bonds.
@@ -225,6 +272,45 @@ class BaseBuildSystem(Protocol, abc.ABC):
                     existing_force.addException(
                         index_a + index_offset, index_b + index_offset, *parameters
                     )
+
+            elif isinstance(force_to_append, openmm.RBTorsionForce):
+                # Support for RBTorisionForce needed for OPLSAA, etc
+                for index in range(force_to_append.getNumTorsions()):
+                    torsion_params = force_to_append.getTorsionParameters(index)
+                    for i in range(4):
+                        torsion_params[i] = index_map[torsion_params[i]] + index_offset
+
+                    existing_force.addTorsion(*torsion_params)
+
+            elif isinstance(force_to_append, openmm.CustomNonbondedForce):
+                for index in range(force_to_append.getNumParticles()):
+                    nb_params = force_to_append.getParticleParameters(index_map[index])
+                    existing_force.addParticle(nb_params)
+
+                # Add the 1-2, 1-3 and 1-4 exceptions.
+                for index in range(force_to_append.getNumExclusions()):
+                    (
+                        index_a,
+                        index_b,
+                    ) = force_to_append.getExclusionParticles(index)
+
+                    index_a = index_map[index_a]
+                    index_b = index_map[index_b]
+
+                    existing_force.addExclusion(
+                        index_a + index_offset, index_b + index_offset
+                    )
+
+            elif isinstance(force_to_append, openmm.CustomBondForce):
+                for index in range(force_to_append.getNumBonds()):
+                    index_a, index_b, bond_params = force_to_append.getBondParameters(
+                        index
+                    )
+
+                    index_a = index_map[index_a] + index_offset
+                    index_b = index_map[index_b] + index_offset
+
+                    existing_force.addBond(index_a, index_b, bond_params)
 
             number_of_appended_forces += 1
 
@@ -417,7 +503,7 @@ class TemplateBuildSystem(BaseBuildSystem, abc.ABC):
                 for index, atom in enumerate(duplicate_molecule.atoms):
                     index_map[atom.molecule_particle_index] = index
 
-                self._append_system(system, system_template, index_map)
+                self._append_system(system, system_template, cutoff, index_map)
 
         if openmm_pdb_file.topology.getPeriodicBoxVectors() is not None:
             system.setDefaultPeriodicBoxVectors(
@@ -1052,3 +1138,55 @@ class BuildTLeapSystem(TemplateBuildSystem):
             )
 
         super(BuildTLeapSystem, self)._execute(directory, available_resources)
+
+
+@workflow_protocol()
+class BuildFoyerSystem(TemplateBuildSystem):
+    """Parameterize a set of molecules with a Foyer force field source"""
+
+    def _parameterize_molecule(self, molecule, force_field_source, cutoff):
+        """Parameterize the specified molecule.
+
+        Parameters
+        ----------
+        molecule: openff.toolkit.topology.Molecule
+            The molecule to parameterize.
+        force_field_source: FoyerForceFieldSource
+            The foyer source which describes which parameters to apply.
+
+        Returns
+        -------
+        openmm.System
+            The parameterized system.
+        """
+        from foyer import Forcefield as FoyerForceField
+        from openff.interchange import Interchange
+        from openff.toolkit import Topology
+
+        topology: Topology = molecule.to_topology()
+
+        force_field: FoyerForceField
+        if force_field_source.foyer_source.lower() == "oplsaa":
+            force_field = FoyerForceField(name="oplsaa")
+        else:
+            force_field = FoyerForceField(
+                forcefield_files=force_field_source.foyer_source
+            )
+
+        interchange = Interchange.from_foyer(topology=topology, force_field=force_field)
+
+        interchange.box = [10, 10, 10] * unit.nanometers
+
+        openmm_system = interchange.to_openmm(combine_nonbonded_forces=False)
+
+        return openmm_system
+
+    def _execute(self, directory, available_resources):
+        force_field_source = ForceFieldSource.from_json(self.force_field_path)
+
+        if not isinstance(force_field_source, FoyerForceFieldSource):
+            raise ValueError(
+                "Only Foyer force field sources are supported by this protocol."
+            )
+
+        super(BuildFoyerSystem, self)._execute(directory, available_resources)

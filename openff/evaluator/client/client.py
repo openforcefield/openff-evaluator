@@ -14,6 +14,7 @@ from openff.evaluator.attributes import UNDEFINED, Attribute, AttributeClass
 from openff.evaluator.datasets import PhysicalPropertyDataSet
 from openff.evaluator.forcefield import (
     ForceFieldSource,
+    FoyerForceFieldSource,
     LigParGenForceFieldSource,
     ParameterGradientKey,
     SmirnoffForceFieldSource,
@@ -217,7 +218,7 @@ class RequestOptions(AttributeClass):
         # Make sure the schema is compatible with the layer.
         assert layer_type in registered_calculation_layers
         calculation_layer = registered_calculation_layers[layer_type]
-        assert type(schema) == calculation_layer.required_schema_type()
+        assert type(schema) is calculation_layer.required_schema_type()
 
         if isinstance(property_type, type):
             property_type = property_type.__name__
@@ -513,6 +514,8 @@ class EvaluatorClient:
             replacements["BaseBuildSystem"] = "BuildLigParGenSystem"
         elif isinstance(force_field_source, TLeapForceFieldSource):
             replacements["BaseBuildSystem"] = "BuildTLeapSystem"
+        elif isinstance(force_field_source, FoyerForceFieldSource):
+            replacements["BaseBuildSystem"] = "BuildFoyerSystem"
 
         return replacements
 

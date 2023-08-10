@@ -69,7 +69,7 @@ class HashableStoredData(BaseStoredData, abc.ABC):
     """
 
     def __eq__(self, other):
-        return type(self) == type(other) and hash(self) == hash(other)
+        return type(self) is type(other) and hash(self) == hash(other)
 
     def __ne__(self, other):
         return not self.__eq__(other)
@@ -150,7 +150,7 @@ class ReplaceableData(BaseStoredData, abc.ABC):
         """
 
         assert isinstance(stored_data_1, ReplaceableData)
-        assert type(stored_data_1) == type(stored_data_2)
+        assert type(stored_data_1) is type(stored_data_2)
 
         # Make sure the two objects are compatible.
         data_query = stored_data_1.to_storage_query()

@@ -125,7 +125,7 @@ class ComplexObject:
         self.field2 = state["field2"]
 
 
-class TestClass(TypedBaseModel):
+class SomeTestClass(TypedBaseModel):
     def __init__(self, inputs=None):
         self.inputs = inputs
 
@@ -178,10 +178,10 @@ def test_polymorphic_dictionary():
         "test_Complex": ComplexObject(),
     }
 
-    test_object = TestClass(inputs=test_dictionary)
+    test_object = SomeTestClass(inputs=test_dictionary)
     test_json = test_object.json()
 
-    test_recreated = TestClass.parse_json(test_json)
+    test_recreated = SomeTestClass.parse_json(test_json)
     test_recreated_json = test_recreated.json()
 
     assert test_json == test_recreated_json

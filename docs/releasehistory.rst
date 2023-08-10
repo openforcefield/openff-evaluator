@@ -8,12 +8,20 @@ Releases follow the ``major.minor.micro`` scheme recommended by
 * ``minor`` increments add features but do not break API compatibility
 * ``micro`` increments represent bugfix releases or improvements in documentation
 
-Current development
--------------------
+0.4.5 - July 24, 2023
+---------------------
 
-This release drops support for Python 3.8.
+* PR `#517 <https://github.com/openforcefield/openff-evaluator/pull/517>`_: Add support for Foyer forcefields
 
-* PR `#511 <https://github.com/openforcefield/openff-evaluator/pull/511>`_: Following [NEP 29](https://numpy.org/neps/nep-0029-deprecation_policy.html), removes support for Python 3.8.
+0.4.4 - July 24, 2023
+---------------------
+
+This release drops support for Python 3.8, adds support for Python 3.10, and removed protocols based on Yank.
+
+* PR `#511 <https://github.com/openforcefield/openff-evaluator/pull/511>`_: Following NEP 29, removes support for Python 3.8.
+* PR `#509 <https://github.com/openforcefield/openff-evaluator/pull/509>`_: Add links to centralized OpenFF installation guide.
+* PR `#496 <https://github.com/openforcefield/openff-evaluator/pull/496>`_: Removes support for protocls based on Yank.
+* PR `#497 <https://github.com/openforcefield/openff-evaluator/pull/497>`_: Adds support for Python 3.10
 
 0.4.3
 -----
@@ -24,7 +32,7 @@ Bugfixes
 """"""""
 
 * PR `#496 <https://github.com/openforcefield/openff-evaluator/pull/496>`_: Adds support for OpenMM 8.
-* PR `#503 <https://github.com/openforcefield/openff-evaluator/pull/503>`_: Updates `FilterBySmirks` to no longer ignore isotopes.
+* PR `#503 <https://github.com/openforcefield/openff-evaluator/pull/503>`_: Updates ``FilterBySmirks`` to no longer ignore isotopes.
 
 
 Documentation

@@ -261,3 +261,43 @@ class LigParGenForceFieldSource(ForceFieldSource):
         self._cutoff = state["cutoff"]
         self._request_url = state["request_url"]
         self._download_url = state["download_url"]
+
+
+class FoyerForceFieldSource(ForceFieldSource):
+    """A wrapper around Foyer force fields"""
+
+    @property
+    def foyer_source(self):
+        """str: Foyer force field source."""
+        return self._foyer_source
+
+    @property
+    def cutoff(self):
+        """openff.evaluator.unit.Quantity: The non-bonded interaction cutoff."""
+        return self._cutoff
+
+    def __init__(self, foyer_source="", cutoff=0.9 * unit.nanometer):
+        """Constructs a new FoyerForceField Source
+
+        Parameters
+        ----------
+        foyer_source: str
+            'oplsaa' or a Foyer XML forcefield file
+        cutoff: openff.evaluator.unit.Quantity
+            The non-bonded interaction cutoff, default 0.9 nanometers.
+
+        Examples
+        --------
+        To create a source for the Foyer force field:
+
+        >>> foyer_source = FoyerForceFieldSource('oplsaa')
+        """
+        self._foyer_source = foyer_source
+        self._cutoff = cutoff
+
+    def __getstate__(self):
+        return {"foyer_source": self._foyer_source, "cutoff": self._cutoff}
+
+    def __setstate__(self, state):
+        self._foyer_source = state["foyer_source"]
+        self._cutoff = state["cutoff"]

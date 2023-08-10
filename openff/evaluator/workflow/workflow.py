@@ -519,12 +519,12 @@ class Workflow:
 
         molecule_labels = list()
 
-        for molecule_idx, molecule in enumerate(topology.reference_molecules):
+        for _, molecule in enumerate(topology.unique_molecules):
             top_mol = Topology.from_molecules([molecule])
             current_molecule_labels = dict()
             param_is_list = False
             for tag, parameter_handler in force_field._parameter_handlers.items():
-                if type(parameter_handler) == VirtualSiteHandler:
+                if type(parameter_handler) is VirtualSiteHandler:
                     param_is_list = True
 
                 matches = parameter_handler.find_matches(top_mol, unique=True)
