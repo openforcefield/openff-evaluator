@@ -239,7 +239,7 @@ class ProtocolPath(PlaceholderValue):
         return hash(self._full_path)
 
     def __eq__(self, other):
-        return type(self) == type(other) and self._full_path == other.full_path
+        return type(self) is type(other) and self._full_path == other.full_path
 
     def __ne__(self, other):
         return not (self == other)

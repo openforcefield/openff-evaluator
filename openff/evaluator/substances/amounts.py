@@ -66,7 +66,7 @@ class Amount(AttributeClass, abc.ABC):
         return f"<{self.__class__.__name__} {str(self)}>"
 
     def __eq__(self, other):
-        return type(self) == type(other) and np.isclose(self.value, other.value)
+        return type(self) is type(other) and np.isclose(self.value, other.value)
 
     def __ne__(self, other):
         return not (self == other)

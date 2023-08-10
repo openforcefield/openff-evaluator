@@ -64,7 +64,7 @@ class ConditionalGroup(ProtocolGroup):
 
         def __eq__(self, other):
             return (
-                type(self) == type(other)
+                type(self) is type(other)
                 and self.left_hand_value == other.left_hand_value
                 and self.right_hand_value == other.right_hand_value
                 and self.type == other.type

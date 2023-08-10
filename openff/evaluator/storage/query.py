@@ -238,7 +238,7 @@ class BaseSimulationDataQuery(BaseDataQuery, abc.ABC):
                     iter(self.substance.get_amounts(component.identifier))
                 )
 
-                if type(data_amount) != type(query_amount):
+                if type(data_amount) is not type(query_amount):
                     continue
 
                 if isinstance(data_amount, ExactAmount) and data_amount != query_amount:

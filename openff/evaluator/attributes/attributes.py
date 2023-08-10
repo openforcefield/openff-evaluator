@@ -18,7 +18,7 @@ class UndefinedAttribute:
     and an undeclared optional value."""
 
     def __eq__(self, other):
-        return type(other) == UndefinedAttribute
+        return type(other) is UndefinedAttribute
 
     def __ne__(self, other):
         return not self.__eq__(other)
@@ -72,7 +72,7 @@ class AttributeClass(TypedBaseModel):
             attribute = getattr(self.__class__, name)
             attribute_value = getattr(self, name)
 
-            if attribute_type is not None and type(attribute) != attribute_type:
+            if attribute_type is not None and type(attribute) is not attribute_type:
                 continue
 
             if not attribute.optional and attribute_value == UNDEFINED:
@@ -131,7 +131,7 @@ class AttributeClass(TypedBaseModel):
                 found_attributes = [
                     name
                     for name in found_attributes
-                    if type(base_class.__dict__[name]) == attribute_type
+                    if type(base_class.__dict__[name]) is attribute_type
                 ]
 
             attribute_names.extend(found_attributes)
