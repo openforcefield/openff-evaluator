@@ -53,14 +53,11 @@ jobs:
         uses: mamba-org/setup-micromamba@v1
         with:
           environment-file: devtools/conda-envs/test_env.yaml
-          channel-priority: flexible
           create-args: >-
             python=${{ matrix.python-version }}
             pymbar=${{ matrix.pymbar-version }}
             pydantic=${{ matrix.pydantic-version }}
             openmm=${{ matrix.openmm-version }}
-            jax>=0.3
-            jaxlib>=0.3
 
       - name: Install OpenEye
         if: matrix.openeye
