@@ -16,8 +16,8 @@ dependencies:
   # smirnoff-plugins =0.0.3
   - foyer
 
-    # Shim
-  - openff-units =0.2.0
+    # Shims
+  - pint =0.20.1
 
     # Standard dependencies
   - openff-toolkit >=0.14.3
