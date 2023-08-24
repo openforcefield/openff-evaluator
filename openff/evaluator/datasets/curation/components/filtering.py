@@ -7,10 +7,10 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
 import numpy
 import pandas
 from openff.units import unit
-from pydantic import Field, root_validator, validator
 from scipy.optimize import linear_sum_assignment
 from typing_extensions import Literal
 
+from openff.evaluator._pydantic import Field, root_validator, validator
 from openff.evaluator.datasets.curation.components import (
     CurationComponent,
     CurationComponentSchema,

@@ -31,7 +31,7 @@ dependencies:
   - pyyaml
   - requests
   - python-dateutil
-  - pydantic <2.0.0a0
+  - pydantic
   - paprika
   - taproom
   - dataclasses

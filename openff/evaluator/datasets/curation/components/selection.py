@@ -5,9 +5,9 @@ from typing import TYPE_CHECKING, List, Set, Tuple, Union
 
 import numpy
 import pandas
-from pydantic import BaseModel, Field, conlist, validator
 from typing_extensions import Literal
 
+from openff.evaluator._pydantic import BaseModel, Field, conlist, validator
 from openff.evaluator.datasets.curation.components import (
     CurationComponent,
     CurationComponentSchema,

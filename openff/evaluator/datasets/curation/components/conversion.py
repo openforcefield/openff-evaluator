@@ -5,9 +5,9 @@ import logging
 from typing import TYPE_CHECKING, Union
 
 import pandas
-from pydantic import Field
 from typing_extensions import Literal
 
+from openff.evaluator._pydantic import Field
 from openff.evaluator.datasets.curation.components import (
     CurationComponent,
     CurationComponentSchema,
