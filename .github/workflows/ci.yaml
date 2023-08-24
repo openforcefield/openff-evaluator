@@ -70,6 +70,11 @@ jobs:
         env:
           SECRET_OE_LICENSE: ${{ secrets.OE_LICENSE }}
 
+      - name: Install Foyer
+        if: ${{ matrix.pydantic-version == "1" }}
+        shell: bash -l {0}
+        run: micromamba install foyer -c conda-forge
+
       - name: Install PASCAL Compiler (MacOS)
         shell: bash -l {0}
         if: startsWith(matrix.os, 'macOS')
@@ -105,7 +110,7 @@ jobs:
 
       - name: Run (non-GPU) tutorials
         shell: bash -l {0}
-        if: ${{ matrix.pymbar-version == 3 }}
+        if: ${{ matrix.pymbar-version == "3.1" }}
         run: |
           # ForceBalance requires pymbar 3, so don't run these tests if we are using pymbar 4,
           # even though we're not running the fitting tutorial
