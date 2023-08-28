@@ -9,6 +9,7 @@ import pytest
 from openff.toolkit.topology import Molecule, Topology
 from openff.toolkit.typing.engines.smirnoff import ForceField, vdWHandler
 from openff.toolkit.typing.engines.smirnoff.parameters import (
+    BondHandler,
     ChargeIncrementModelHandler,
     ElectrostaticsHandler,
     LibraryChargeHandler,
@@ -141,8 +142,7 @@ def hydrogen_chloride_force_field(
     force_field = ForceField()
 
     # Add a Vdw handler.
-    vdw_handler = vdWHandler(version=0.3)
-    vdw_handler.method = "cutoff"
+    vdw_handler = vdWHandler(version=0.4)
     vdw_handler.cutoff = 6.0 * unit.angstrom
     vdw_handler.scale14 = 1.0
     vdw_handler.add_parameter(
@@ -161,7 +161,17 @@ def hydrogen_chloride_force_field(
     )
     force_field.register_parameter_handler(vdw_handler)
 
-    # Add an electrostatic, a library charge and a charge increment handler.
+    # Add bond, electrostatics, library charge, and charge increment handlers
+    bond_handler = BondHandler(version=0.4)
+    bond_handler.add_parameter(
+        {
+            "smirks": "[#1:1]-[#17:2]",
+            "length": 1.0 * unit.angstrom,
+            "k": 1000.0 * unit.kilojoule_per_mole / unit.angstrom**2,
+        }
+    )
+    force_field.register_parameter_handler(bond_handler)
+
     electrostatics_handler = ElectrostaticsHandler(version=0.3)
     electrostatics_handler.cutoff = 6.0 * unit.angstrom
     electrostatics_handler.periodic_potential = "PME"
@@ -403,6 +413,8 @@ def test_update_context_with_positions(box_vectors):
 
     positions = numpy.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]]) * openmm_unit.angstrom
 
+    # This calls context.computeVirtualSites() so the final positions are computed
+    # from the force field, not necessarily the original positions
     update_context_with_positions(context, positions, box_vectors)
 
     context_positions = context.getState(getPositions=True).getPositions(asNumpy=True)
