@@ -562,10 +562,16 @@ class BuildSmirnoffSystem(BaseBuildSystem):
             pdb_file.topology, unique_molecules=unique_molecules
         )
 
-        interchange = Interchange.from_smirnoff(topology=topology, force_field=force_field)
+        interchange = Interchange.from_smirnoff(
+            topology=topology, force_field=force_field
+        )
         # Do not combine nonbonded forces if any forcefield collection is a plugin
-        combine_nonbonded_forces = not any([collection.is_plugin for collection in interchange.collections.values()])
-        system = interchange.to_openmm(combine_nonbonded_forces=combine_nonbonded_forces)
+        combine_nonbonded_forces = not any(
+            [collection.is_plugin for collection in interchange.collections.values()]
+        )
+        system = interchange.to_openmm(
+            combine_nonbonded_forces=combine_nonbonded_forces
+        )
 
         if system is None:
             raise RuntimeError(
