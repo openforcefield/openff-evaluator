@@ -565,10 +565,17 @@ class BuildSmirnoffSystem(BaseBuildSystem):
         interchange = Interchange.from_smirnoff(
             topology=topology, force_field=force_field
         )
-        # Do not combine nonbonded forces if any forcefield collection is a plugin
-        combine_nonbonded_forces = not any(
-            [collection.is_plugin for collection in interchange.collections.values()]
-        )
+
+        # Check for openmm incompatibilities
+        combine_nonbonded_forces = True
+        for collection in interchange.collections.values():
+            try:
+                collection.check_openmm_requirements(
+                    combine_nonbonded_forces=combine_nonbonded_forces
+                )
+            except AssertionError:
+                combine_nonbonded_forces = False
+
         system = interchange.to_openmm(
             combine_nonbonded_forces=combine_nonbonded_forces
         )
