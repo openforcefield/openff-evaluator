@@ -13,6 +13,7 @@ from enum import Enum
 import numpy as np
 import openmm
 import requests
+from openff.interchange import Interchange
 from openff.units import unit
 from openff.units.openmm import to_openmm
 from openmm import app
@@ -561,7 +562,23 @@ class BuildSmirnoffSystem(BaseBuildSystem):
             pdb_file.topology, unique_molecules=unique_molecules
         )
 
-        system = force_field.create_openmm_system(topology)
+        interchange = Interchange.from_smirnoff(
+            topology=topology, force_field=force_field
+        )
+
+        # Check for openmm incompatibilities
+        combine_nonbonded_forces = True
+        for collection in interchange.collections.values():
+            try:
+                collection.check_openmm_requirements(
+                    combine_nonbonded_forces=combine_nonbonded_forces
+                )
+            except AssertionError:
+                combine_nonbonded_forces = False
+
+        system = interchange.to_openmm(
+            combine_nonbonded_forces=combine_nonbonded_forces
+        )
 
         if system is None:
             raise RuntimeError(
