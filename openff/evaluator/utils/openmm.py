@@ -187,6 +187,17 @@ def system_subset(
             {"Electrostatics", "ChargeIncrementModel", "LibraryCharges"}
         )
 
+    if parameter_key.tag in {"VirtualSites"}:
+        handlers_to_register.update(
+            {
+                "Electrostatics",
+                "vdW",
+                "LibraryCharges",
+                "ChargeIncrementModel",
+                "Constraints",
+            },
+        )
+
     registered_handlers = force_field.registered_parameter_handlers
 
     for handler_to_register in handlers_to_register:
