@@ -11,7 +11,7 @@ Releases follow the ``major.minor.micro`` scheme recommended by
 Current development
 ---------------------
 
-* PR `#531 <https://github.com/openforcefield/openff-evaluator/pull/531>`_: Changes ``BaseEnergyMinimisation.tolerance`` to use units of force.
+* PR `#532 <https://github.com/openforcefield/openff-evaluator/pull/532>`_: Changes ``BaseEnergyMinimisation.tolerance`` to use units of force.
 
 0.4.5 - July 24, 2023
 ---------------------
