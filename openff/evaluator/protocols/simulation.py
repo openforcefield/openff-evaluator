@@ -35,9 +35,9 @@ class BaseEnergyMinimisation(Protocol, abc.ABC):
     )
 
     tolerance = InputAttribute(
-        docstring="The energy tolerance to which the system should be minimized.",
+        docstring="The force tolerance to which the system should be minimized.",
         type_hint=unit.Quantity,
-        default_value=10 * unit.kilojoules / unit.mole,
+        default_value=10 * unit.kilojoules_per_mole / unit.nanometer,
     )
     max_iterations = InputAttribute(
         docstring="The maximum number of iterations to perform. If this is 0, "
