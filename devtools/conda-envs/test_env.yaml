@@ -1,7 +1,6 @@
 name: evaluator-test-env
 channels:
   - jaimergp/label/unsupported-cudatoolkit-shim
-  - conda-forge/label/openmm_rc
   - conda-forge
 dependencies:
     # Base depends
@@ -22,7 +21,7 @@ dependencies:
 
     # Standard dependencies
   - openff-toolkit >=0.14.3
-  - openmm ==8.1.0beta
+  - openmm
   - pymbar
   - dask >=2.7.0
   - distributed >=2.7.0
