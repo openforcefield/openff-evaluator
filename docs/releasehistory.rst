@@ -8,10 +8,15 @@ Releases follow the ``major.minor.micro`` scheme recommended by
 * ``minor`` increments add features but do not break API compatibility
 * ``micro`` increments represent bugfix releases or improvements in documentation
 
+Current development
+---------------------
+
+* PR `#531 <https://github.com/openforcefield/openff-evaluator/pull/531>`_: Changes ``BaseEnergyMinimisation.tolerance`` to use units of force.
+
 0.4.5 - July 24, 2023
 ---------------------
 
-* PR `#517 <https://github.com/openforcefield/openff-evaluator/pull/517>`_: Add support for Foyer forcefields
+* PR `#517 <https://github.com/openforcefield/openff-evaluator/pull/517>`_: Adds support for Foyer forcefields.
 
 0.4.4 - July 24, 2023
 ---------------------
