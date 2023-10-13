@@ -11,6 +11,11 @@ Releases follow the ``major.minor.micro`` scheme recommended by
 Current development
 ---------------------
 
+* PR `#533 <https://github.com/openforcefield/openff-evaluator/pull/533>`_: Considers ``openmm.AmoebaMultipoleForce`` when disabling PBC.
+
+0.4.6 - October 12, 2023
+------------------------
+
 * PR `#532 <https://github.com/openforcefield/openff-evaluator/pull/532>`_: Changes ``BaseEnergyMinimisation.tolerance`` to use units of force.
 
 0.4.5 - July 24, 2023

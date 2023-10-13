@@ -132,12 +132,16 @@ def disable_pbc(system):
     for force_index in range(system.getNumForces()):
         force = system.getForce(force_index)
 
-        if not isinstance(force, (openmm.NonbondedForce, openmm.CustomNonbondedForce)):
-            continue
-
-        force.setNonbondedMethod(
-            0
-        )  # NoCutoff = 0, NonbondedMethod.CutoffNonPeriodic = 1
+        if isinstance(
+            force,
+            (
+                openmm.NonbondedForce,
+                openmm.CustomNonbondedForce,
+                openmm.AmeobaMultipoleForce,
+            ),
+        ):
+            # NoCutoff = 0, NonbondedMethod.CutoffNonPeriodic = 1
+            force.setNonbondedMethod(0)
 
 
 def system_subset(
