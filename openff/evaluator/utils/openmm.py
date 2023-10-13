@@ -137,7 +137,7 @@ def disable_pbc(system):
             (
                 openmm.NonbondedForce,
                 openmm.CustomNonbondedForce,
-                openmm.AmeobaMultipoleForce,
+                openmm.AmoebaMultipoleForce,
             ),
         ):
             # NoCutoff = 0, NonbondedMethod.CutoffNonPeriodic = 1
