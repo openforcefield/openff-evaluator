@@ -199,6 +199,7 @@ def system_subset(
         # conformer's geometry likely does not match the force field geometry
         handlers_to_register.update(
             {
+                "vdW",
                 "Bonds",
                 "Constraints",
             },
