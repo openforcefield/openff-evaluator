@@ -10,6 +10,7 @@ dependencies:
     # Testing and development
   - pytest
   - pytest-cov
+  - pytest-xdist
   - pytest-randomly
   - nbval
   - requests-mock # For testing http requests.

@@ -18,6 +18,7 @@ from openff.toolkit.typing.engines.smirnoff.parameters import (
 from openff.units import unit
 from openff.units.openmm import from_openmm, to_openmm
 from openmm import unit as openmm_unit
+from openmm.app import ForceField as OpenMMForceField
 from openmm.app import PDBFile
 
 from openff.evaluator.backends import ComputeResources
@@ -349,6 +350,43 @@ def test_system_subset_charge_increment():
 
     assert np.isclose(epsilon_0.value_in_unit(openmm_unit.kilojoules_per_mole), 0.0)
     assert np.isclose(epsilon_1.value_in_unit(openmm_unit.kilojoules_per_mole), 0.0)
+
+
+def test_system_subset_virtual_site_water():
+    # Create a dummy topology
+    topology: Topology = Molecule.from_mapped_smiles("[H:2][O:1][H:3]").to_topology()
+
+    # Create the system subset.
+    system, parameter_value = system_subset(
+        parameter_key=ParameterGradientKey(
+            "VirtualSites",
+            "[#1:2]-[#8X2H2+0:1]-[#1:3]",
+            "distance",
+        ),
+        force_field=ForceField("opc.offxml"),
+        topology=topology,
+        scale_amount=-0.5,
+    )
+
+    assert system.getNumForces() == 1
+    assert system.getNumParticles() == 4
+
+    # Compare to OpenMM's reference values; w1 and w2 should be halved and w0 increased by remainder
+    # https://github.com/openmm/openmm/blob/8.0.0/wrappers/python/openmm/app/data/opc.xml#L18
+
+    opc_weights = OpenMMForceField("opc.xml")._templates["HOH"].virtualSites[0].weights
+
+    subset_weights = [
+        system.getVirtualSite(3).getWeight(0),
+        system.getVirtualSite(3).getWeight(1),
+        system.getVirtualSite(3).getWeight(2),
+    ]
+
+    assert sum(subset_weights) == 1.0
+    assert sum(opc_weights) == 1.0
+
+    assert subset_weights[1] == pytest.approx(opc_weights[1] * 0.5)
+    assert subset_weights[2] == pytest.approx(opc_weights[2] * 0.5)
 
 
 @pytest.mark.parametrize(
