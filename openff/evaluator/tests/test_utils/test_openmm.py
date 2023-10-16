@@ -357,13 +357,19 @@ def test_system_subset_charge_increment():
     [False, True],
 )
 def test_system_subset_virtual_site_water(add_nonwater):
+    from openff.interchange.drivers.openmm import _get_openmm_energies
+
     # Create a dummy topology
-    topology: Topology = Molecule.from_mapped_smiles("[H:2][O:1][H:3]").to_topology()
+    water = Molecule.from_mapped_smiles("[H:2][O:1][H:3]")
+    water.generate_conformers(n_conformers=1)
+
+    topology: Topology = water.to_topology()
 
     if add_nonwater:
-        topology.add_molecule(
-            Molecule.from_mapped_smiles("[C:1]([H:2])([H:3])([H:4])[H:5]")
-        )
+        methane = Molecule.from_mapped_smiles("[C:1]([H:2])([H:3])([H:4])[H:5]")
+        methane.generate_conformers(n_conformers=1)
+
+        topology.add_molecule(methane)
 
     # Create the system subset.
     system, parameter_value = system_subset(
@@ -400,6 +406,31 @@ def test_system_subset_virtual_site_water(add_nonwater):
 
     assert subset_weights[1] == pytest.approx(opc_weights[1] * 0.5)
     assert subset_weights[2] == pytest.approx(opc_weights[2] * 0.5)
+
+    # Hack, just put the virtual site on the oxygen; not accurate but allows it to run
+    if add_nonwater:
+        positions = numpy.vstack(
+            [
+                water.conformers[0],
+                water.conformers[0][0],
+                methane.conformers[0] + unit.Quantity(5.0, unit.angstrom),
+            ]
+        )
+    else:
+        positions = numpy.vstack(
+            [
+                water.conformers[0],
+                water.conformers[0][0],
+            ]
+        )
+
+    _get_openmm_energies(
+        system=system,
+        box_vectors=None,
+        positions=positions.to_openmm(),
+        round_positions=None,
+        platform="Reference",
+    )
 
 
 @pytest.mark.parametrize(
