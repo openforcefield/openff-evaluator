@@ -352,9 +352,18 @@ def test_system_subset_charge_increment():
     assert np.isclose(epsilon_1.value_in_unit(openmm_unit.kilojoules_per_mole), 0.0)
 
 
-def test_system_subset_virtual_site_water():
+@pytest.mark.parametrize(
+    "add_nonwater",
+    [False, True],
+)
+def test_system_subset_virtual_site_water(add_nonwater):
     # Create a dummy topology
     topology: Topology = Molecule.from_mapped_smiles("[H:2][O:1][H:3]").to_topology()
+
+    if add_nonwater:
+        topology.add_molecule(
+            Molecule.from_mapped_smiles("[C:1]([H:2])([H:3])([H:4])[H:5]")
+        )
 
     # Create the system subset.
     system, parameter_value = system_subset(
@@ -363,23 +372,27 @@ def test_system_subset_virtual_site_water():
             "[#1:2]-[#8X2H2+0:1]-[#1:3]",
             "distance",
         ),
-        force_field=ForceField("opc.offxml"),
+        force_field=ForceField(
+            "openff_unconstrained-1.0.0.offxml",
+            "opc.offxml",
+        ),
         topology=topology,
         scale_amount=-0.5,
     )
 
-    assert system.getNumForces() == 1
-    assert system.getNumParticles() == 4
+    assert system.getNumForces() == 2
+    assert system.getNumParticles() == 4 + int(add_nonwater) * 5
 
     # Compare to OpenMM's reference values; w1 and w2 should be halved and w0 increased by remainder
     # https://github.com/openmm/openmm/blob/8.0.0/wrappers/python/openmm/app/data/opc.xml#L18
 
     opc_weights = OpenMMForceField("opc.xml")._templates["HOH"].virtualSites[0].weights
 
+    # The virtual site (one in this topology) will be at the end, not interlaced
     subset_weights = [
-        system.getVirtualSite(3).getWeight(0),
-        system.getVirtualSite(3).getWeight(1),
-        system.getVirtualSite(3).getWeight(2),
+        system.getVirtualSite(system.getNumParticles() - 1).getWeight(0),
+        system.getVirtualSite(system.getNumParticles() - 1).getWeight(1),
+        system.getVirtualSite(system.getNumParticles() - 1).getWeight(2),
     ]
 
     assert sum(subset_weights) == 1.0
