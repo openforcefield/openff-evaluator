@@ -8,8 +8,8 @@ Releases follow the ``major.minor.micro`` scheme recommended by
 * ``minor`` increments add features but do not break API compatibility
 * ``micro`` increments represent bugfix releases or improvements in documentation
 
-Current development
----------------------
+0.4.7 - October 16, 2023
+------------------------
 
 * PR `#534 <https://github.com/openforcefield/openff-evaluator/pull/534>`_: Includes virtual site and related parameters in ``openmm.system`` subset creation when calculating gradients.
 * PR `#533 <https://github.com/openforcefield/openff-evaluator/pull/533>`_: Considers ``openmm.AmoebaMultipoleForce`` when disabling PBC.
