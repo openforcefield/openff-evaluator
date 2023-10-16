@@ -358,10 +358,6 @@ def test_system_subset_charge_increment():
 )
 def test_system_subset_virtual_site_water(add_nonwater):
     from openff.interchange.drivers.openmm import _get_openmm_energies
-    from packaging.version import Version
-
-    if Version(openmm.__version__).major == 7:
-        pytest.skip("OPC was added in OpenMM 8")
 
     # Create a dummy topology
     water = Molecule.from_mapped_smiles("[H:2][O:1][H:3]")
@@ -384,7 +380,7 @@ def test_system_subset_virtual_site_water(add_nonwater):
         ),
         force_field=ForceField(
             "openff_unconstrained-1.0.0.offxml",
-            "opc.offxml",
+            "tip4p_fb.offxml",
         ),
         topology=topology,
         scale_amount=-0.5,
@@ -394,9 +390,10 @@ def test_system_subset_virtual_site_water(add_nonwater):
     assert system.getNumParticles() == 4 + int(add_nonwater) * 5
 
     # Compare to OpenMM's reference values; w1 and w2 should be halved and w0 increased by remainder
-    # https://github.com/openmm/openmm/blob/8.0.0/wrappers/python/openmm/app/data/opc.xml#L18
+    # https://github.com/openmm/openmm/blob/8.0.0/wrappers/python/openmm/app/data/tip4pfb.xml#L17
 
-    opc_weights = OpenMMForceField("opc.xml")._templates["HOH"].virtualSites[0].weights
+    TIP4P_openmm = OpenMMForceField("tip4pfb.xml")
+    reference_weights = TIP4P_openmm._templates["HOH"].virtualSites[0].weights
 
     # The virtual site (one in this topology) will be at the end, not interlaced
     subset_weights = [
@@ -406,10 +403,10 @@ def test_system_subset_virtual_site_water(add_nonwater):
     ]
 
     assert sum(subset_weights) == 1.0
-    assert sum(opc_weights) == 1.0
+    assert sum(reference_weights) == 1.0
 
-    assert subset_weights[1] == pytest.approx(opc_weights[1] * 0.5)
-    assert subset_weights[2] == pytest.approx(opc_weights[2] * 0.5)
+    assert subset_weights[1] == pytest.approx(reference_weights[1] * 0.5)
+    assert subset_weights[2] == pytest.approx(reference_weights[2] * 0.5)
 
     # Hack, just put the virtual site on the oxygen; not accurate but allows it to run
     if add_nonwater:
