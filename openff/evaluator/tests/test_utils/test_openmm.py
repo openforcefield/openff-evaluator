@@ -358,6 +358,10 @@ def test_system_subset_charge_increment():
 )
 def test_system_subset_virtual_site_water(add_nonwater):
     from openff.interchange.drivers.openmm import _get_openmm_energies
+    from packaging.version import Version
+
+    if Version(openmm.__version__).major == 7:
+        pytest.skip("OPC was added in OpenMM 8")
 
     # Create a dummy topology
     water = Molecule.from_mapped_smiles("[H:2][O:1][H:3]")
