@@ -18,6 +18,7 @@ from openff.toolkit.typing.engines.smirnoff.parameters import (
 from openff.units import unit
 from openff.units.openmm import from_openmm, to_openmm
 from openmm import unit as openmm_unit
+from openmm.app import ForceField as OpenMMForceField
 from openmm.app import PDBFile
 
 from openff.evaluator.backends import ComputeResources
@@ -349,6 +350,88 @@ def test_system_subset_charge_increment():
 
     assert np.isclose(epsilon_0.value_in_unit(openmm_unit.kilojoules_per_mole), 0.0)
     assert np.isclose(epsilon_1.value_in_unit(openmm_unit.kilojoules_per_mole), 0.0)
+
+
+@pytest.mark.parametrize(
+    "add_nonwater",
+    [False, True],
+)
+def test_system_subset_virtual_site_water(add_nonwater):
+    from openff.interchange.drivers.openmm import _get_openmm_energies
+
+    # Create a dummy topology
+    water = Molecule.from_mapped_smiles("[H:2][O:1][H:3]")
+    water.generate_conformers(n_conformers=1)
+
+    topology: Topology = water.to_topology()
+
+    if add_nonwater:
+        methane = Molecule.from_mapped_smiles("[C:1]([H:2])([H:3])([H:4])[H:5]")
+        methane.generate_conformers(n_conformers=1)
+
+        topology.add_molecule(methane)
+
+    # Create the system subset.
+    system, parameter_value = system_subset(
+        parameter_key=ParameterGradientKey(
+            "VirtualSites",
+            "[#1:2]-[#8X2H2+0:1]-[#1:3]",
+            "distance",
+        ),
+        force_field=ForceField(
+            "openff_unconstrained-1.0.0.offxml",
+            "tip4p_fb.offxml",
+        ),
+        topology=topology,
+        scale_amount=-0.5,
+    )
+
+    assert system.getNumForces() == 2
+    assert system.getNumParticles() == 4 + int(add_nonwater) * 5
+
+    # Compare to OpenMM's reference values; w1 and w2 should be halved and w0 increased by remainder
+    # https://github.com/openmm/openmm/blob/8.0.0/wrappers/python/openmm/app/data/tip4pfb.xml#L17
+
+    TIP4P_openmm = OpenMMForceField("tip4pfb.xml")
+    reference_weights = TIP4P_openmm._templates["HOH"].virtualSites[0].weights
+
+    # The virtual site (one in this topology) will be at the end, not interlaced
+    subset_weights = [
+        system.getVirtualSite(system.getNumParticles() - 1).getWeight(0),
+        system.getVirtualSite(system.getNumParticles() - 1).getWeight(1),
+        system.getVirtualSite(system.getNumParticles() - 1).getWeight(2),
+    ]
+
+    assert sum(subset_weights) == 1.0
+    assert sum(reference_weights) == 1.0
+
+    assert subset_weights[1] == pytest.approx(reference_weights[1] * 0.5)
+    assert subset_weights[2] == pytest.approx(reference_weights[2] * 0.5)
+
+    # Hack, just put the virtual site on the oxygen; not accurate but allows it to run
+    if add_nonwater:
+        positions = numpy.vstack(
+            [
+                water.conformers[0],
+                water.conformers[0][0],
+                methane.conformers[0] + unit.Quantity(5.0, unit.angstrom),
+            ]
+        )
+    else:
+        positions = numpy.vstack(
+            [
+                water.conformers[0],
+                water.conformers[0][0],
+            ]
+        )
+
+    _get_openmm_energies(
+        system=system,
+        box_vectors=None,
+        positions=positions.to_openmm(),
+        round_positions=None,
+        platform="Reference",
+    )
 
 
 @pytest.mark.parametrize(
