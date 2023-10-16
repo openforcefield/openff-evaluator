@@ -11,6 +11,8 @@ Releases follow the ``major.minor.micro`` scheme recommended by
 Current development
 ---------------------
 
+* PR `#534 <https://github.com/openforcefield/openff-evaluator/pull/534>`_: Includes virtual site and related parameters in ``openmm.system`` subset creation when calculating gradients.
+
 * PR `#532 <https://github.com/openforcefield/openff-evaluator/pull/532>`_: Changes ``BaseEnergyMinimisation.tolerance`` to use units of force.
 
 0.4.5 - July 24, 2023
