@@ -7,10 +7,10 @@ from collections import OrderedDict
 import pytest
 
 import openff.evaluator.properties
+from openff.evaluator._tests.test_workflow.utils import create_dummy_metadata
+from openff.evaluator._tests.utils import create_dummy_property
 from openff.evaluator.layers import registered_calculation_schemas
 from openff.evaluator.layers.workflow import WorkflowCalculationSchema
-from openff.evaluator.tests.test_workflow.utils import create_dummy_metadata
-from openff.evaluator.tests.utils import create_dummy_property
 from openff.evaluator.utils import graph
 from openff.evaluator.workflow import Workflow, WorkflowGraph, WorkflowSchema
 

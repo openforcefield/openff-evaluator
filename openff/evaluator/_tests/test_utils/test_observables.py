@@ -8,8 +8,8 @@ import numpy
 import pytest
 from openff.units import unit
 
+from openff.evaluator._tests.utils import does_not_raise
 from openff.evaluator.forcefield import ParameterGradient, ParameterGradientKey
-from openff.evaluator.tests.utils import does_not_raise
 from openff.evaluator.utils import get_data_filename
 from openff.evaluator.utils.observables import (
     Observable,
