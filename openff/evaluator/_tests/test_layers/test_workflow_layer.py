@@ -3,6 +3,7 @@ import tempfile
 
 from openff.units import unit
 
+from openff.evaluator._tests.utils import create_dummy_property
 from openff.evaluator.backends.dask import DaskLocalCluster
 from openff.evaluator.client import RequestOptions
 from openff.evaluator.forcefield import SmirnoffForceFieldSource
@@ -11,7 +12,6 @@ from openff.evaluator.properties import Density
 from openff.evaluator.protocols.miscellaneous import DummyProtocol
 from openff.evaluator.server import server
 from openff.evaluator.storage import LocalFileStorage
-from openff.evaluator.tests.utils import create_dummy_property
 from openff.evaluator.utils.observables import Observable
 from openff.evaluator.utils.utils import temporarily_change_directory
 from openff.evaluator.workflow import WorkflowSchema

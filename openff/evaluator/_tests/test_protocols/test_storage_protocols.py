@@ -5,12 +5,12 @@ import json
 import os
 import tempfile
 
-from openff.evaluator.protocols.storage import UnpackStoredSimulationData
-from openff.evaluator.tests.utils import (
+from openff.evaluator._tests.utils import (
     build_tip3p_smirnoff_force_field,
     create_dummy_simulation_data,
     create_dummy_substance,
 )
+from openff.evaluator.protocols.storage import UnpackStoredSimulationData
 from openff.evaluator.utils.serialization import TypedJSONEncoder
 
 

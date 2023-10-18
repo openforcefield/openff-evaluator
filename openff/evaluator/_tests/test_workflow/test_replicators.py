@@ -4,11 +4,11 @@ Units tests for openff.evaluator.layers.simulation
 
 from openff.units import unit
 
+from openff.evaluator._tests.test_workflow.utils import DummyReplicableProtocol
+from openff.evaluator._tests.utils import create_dummy_property
 from openff.evaluator.properties import Density
 from openff.evaluator.protocols.groups import ProtocolGroup
 from openff.evaluator.protocols.miscellaneous import AddValues, DummyProtocol
-from openff.evaluator.tests.test_workflow.utils import DummyReplicableProtocol
-from openff.evaluator.tests.utils import create_dummy_property
 from openff.evaluator.workflow import Workflow, WorkflowSchema
 from openff.evaluator.workflow.schemas import ProtocolReplicator
 from openff.evaluator.workflow.utils import ProtocolPath, ReplicatorValue

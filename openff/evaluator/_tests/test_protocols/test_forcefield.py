@@ -9,6 +9,7 @@ from openff.toolkit.topology import Molecule
 from openff.toolkit.utils.rdkit_wrapper import RDKitToolkitWrapper
 from openff.units import unit
 
+from openff.evaluator._tests.utils import build_tip3p_smirnoff_force_field
 from openff.evaluator.backends import ComputeResources
 from openff.evaluator.forcefield import LigParGenForceFieldSource, TLeapForceFieldSource
 from openff.evaluator.forcefield.forcefield import FoyerForceFieldSource
@@ -21,7 +22,6 @@ from openff.evaluator.protocols.forcefield import (
 )
 from openff.evaluator.protocols.openmm import OpenMMEnergyMinimisation
 from openff.evaluator.substances import Substance
-from openff.evaluator.tests.utils import build_tip3p_smirnoff_force_field
 
 
 def test_build_smirnoff_system():

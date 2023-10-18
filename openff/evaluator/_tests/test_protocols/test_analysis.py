@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 from openff.units import unit
 
+from openff.evaluator._tests.utils import build_tip3p_smirnoff_force_field
 from openff.evaluator.forcefield import ParameterGradient, ParameterGradientKey
 from openff.evaluator.protocols.analysis import (
     AverageDielectricConstant,
@@ -16,7 +17,6 @@ from openff.evaluator.protocols.analysis import (
 )
 from openff.evaluator.protocols.forcefield import BuildSmirnoffSystem
 from openff.evaluator.substances import Substance
-from openff.evaluator.tests.utils import build_tip3p_smirnoff_force_field
 from openff.evaluator.thermodynamics import ThermodynamicState
 from openff.evaluator.utils import get_data_filename
 from openff.evaluator.utils.observables import Observable, ObservableArray
