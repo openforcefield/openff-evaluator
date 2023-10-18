@@ -105,7 +105,7 @@ jobs:
         shell: bash -l {0}
         run: |
 
-          python -m pytest -v --cov=openff openff/evaluator/tests/ --cov-report=xml --color=yes
+          python -m pytest -v --cov=openff openff/evaluator/_tests/ --cov-report=xml --color=yes
 
       - name: Run (non-GPU) tutorials
         shell: bash -l {0}
