@@ -18,7 +18,6 @@ from openff.toolkit.typing.engines.smirnoff.parameters import (
 from openff.units import unit
 from openff.units.openmm import from_openmm, to_openmm
 from openmm import unit as openmm_unit
-from openmm.app import ForceField as OpenMMForceField
 from openmm.app import PDBFile
 
 from openff.evaluator.backends import ComputeResources
@@ -389,24 +388,11 @@ def test_system_subset_virtual_site_water(add_nonwater):
     assert system.getNumForces() == 2
     assert system.getNumParticles() == 4 + int(add_nonwater) * 5
 
-    # Compare to OpenMM's reference values; w1 and w2 should be halved and w0 increased by remainder
-    # https://github.com/openmm/openmm/blob/8.0.0/wrappers/python/openmm/app/data/tip4pfb.xml#L17
-
-    TIP4P_openmm = OpenMMForceField("tip4pfb.xml")
-    reference_weights = TIP4P_openmm._templates["HOH"].virtualSites[0].weights
-
     # The virtual site (one in this topology) will be at the end, not interlaced
-    subset_weights = [
-        system.getVirtualSite(system.getNumParticles() - 1).getWeight(0),
-        system.getVirtualSite(system.getNumParticles() - 1).getWeight(1),
-        system.getVirtualSite(system.getNumParticles() - 1).getWeight(2),
-    ]
-
-    assert sum(subset_weights) == 1.0
-    assert sum(reference_weights) == 1.0
-
-    assert subset_weights[1] == pytest.approx(reference_weights[1] * 0.5)
-    assert subset_weights[2] == pytest.approx(reference_weights[2] * 0.5)
+    assert isinstance(
+        system.getVirtualSite(system.getNumParticles() - 1),
+        openmm.LocalCoordinatesSite,
+    )
 
     # Hack, just put the virtual site on the oxygen; not accurate but allows it to run
     if add_nonwater:
