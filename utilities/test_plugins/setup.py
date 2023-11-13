@@ -10,8 +10,7 @@ setup(
     include_package_data=True,
     entry_points={
         "openff_evaluator.plugins": [
-            "Dummy1 = evaluator_plugins.plugins:Dummy1",
-            "Dummy2 = evaluator_plugins.plugins:Dummy2",
+            "DummyPlugin = evaluator_plugins.plugins:DummyPlugin",
         ]
     },
 )
