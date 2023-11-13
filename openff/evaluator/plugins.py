@@ -6,8 +6,7 @@ physical properties.
 import importlib
 import logging
 import pkgutil
-
-import pkg_resources
+from importlib.metadata import entry_points
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +35,7 @@ def register_external_plugins():
     plugin system.
     """
 
-    for entry_point in pkg_resources.iter_entry_points("openff_evaluator.plugins"):
+    for entry_point in entry_points().select(group="openff.evaluator.plugins"):
         try:
             entry_point.load()
         except ImportError:
