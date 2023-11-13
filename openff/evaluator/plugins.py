@@ -6,7 +6,14 @@ physical properties.
 import importlib
 import logging
 import pkgutil
-from importlib.metadata import entry_points
+import sys
+
+if sys.version_info[1] < 10:
+    # Backport only for Python 3.9 - drop April 2024
+    from importlib_metadata import entry_points
+else:
+    from importlib.metadata import entry_points
+
 
 logger = logging.getLogger(__name__)
 
