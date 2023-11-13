@@ -13,6 +13,9 @@ from openff.evaluator.datasets.curation.components.conversion import (
 from openff.evaluator.datasets.curation.components.filtering import (
     FilterComponentSchema,
 )
+from openff.evaluator.datasets.curation.components.freesolv import (
+    FreeSolvComponentSchema,
+)
 from openff.evaluator.datasets.curation.components.selection import (
     SelectionComponentSchema,
 )
@@ -31,6 +34,7 @@ class CurationWorkflowSchema(BaseModel):
         Union[
             ConversionComponentSchema,
             FilterComponentSchema,
+            FreeSolvComponentSchema,
             SelectionComponentSchema,
             ThermoMLComponentSchema,
         ]
