@@ -42,8 +42,8 @@ def register_external_plugins():
     plugin system.
     """
 
-    for entry_point in entry_points().select(group="openff.evaluator.plugins"):
+    for entry_point in entry_points().select(group="openff_evaluator.plugins"):
         try:
             entry_point.load()
         except ImportError:
-            logger.exception(f"Could not load the {entry_point} plugin")
+            logger.exception(f"Could not load the {entry_point.name} plugin")

@@ -4,13 +4,15 @@ on:
   push:
     branches:
       - "main"
-      - "v0-3-x"
   pull_request:
     branches:
       - "main"
-      - "v0-3-x"
   schedule:
     - cron: "0 0 * * *"
+
+defaults:
+  run:
+    shell: bash -l {0}
 
 jobs:
 
@@ -59,7 +61,6 @@ jobs:
 
       - name: Install OpenEye
         if: matrix.openeye
-        shell: bash -l {0}
         run: |
           echo "${SECRET_OE_LICENSE}" > ${OE_LICENSE}
 
@@ -69,19 +70,14 @@ jobs:
           SECRET_OE_LICENSE: ${{ secrets.OE_LICENSE }}
 
       - name: Install PASCAL Compiler (MacOS)
-        shell: bash -l {0}
         if: startsWith(matrix.os, 'macOS')
-        run: |
-          brew install fpc
+        run: brew install fpc
 
       - name: Install PASCAL Compiler (Ubuntu)
-        shell: bash -l {0}
         if: startsWith(matrix.os, 'ubuntu')
-        run: |
-          sudo apt-get install fp-compiler
+        run: sudo apt-get install fp-compiler
 
       - name: Install checkmol
-        shell: bash -l {0}
         run: |
 
           curl https://homepage.univie.ac.at/norbert.haider/download/chemistry/checkmol/checkmol.pas > checkmol.pas
@@ -89,26 +85,16 @@ jobs:
 
           echo $(pwd) >> $GITHUB_PATH
 
-      - name: Install Package
-        shell: bash -l {0}
-        run: |
-
-          python -m pip install .
+      - name: Install Package and test plugins
+        run: python -m pip install . utilities/test_plugins/
 
       - name: Conda Environment Information
-        shell: bash -l {0}
-        run: |
-          conda info
-          conda list
+        run: conda info && conda list
 
       - name: Run tests
-        shell: bash -l {0}
-        run: |
-
-          python -m pytest -v --cov=openff openff/evaluator/_tests/ --cov-report=xml --color=yes
+        run: python -m pytest -v --cov=openff openff/evaluator/_tests/ --cov-report=xml --color=yes
 
       - name: Run (non-GPU) tutorials
-        shell: bash -l {0}
         if: ${{ matrix.pymbar-version == 3 }}
         run: |
           # ForceBalance requires pymbar 3, so don't run these tests if we are using pymbar 4,
