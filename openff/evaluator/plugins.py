@@ -6,8 +6,14 @@ physical properties.
 import importlib
 import logging
 import pkgutil
+import sys
 
-import pkg_resources
+if sys.version_info[1] < 10:
+    # Backport only for Python 3.9 - drop April 2024
+    from importlib_metadata import entry_points
+else:
+    from importlib.metadata import entry_points
+
 
 logger = logging.getLogger(__name__)
 
@@ -36,8 +42,8 @@ def register_external_plugins():
     plugin system.
     """
 
-    for entry_point in pkg_resources.iter_entry_points("openff_evaluator.plugins"):
+    for entry_point in entry_points().select(group="openff_evaluator.plugins"):
         try:
             entry_point.load()
         except ImportError:
-            logger.exception(f"Could not load the {entry_point} plugin")
+            logger.exception(f"Could not load the {entry_point.name} plugin")

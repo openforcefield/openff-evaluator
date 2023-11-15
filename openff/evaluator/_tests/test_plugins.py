@@ -1,7 +1,7 @@
 """
 Units tests for the openff.evaluator.plugins module.
 """
-import pkg_resources
+import sys
 
 from openff.evaluator.layers import (
     registered_calculation_layers,
@@ -9,6 +9,12 @@ from openff.evaluator.layers import (
 )
 from openff.evaluator.plugins import register_default_plugins, register_external_plugins
 from openff.evaluator.workflow import registered_workflow_protocols
+
+if sys.version_info[1] < 10:
+    # Backport only for Python 3.9 - drop April 2024
+    from importlib_metadata import entry_points
+else:
+    from importlib.metadata import entry_points
 
 
 def test_register_default_plugins():
@@ -20,35 +26,14 @@ def test_register_default_plugins():
 
 
 def test_register_external_plugins(caplog):
-    """This test is based on `this stack overflow answer
-    <https://stackoverflow.com/a/48666503/11808960>`_
+    """This test wass based on `this stack overflow answer
+    <https://stackoverflow.com/a/48666503/11808960>`_, but it relied on
+    functionality not present in `importlib.metadata`.
     """
-
-    # Create a fake distribution to insert into the global working_set
-    distribution = pkg_resources.Distribution(__file__)
-
-    # Create the fake entry point definitions
-    valid_entry_point = pkg_resources.EntryPoint.parse(
-        "dummy_1 = openff.evaluator.properties", dist=distribution
-    )
-    bad_entry_point = pkg_resources.EntryPoint.parse(
-        "dummy_2 = openff.evaluator.propertis", dist=distribution
-    )
-
-    # Add the mapping to the fake EntryPoint
-    distribution._ep_map = {
-        "openff_evaluator.plugins": {
-            "dummy_1": valid_entry_point,
-            "dummy_2": bad_entry_point,
-        }
+    register_external_plugins()
+    names = {
+        entry_point.name
+        for entry_point in entry_points().select(group="openff_evaluator.plugins")
     }
 
-    # Add the fake distribution to the global working_set
-    pkg_resources.working_set.add(distribution, "dummy_1")
-    pkg_resources.working_set.add(distribution, "dummy_2")
-
-    register_external_plugins()
-
-    # Check that we could / couldn't load the correct plugins.
-    assert "Could not load the dummy_1" not in caplog.text
-    assert "Could not load the dummy_2" in caplog.text
+    assert names == {"DummyPlugin"}
