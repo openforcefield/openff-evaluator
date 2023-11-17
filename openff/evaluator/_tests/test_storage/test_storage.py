@@ -6,13 +6,13 @@ import tempfile
 
 import pytest
 
+from openff.evaluator._tests.test_storage.data import HashableData, SimpleData
+from openff.evaluator._tests.utils import create_dummy_simulation_data
 from openff.evaluator.forcefield import SmirnoffForceFieldSource
 from openff.evaluator.storage import LocalFileStorage
 from openff.evaluator.storage.data import StoredSimulationData
 from openff.evaluator.storage.query import SimulationDataQuery, SubstanceQuery
 from openff.evaluator.substances import Substance
-from openff.evaluator.tests.test_storage.data import HashableData, SimpleData
-from openff.evaluator.tests.utils import create_dummy_simulation_data
 
 
 @pytest.mark.parametrize("data_class", [SimpleData, HashableData])

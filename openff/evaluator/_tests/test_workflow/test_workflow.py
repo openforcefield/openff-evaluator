@@ -10,6 +10,7 @@ import pytest
 from openff.toolkit.typing.engines.smirnoff import ForceField, VirtualSiteHandler
 from openff.units import unit
 
+from openff.evaluator._tests.utils import create_dummy_property
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.backends import ComputeResources
 from openff.evaluator.backends.dask import DaskLocalCluster
@@ -18,7 +19,6 @@ from openff.evaluator.properties import Density
 from openff.evaluator.protocols.groups import ConditionalGroup
 from openff.evaluator.protocols.miscellaneous import DummyProtocol
 from openff.evaluator.substances import Substance
-from openff.evaluator.tests.utils import create_dummy_property
 from openff.evaluator.thermodynamics import ThermodynamicState
 from openff.evaluator.workflow import (
     ProtocolGroup,

@@ -8,10 +8,21 @@ Releases follow the ``major.minor.micro`` scheme recommended by
 * ``minor`` increments add features but do not break API compatibility
 * ``micro`` increments represent bugfix releases or improvements in documentation
 
+0.4.7 - October 16, 2023
+------------------------
+
+* PR `#534 <https://github.com/openforcefield/openff-evaluator/pull/534>`_: Includes virtual site and related parameters in ``openmm.system`` subset creation when calculating gradients.
+* PR `#533 <https://github.com/openforcefield/openff-evaluator/pull/533>`_: Considers ``openmm.AmoebaMultipoleForce`` when disabling PBC.
+
+0.4.6 - October 12, 2023
+------------------------
+
+* PR `#532 <https://github.com/openforcefield/openff-evaluator/pull/532>`_: Changes ``BaseEnergyMinimisation.tolerance`` to use units of force.
+
 0.4.5 - July 24, 2023
 ---------------------
 
-* PR `#517 <https://github.com/openforcefield/openff-evaluator/pull/517>`_: Add support for Foyer forcefields
+* PR `#517 <https://github.com/openforcefield/openff-evaluator/pull/517>`_: Adds support for Foyer forcefields.
 
 0.4.4 - July 24, 2023
 ---------------------

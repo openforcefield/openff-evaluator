@@ -3,6 +3,7 @@ import tempfile
 
 from openff.units import unit
 
+from openff.evaluator._tests.utils import create_dummy_simulation_data
 from openff.evaluator.datasets import PropertyPhase
 from openff.evaluator.forcefield import SmirnoffForceFieldSource
 from openff.evaluator.layers import registered_calculation_schemas
@@ -16,7 +17,6 @@ from openff.evaluator.properties import (
 )
 from openff.evaluator.storage import LocalFileStorage
 from openff.evaluator.substances import Substance
-from openff.evaluator.tests.utils import create_dummy_simulation_data
 from openff.evaluator.thermodynamics import ThermodynamicState
 
 

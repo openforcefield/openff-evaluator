@@ -4,9 +4,9 @@ import tempfile
 import numpy as np
 from openff.units import unit
 
+from openff.evaluator._tests.utils import build_tip3p_smirnoff_force_field
 from openff.evaluator.forcefield import ParameterGradientKey
 from openff.evaluator.protocols.gradients import ZeroGradients
-from openff.evaluator.tests.utils import build_tip3p_smirnoff_force_field
 from openff.evaluator.utils.observables import ObservableArray
 
 

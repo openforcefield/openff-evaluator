@@ -2,6 +2,7 @@ import json
 import tempfile
 from os import makedirs, path
 
+from openff.evaluator._tests.utils import create_dummy_property
 from openff.evaluator.backends.dask import DaskLocalCluster
 from openff.evaluator.client import RequestOptions
 from openff.evaluator.layers import (
@@ -14,7 +15,6 @@ from openff.evaluator.properties import Density
 from openff.evaluator.server import server
 from openff.evaluator.storage import LocalFileStorage
 from openff.evaluator.storage.data import StoredSimulationData
-from openff.evaluator.tests.utils import create_dummy_property
 from openff.evaluator.utils.exceptions import EvaluatorException
 from openff.evaluator.utils.observables import ObservableFrame
 from openff.evaluator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder

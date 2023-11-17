@@ -6,6 +6,7 @@ from time import sleep
 
 from openff.units import unit
 
+from openff.evaluator._tests.utils import create_dummy_property
 from openff.evaluator.backends.dask import DaskLocalCluster
 from openff.evaluator.client import EvaluatorClient, RequestOptions
 from openff.evaluator.datasets import PhysicalPropertyDataSet
@@ -18,7 +19,6 @@ from openff.evaluator.layers import (
 from openff.evaluator.properties import Density, EnthalpyOfVaporization
 from openff.evaluator.server.server import Batch, EvaluatorServer
 from openff.evaluator.substances import Substance
-from openff.evaluator.tests.utils import create_dummy_property
 from openff.evaluator.thermodynamics import ThermodynamicState
 from openff.evaluator.utils.utils import temporarily_change_directory
 
