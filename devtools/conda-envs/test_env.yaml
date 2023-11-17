@@ -15,7 +15,8 @@ dependencies:
   - nbval
   - requests-mock # For testing http requests.
   # smirnoff-plugins =0.0.3
-  - foyer
+  # Add back when MoSDeF supports pydantic v2
+  # foyer
 
     # Shims
   - pint =0.20.1
@@ -32,7 +33,7 @@ dependencies:
   - pyyaml
   - requests
   - python-dateutil
-  - pydantic <2.0.0a0
+  - pydantic
   - paprika
   - taproom
   - dataclasses
