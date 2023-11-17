@@ -31,7 +31,13 @@ if TYPE_CHECKING:
     PositiveFloat = float
 
 else:
-    from pydantic import PositiveFloat, PositiveInt, confloat, conint, constr
+    from openff.evaluator._pydantic import (
+        PositiveFloat,
+        PositiveInt,
+        confloat,
+        conint,
+        constr,
+    )
 
 logger = logging.getLogger(__name__)
 

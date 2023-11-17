@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     PositiveFloat = float
 
 else:
-    from pydantic import conint
+    from openff.evaluator._pydantic import conint
 
 logger = logging.getLogger(__name__)
 

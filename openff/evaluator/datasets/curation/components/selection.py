@@ -36,7 +36,7 @@ if TYPE_CHECKING:
         OEFingerPrint = None
 
 else:
-    from pydantic import PositiveInt
+    from openff.evaluator._pydantic import PositiveInt
 
 
 class State(BaseModel):
