@@ -16,9 +16,16 @@ from openff.evaluator.datasets.curation.components import (
     CurationComponent,
     CurationComponentSchema,
 )
-from openff.evaluator.properties import SolvationFreeEnergy
 from openff.evaluator.substances import Component, ExactAmount, MoleFraction, Substance
 from openff.evaluator.thermodynamics import ThermodynamicState
+
+try:
+    from openff.evaluator.properties import SolvationFreeEnergy
+except ImportError:
+
+    class SolvationFreeEnergy:
+        pass
+
 
 logger = logging.getLogger(__name__)
 
