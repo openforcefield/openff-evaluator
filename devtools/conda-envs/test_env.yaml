@@ -37,4 +37,4 @@ dependencies:
   - paprika
   - taproom
   - dataclasses
-  - pandas =2
+  - pandas =1
