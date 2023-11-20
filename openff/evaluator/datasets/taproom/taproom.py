@@ -6,7 +6,6 @@ import logging
 import os
 from typing import Any, Dict, List, Optional
 
-import pkg_resources
 import yaml
 from openff.units import unit
 
@@ -432,10 +431,17 @@ class TaproomDataSet(PhysicalPropertyDataSet):
             Whether to add the metadata required for an APR based calculation
             using the ``paprika`` based workflow.
         """
+        import sys
+
+        if sys.version_info[1] < 10:
+            # Backport only for Python 3.9 - drop April 2024
+            from importlib_metadata import entry_points
+        else:
+            from importlib.metadata import entry_points
 
         installed_benchmarks = {}
 
-        for entry_point in pkg_resources.iter_entry_points(group="taproom.benchmarks"):
+        for entry_point in entry_points().select(group="taproom.benchmarks"):
             installed_benchmarks[entry_point.name] = entry_point.load()
 
         if len(installed_benchmarks) == 0:

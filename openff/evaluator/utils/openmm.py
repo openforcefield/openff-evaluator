@@ -133,12 +133,16 @@ def disable_pbc(system):
     for force_index in range(system.getNumForces()):
         force = system.getForce(force_index)
 
-        if not isinstance(force, (openmm.NonbondedForce, openmm.CustomNonbondedForce)):
-            continue
-
-        force.setNonbondedMethod(
-            0
-        )  # NoCutoff = 0, NonbondedMethod.CutoffNonPeriodic = 1
+        if isinstance(
+            force,
+            (
+                openmm.NonbondedForce,
+                openmm.CustomNonbondedForce,
+                openmm.AmoebaMultipoleForce,
+            ),
+        ):
+            # NoCutoff = 0, NonbondedMethod.CutoffNonPeriodic = 1
+            force.setNonbondedMethod(0)
 
 
 def system_subset(
@@ -180,12 +184,30 @@ def system_subset(
 
     handlers_to_register = {parameter_key.tag}
 
-    if parameter_key.tag in {"ChargeIncrementModel", "LibraryCharges"}:
-        # Make sure to retain all of the electrostatic handlers when dealing with
-        # charges as the applied charges will depend on which charges have been applied
-        # by previous handlers.
+    if parameter_key.tag in {"ChargeIncrementModel", "LibraryCharges", "VirtualSites"}:
+        # Make sure to retain _all_ of the electrostatic handlers when dealing with any handler
+        # that might modify changes as the applied charges will depend on which charges have been
+        # applied by previous handlers.
         handlers_to_register.update(
-            {"Electrostatics", "ChargeIncrementModel", "LibraryCharges"}
+            {
+                "Electrostatics",
+                "ChargeIncrementModel",
+                "LibraryCharges",
+                "VirtualSiteHandler",
+                "ToolkitAM1BCC",
+            }
+        )
+
+    if parameter_key.tag in {"VirtualSites"}:
+        # Interchange's current implementation uses bonds and constraints to determine the values
+        # OpenMM needs for virtual sites; using positions might not produce accurate results since a
+        # conformer's geometry likely does not match the force field geometry
+        handlers_to_register.update(
+            {
+                "vdW",
+                "Bonds",
+                "Constraints",
+            },
         )
 
     registered_handlers = force_field.registered_parameter_handlers

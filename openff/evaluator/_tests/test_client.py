@@ -5,6 +5,7 @@ import tempfile
 
 import pytest
 
+from openff.evaluator._tests.utils import create_dummy_property
 from openff.evaluator.backends.dask import DaskLocalCluster
 from openff.evaluator.client import EvaluatorClient, Request, RequestResult
 from openff.evaluator.datasets import PhysicalPropertyDataSet
@@ -21,7 +22,6 @@ from openff.evaluator.properties import (
     ExcessMolarVolume,
 )
 from openff.evaluator.server import EvaluatorServer
-from openff.evaluator.tests.utils import create_dummy_property
 from openff.evaluator.utils.utils import temporarily_change_directory
 
 property_types = [

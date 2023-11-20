@@ -4,19 +4,21 @@ on:
   push:
     branches:
       - "main"
-      - "v0-3-x"
   pull_request:
     branches:
       - "main"
-      - "v0-3-x"
   schedule:
     - cron: "0 0 * * *"
+
+defaults:
+  run:
+    shell: bash -l {0}
 
 jobs:
 
   test:
 
-    name: 💻 ${{ matrix.os }}, 🐍 ${{ matrix.python-version }}, 👀 ${{ matrix.openeye }}, pymbar ${{ matrix.pymbar-version }}, OpenMM ${{ matrix.openmm-version }}
+    name: 💻 ${{ matrix.os }}, 🐍 ${{ matrix.python-version }}, 👀 ${{ matrix.openeye }}, pymbar ${{ matrix.pymbar-version }}, Pydantic ${{ matrix.pydantic-version }}, OpenMM ${{ matrix.openmm-version }}
     runs-on: ${{ matrix.os }}
 
     env:
@@ -33,6 +35,9 @@ jobs:
           - "3.10"
         pymbar-version:
           - "3.1"
+        pydantic-version:
+          - "1"
+          - "2"
         openmm-version:
           - "7"
           - "8"
@@ -50,17 +55,14 @@ jobs:
         uses: mamba-org/setup-micromamba@v1
         with:
           environment-file: devtools/conda-envs/test_env.yaml
-          channel-priority: flexible
           create-args: >-
             python=${{ matrix.python-version }}
             pymbar=${{ matrix.pymbar-version }}
+            pydantic=${{ matrix.pydantic-version }}
             openmm=${{ matrix.openmm-version }}
-            jax>=0.3
-            jaxlib>=0.3
 
       - name: Install OpenEye
         if: matrix.openeye
-        shell: bash -l {0}
         run: |
           echo "${SECRET_OE_LICENSE}" > ${OE_LICENSE}
 
@@ -69,20 +71,20 @@ jobs:
         env:
           SECRET_OE_LICENSE: ${{ secrets.OE_LICENSE }}
 
-      - name: Install PASCAL Compiler (MacOS)
+      - name: Install Foyer
+        if: ${{ matrix.pydantic-version == 1 }}
         shell: bash -l {0}
+        run: micromamba install foyer -c conda-forge
+
+      - name: Install PASCAL Compiler (MacOS)
         if: startsWith(matrix.os, 'macOS')
-        run: |
-          brew install fpc
+        run: brew install fpc
 
       - name: Install PASCAL Compiler (Ubuntu)
-        shell: bash -l {0}
         if: startsWith(matrix.os, 'ubuntu')
-        run: |
-          sudo apt-get install fp-compiler
+        run: sudo apt-get install fp-compiler
 
       - name: Install checkmol
-        shell: bash -l {0}
         run: |
 
           curl https://homepage.univie.ac.at/norbert.haider/download/chemistry/checkmol/checkmol.pas > checkmol.pas
@@ -90,33 +92,22 @@ jobs:
 
           echo $(pwd) >> $GITHUB_PATH
 
-      - name: Install Package
-        shell: bash -l {0}
-        run: |
-
-          python -m pip install .
-
-      - name: Conda Environment Information
-        shell: bash -l {0}
-        run: |
-          conda info
-          conda list
+      - name: Install Package and test plugins
+        run: python -m pip install . utilities/test_plugins/
 
       - name: Run tests
-        shell: bash -l {0}
-        run: |
-
-          python -m pytest -v --cov=openff openff/evaluator/tests/ --cov-report=xml --color=yes
+        run: python -m pytest -v --cov=openff openff/evaluator/_tests/ --cov-report=xml --color=yes
 
       - name: Run (non-GPU) tutorials
-        shell: bash -l {0}
-        if: ${{ matrix.pymbar-version == 3 }}
+        if: ${{ matrix.pymbar-version == 3.1 }}
         run: |
           # ForceBalance requires pymbar 3, so don't run these tests if we are using pymbar 4,
           # even though we're not running the fitting tutorial
           # https://github.com/conda-forge/forcebalance-feedstock/blob/9793b0205489f8ec7826d301a3c82cfb96997c57/recipe/meta.yaml#L29
           micromamba install "forcebalance >=1.9.5" -c conda-forge -yq
-          python -m pytest --nbval-lax docs/tutorials/tutorial01.ipynb docs/tutorials/tutorial03.ipynb
+          python -m pytest --nbval-lax --dist loadscope -nauto -p no:randomly \
+            docs/tutorials/tutorial01.ipynb \
+            docs/tutorials/tutorial03.ipynb
 
       - name: Code coverage
         uses: codecov/codecov-action@v3

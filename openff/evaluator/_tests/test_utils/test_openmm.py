@@ -352,6 +352,75 @@ def test_system_subset_charge_increment():
 
 
 @pytest.mark.parametrize(
+    "add_nonwater",
+    [False, True],
+)
+def test_system_subset_virtual_site_water(add_nonwater):
+    from openff.interchange.drivers.openmm import _get_openmm_energies
+
+    # Create a dummy topology
+    water = Molecule.from_mapped_smiles("[H:2][O:1][H:3]")
+    water.generate_conformers(n_conformers=1)
+
+    topology: Topology = water.to_topology()
+
+    if add_nonwater:
+        methane = Molecule.from_mapped_smiles("[C:1]([H:2])([H:3])([H:4])[H:5]")
+        methane.generate_conformers(n_conformers=1)
+
+        topology.add_molecule(methane)
+
+    # Create the system subset.
+    system, parameter_value = system_subset(
+        parameter_key=ParameterGradientKey(
+            "VirtualSites",
+            "[#1:2]-[#8X2H2+0:1]-[#1:3]",
+            "distance",
+        ),
+        force_field=ForceField(
+            "openff_unconstrained-1.0.0.offxml",
+            "tip4p_fb.offxml",
+        ),
+        topology=topology,
+        scale_amount=-0.5,
+    )
+
+    assert system.getNumForces() == 2
+    assert system.getNumParticles() == 4 + int(add_nonwater) * 5
+
+    # The virtual site (one in this topology) will be at the end, not interlaced
+    assert isinstance(
+        system.getVirtualSite(system.getNumParticles() - 1),
+        openmm.LocalCoordinatesSite,
+    )
+
+    # Hack, just put the virtual site on the oxygen; not accurate but allows it to run
+    if add_nonwater:
+        positions = numpy.vstack(
+            [
+                water.conformers[0],
+                water.conformers[0][0],
+                methane.conformers[0] + unit.Quantity(5.0, unit.angstrom),
+            ]
+        )
+    else:
+        positions = numpy.vstack(
+            [
+                water.conformers[0],
+                water.conformers[0][0],
+            ]
+        )
+
+    _get_openmm_energies(
+        system=system,
+        box_vectors=None,
+        positions=positions.to_openmm(),
+        round_positions=None,
+        platform="Reference",
+    )
+
+
+@pytest.mark.parametrize(
     "smirks, all_zeros", [("[#6X4:1]", True), ("[#8:1]", False), (None, False)]
 )
 def test_compute_gradients(tmpdir, smirks, all_zeros):

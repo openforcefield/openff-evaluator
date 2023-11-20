@@ -7,6 +7,7 @@ import numpy
 import pytest
 from openff.units import unit
 
+from openff.evaluator._tests.utils import create_dummy_property
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.datasets import (
     CalculationSource,
@@ -22,7 +23,6 @@ from openff.evaluator.properties import (
     ExcessMolarVolume,
 )
 from openff.evaluator.substances import Substance
-from openff.evaluator.tests.utils import create_dummy_property
 from openff.evaluator.thermodynamics import ThermodynamicState
 from openff.evaluator.utils.serialization import TypedJSONEncoder
 

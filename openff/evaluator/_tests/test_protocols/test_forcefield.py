@@ -8,7 +8,9 @@ from os import path
 from openff.toolkit.topology import Molecule
 from openff.toolkit.utils.rdkit_wrapper import RDKitToolkitWrapper
 from openff.units import unit
+from openff.utilities import skip_if_missing
 
+from openff.evaluator._tests.utils import build_tip3p_smirnoff_force_field
 from openff.evaluator.backends import ComputeResources
 from openff.evaluator.forcefield import LigParGenForceFieldSource, TLeapForceFieldSource
 from openff.evaluator.forcefield.forcefield import FoyerForceFieldSource
@@ -21,7 +23,6 @@ from openff.evaluator.protocols.forcefield import (
 )
 from openff.evaluator.protocols.openmm import OpenMMEnergyMinimisation
 from openff.evaluator.substances import Substance
-from openff.evaluator.tests.utils import build_tip3p_smirnoff_force_field
 
 
 def test_build_smirnoff_system():
@@ -168,6 +169,7 @@ phase2="3.141592653589793" phase3="0.00" phase4="3.141592653589793"/>
         assert path.isfile(assign_parameters.parameterized_system.system_path)
 
 
+@skip_if_missing("foyer")
 def test_build_foyer_oplsaa_system():
     force_field_source = FoyerForceFieldSource("oplsaa")
     substance = Substance.from_components("C", "CC", "c1ccccc1", "CC(=O)O")
@@ -202,6 +204,7 @@ def test_build_foyer_oplsaa_system():
         assert path.isfile(energy_minimisation.output_coordinate_file)
 
 
+@skip_if_missing("foyer")
 def test_build_foyer_xml_system():
     with tempfile.TemporaryDirectory() as directory:
         force_field_source_path = path.join(directory, "ff.json")

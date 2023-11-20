@@ -3,8 +3,8 @@ from typing import List, Union, overload
 
 import numpy
 import pandas
-from pydantic import BaseModel, Field
 
+from openff.evaluator._pydantic import BaseModel, Field
 from openff.evaluator.datasets import PhysicalPropertyDataSet
 from openff.evaluator.datasets.curation.components import CurationComponent
 from openff.evaluator.datasets.curation.components.conversion import (

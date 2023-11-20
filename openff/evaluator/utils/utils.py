@@ -1,17 +1,16 @@
 """
 A collection of general utilities.
 """
-import contextlib
 import logging
 import os
 import sys
-from tempfile import TemporaryDirectory
-from typing import Optional
+
+from openff.utilities.utilities import get_data_file_path, temporary_cd
 
 from openff.evaluator.utils.string import extract_variable_index_and_name
 
 
-def get_data_filename(relative_path):
+def get_data_filename(relative_path: str) -> str:
     """Get the full path to one of the reference files in data.
 
     In the source distribution, these files are in ``evaluator/data/``,
@@ -22,19 +21,16 @@ def get_data_filename(relative_path):
     ----------
     relative_path : str
         The relative path of the file to load.
+
+    Returns
+    -------
+        The absolute path to the file.
+
     """
 
-    from pkg_resources import resource_filename
-
-    fn = resource_filename("openff.evaluator", os.path.join("data", relative_path))
-
-    if not os.path.exists(fn):
-        raise ValueError(
-            "Sorry! %s does not exist. If you just added it, you'll have to re-install"
-            % fn
-        )
-
-    return fn
+    return get_data_file_path(
+        relative_path=relative_path, package_name="openff.evaluator"
+    )
 
 
 def timestamp_formatter() -> logging.Formatter:
@@ -214,38 +210,7 @@ def set_nested_attribute(containing_object, name, value):
         setattr(current_attribute, attribute_name, value)
 
 
-@contextlib.contextmanager
-def temporarily_change_directory(directory_path: Optional[str] = None):
-    """Temporarily move the current working directory to the path
-    specified. If no path is given, a temporary directory will be
-    created, moved into, and then destroyed when the context manager
-    is closed.
-
-    Parameters
-    ----------
-    directory_path
-        The directory to change into. If None, a temporary directory will
-        be created and changed into.
-    """
-
-    if directory_path is not None and len(directory_path) == 0:
-        yield
-        return
-
-    old_directory = os.getcwd()
-
-    try:
-        if directory_path is None:
-            with TemporaryDirectory() as new_directory:
-                os.chdir(new_directory)
-                yield
-
-        else:
-            os.chdir(directory_path)
-            yield
-
-    finally:
-        os.chdir(old_directory)
+temporarily_change_directory = temporary_cd
 
 
 def has_openeye():

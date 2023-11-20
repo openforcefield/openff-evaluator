@@ -13,6 +13,7 @@ from openff.toolkit.typing.engines.smirnoff import ForceField
 from openff.units import unit
 from openmm import unit as openmm_unit
 
+from openff.evaluator._tests.utils import build_tip3p_smirnoff_force_field
 from openff.evaluator.backends import ComputeResources
 from openff.evaluator.forcefield import ParameterGradientKey
 from openff.evaluator.protocols.coordinates import BuildCoordinatesPackmol
@@ -25,7 +26,6 @@ from openff.evaluator.protocols.openmm import (
     _evaluate_energies,
 )
 from openff.evaluator.substances import Substance
-from openff.evaluator.tests.utils import build_tip3p_smirnoff_force_field
 from openff.evaluator.thermodynamics import ThermodynamicState
 from openff.evaluator.utils import get_data_filename
 from openff.evaluator.utils.observables import ObservableType
