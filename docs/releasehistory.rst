@@ -8,6 +8,15 @@ Releases follow the ``major.minor.micro`` scheme recommended by
 * ``minor`` increments add features but do not break API compatibility
 * ``micro`` increments represent bugfix releases or improvements in documentation
 
+0.4.8 - January 30, 2024
+------------------------
+
+* PR `#524 <https://github.com/openforcefield/openff-evaluator/pull/524>`_: Allow Pydantic v2 at runtime.
+* PR `#536 <https://github.com/openforcefield/openff-evaluator/pull/536>`_: Make tests pseudo-private.
+* PR `#537 <https://github.com/openforcefield/openff-evaluator/pull/537>`_: Update versioneer for Python 3.12 compatibility.
+* PR `#542 <https://github.com/openforcefield/openff-evaluator/pull/542>`_: Remove use of `pkg_resources`.
+* PR `#546 <https://github.com/openforcefield/openff-evaluator/pull/546>`_: Remove use of `ParameterHandler._OPENMMTYPE`.
+
 0.4.7 - October 16, 2023
 ------------------------
 
