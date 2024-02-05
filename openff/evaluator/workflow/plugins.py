@@ -7,6 +7,7 @@ registered_workflow_protocols: dict of str and type of Protocol
     The workflow protocols which have been registered as being
     available to use in property estimations.
 """
+
 registered_workflow_protocols = {}
 
 

@@ -1,6 +1,7 @@
 """
 A collection of protocols for running analysing the results of molecular simulations.
 """
+
 import abc
 import itertools
 import typing

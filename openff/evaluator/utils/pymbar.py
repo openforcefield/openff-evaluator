@@ -1,6 +1,7 @@
 """
 Helper functions to simultaneously support pymbar 3 and 4.
 """
+
 try:
     from pymbar import pymbar  # noqa
 

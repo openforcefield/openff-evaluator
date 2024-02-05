@@ -1,6 +1,7 @@
 """
 A collection of protocols for building coordinates for molecular systems.
 """
+
 import logging
 from collections import defaultdict
 from enum import Enum

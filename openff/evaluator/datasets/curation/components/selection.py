@@ -137,9 +137,7 @@ class SelectSubstances(CurationComponent):
         unlicensed_library = (
             "openeye.oechem"
             if not oechem.OEChemIsLicensed()
-            else "openeye.oegraphsim"
-            if not oegraphsim.OEGraphSimIsLicensed()
-            else None
+            else "openeye.oegraphsim" if not oegraphsim.OEGraphSimIsLicensed() else None
         )
 
         if unlicensed_library is not None:
@@ -561,9 +559,9 @@ class SelectDataPoints(CurationComponent):
             if not property_header:
                 continue
 
-            data_frame.loc[
-                data_frame[property_header].notna(), "Property Type"
-            ] = property_type
+            data_frame.loc[data_frame[property_header].notna(), "Property Type"] = (
+                property_type
+            )
 
         data_frame["Temperature (K)"] = data_frame["Temperature (K)"].round(2)
         data_frame["Pressure (kPa)"] = data_frame["Pressure (kPa)"].round(1)

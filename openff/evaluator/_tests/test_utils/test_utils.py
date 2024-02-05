@@ -1,6 +1,7 @@
 """
 Units tests for openff.evaluator.utils.exceptions
 """
+
 import os
 import tempfile
 

@@ -47,8 +47,7 @@ class CurationComponent(metaclass=_MetaCurationComponent):
         data_set: PhysicalPropertyDataSet,
         schema: CurationComponentSchema,
         n_processes: int = 1,
-    ) -> PhysicalPropertyDataSet:
-        ...
+    ) -> PhysicalPropertyDataSet: ...
 
     @classmethod
     @overload
@@ -57,8 +56,7 @@ class CurationComponent(metaclass=_MetaCurationComponent):
         data_set: pandas.DataFrame,
         schema: CurationComponentSchema,
         n_processes: int = 1,
-    ) -> pandas.DataFrame:
-        ...
+    ) -> pandas.DataFrame: ...
 
     @classmethod
     def apply(cls, data_set, schema, n_processes=1):

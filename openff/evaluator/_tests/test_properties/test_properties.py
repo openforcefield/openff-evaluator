@@ -2,6 +2,7 @@
 Units tests for the calculation schemas registered by
 `evaluator.properties`.
 """
+
 from collections import OrderedDict
 
 import pytest

@@ -1,6 +1,7 @@
 """
 Units tests for openff.evaluator.utils.packmol
 """
+
 import numpy as np
 import pytest
 from openff.units import unit
