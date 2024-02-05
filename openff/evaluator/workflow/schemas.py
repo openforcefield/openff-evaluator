@@ -1,6 +1,7 @@
 """
 A collection of schemas which represent elements of a workflow.
 """
+
 import re
 from typing import Dict, Iterable, List
 

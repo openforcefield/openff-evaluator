@@ -1,5 +1,6 @@
 """The module contains curation components for converting one type of property (e.g.
 density) into another (e.g excess molar volume)"""
+
 import functools
 import logging
 from typing import TYPE_CHECKING, Union

@@ -3,6 +3,7 @@ A collection of base classes for protocols for running molecular simulations.
 These should be subclassed when defining protocols for specific packages, such
 as OpenMM or Gromacs.
 """
+
 import abc
 
 from openff.units import unit

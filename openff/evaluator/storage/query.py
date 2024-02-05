@@ -2,6 +2,7 @@
 A collection of classes used to query a storage backend for
 data which matches a set of criteria.
 """
+
 import abc
 
 from openff.evaluator.attributes import UNDEFINED, Attribute, AttributeClass

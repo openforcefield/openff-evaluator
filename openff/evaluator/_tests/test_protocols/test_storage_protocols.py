@@ -1,6 +1,7 @@
 """
 Units tests for openff.evaluator.protocols.storage
 """
+
 import json
 import os
 import tempfile

@@ -1,6 +1,7 @@
 """
 Units tests for openff.evaluator.utils.serialization
 """
+
 import json
 from datetime import datetime
 from enum import Enum, IntEnum

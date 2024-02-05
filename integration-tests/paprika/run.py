@@ -53,9 +53,11 @@ def main():
                 "BaseBuildSystem": (
                     "BuildSmirnoffSystem"
                     if isinstance(force_field_source, SmirnoffForceFieldSource)
-                    else "BuildTLeapSystem"
-                    if isinstance(force_field_source, TLeapForceFieldSource)
-                    else "BaseBuildSystem"
+                    else (
+                        "BuildTLeapSystem"
+                        if isinstance(force_field_source, TLeapForceFieldSource)
+                        else "BaseBuildSystem"
+                    )
                 )
             }
         )

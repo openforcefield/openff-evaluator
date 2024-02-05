@@ -1,6 +1,7 @@
 """
 Units tests for openff.evaluator.protocols.openmm
 """
+
 import json
 import os
 import tempfile

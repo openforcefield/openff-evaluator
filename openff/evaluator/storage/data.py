@@ -1,6 +1,7 @@
 """
 A collection of classes representing data stored by a storage backend.
 """
+
 import abc
 from typing import Optional
 

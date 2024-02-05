@@ -1,6 +1,7 @@
 """
 Units tests for openff.evaluator.utils.graph
 """
+
 import pytest
 
 from openff.evaluator.utils import graph

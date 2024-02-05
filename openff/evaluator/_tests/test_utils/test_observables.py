@@ -1,6 +1,7 @@
 """
 Units tests for openff.evaluator.utils.observables
 """
+
 import json
 from typing import List, Tuple, Type, Union
 
@@ -995,10 +996,7 @@ def test_frame_from_openmm(pressure):
     if pressure is not None:
         expected_enthalpy = (
             13874.51498645249 * unit.kilojoule / unit.mole
-            + pressure
-            * 26.342326662784938
-            * unit.nanometer**3
-            * unit.avogadro_constant
+            + pressure * 26.342326662784938 * unit.nanometer**3 * unit.avogadro_constant
         )
         assert numpy.isclose(observable_frame["Enthalpy"].value[0], expected_enthalpy)
 
@@ -1084,11 +1082,7 @@ def test_frame_join():
                     {"Temperature": ObservableArray(value=numpy.ones(2) * unit.kelvin)}
                 ),
                 ObservableFrame(
-                    {
-                        "Volume": ObservableArray(
-                            value=numpy.ones(2) * unit.nanometer**3
-                        )
-                    }
+                    {"Volume": ObservableArray(value=numpy.ones(2) * unit.nanometer**3)}
                 ),
             ],
             pytest.raises(ValueError),

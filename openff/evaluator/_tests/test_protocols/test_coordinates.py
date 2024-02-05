@@ -1,6 +1,7 @@
 """
 Units tests for openff-evaluator.protocols.coordinates
 """
+
 import tempfile
 
 import pytest

@@ -2,6 +2,7 @@
 test-evaluator-plugins
 A test package used to ensure that parameterhandler plugins are handled correctly
 """
+
 from setuptools import setup
 
 setup(

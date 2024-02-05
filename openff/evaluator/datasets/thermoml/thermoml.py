@@ -1,6 +1,7 @@
 """
 An API for importing a ThermoML archive.
 """
+
 import copy
 import logging
 import re
@@ -1764,9 +1765,9 @@ class ThermoMLProperty:
             if uncertainty_definition is None:
                 continue
 
-            combined_uncertainty_definitions[
-                uncertainty_definition.index
-            ] = uncertainty_definition
+            combined_uncertainty_definitions[uncertainty_definition.index] = (
+                uncertainty_definition
+            )
 
         property_nodes = node.findall("ThermoML:PropUncertainty", namespace)
 
@@ -1781,9 +1782,9 @@ class ThermoMLProperty:
             if uncertainty_definition is None:
                 continue
 
-            property_uncertainty_definitions[
-                uncertainty_definition.index
-            ] = uncertainty_definition
+            property_uncertainty_definitions[uncertainty_definition.index] = (
+                uncertainty_definition
+            )
 
     @classmethod
     def from_xml_node(cls, node, namespace, parent_phases):
