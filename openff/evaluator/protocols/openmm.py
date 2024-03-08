@@ -83,9 +83,9 @@ def _evaluate_energies(
         The array containing the evaluated potentials.
     """
     import openmm
-    from openmm import unit as openmm_unit
+    import openmm.unit
 
-    integrator = openmm.VerletIntegrator(0.1 * openmm_unit.femtoseconds)
+    integrator = openmm.VerletIntegrator(0.1 * openmm.unit.femtoseconds)
 
     platform = setup_platform_with_resources(compute_resources, high_precision)
     openmm_context = openmm.Context(system, integrator, platform)
@@ -94,7 +94,7 @@ def _evaluate_energies(
     reduced_potentials = np.zeros(trajectory.n_frames, dtype=np.float64)
 
     temperature = to_openmm(thermodynamic_state.temperature)
-    beta = 1.0 / (openmm_unit.BOLTZMANN_CONSTANT_kB * temperature)
+    beta = 1.0 / (openmm.unit.BOLTZMANN_CONSTANT_kB * temperature)
 
     if thermodynamic_state.pressure is None:
         pressure = None
@@ -113,13 +113,13 @@ def _evaluate_energies(
         state = openmm_context.getState(getEnergy=True)
 
         potential_energy = state.getPotentialEnergy()
-        unreduced_potential = potential_energy / openmm_unit.AVOGADRO_CONSTANT_NA
+        unreduced_potential = potential_energy / openmm.unit.AVOGADRO_CONSTANT_NA
 
         if pressure is not None and enable_pbc:
             unreduced_potential += pressure * state.getPeriodicBoxVolume()
 
         potentials[frame_index] = potential_energy.value_in_unit(
-            openmm_unit.kilojoule_per_mole
+            openmm.unit.kilojoule_per_mole
         )
         reduced_potentials[frame_index] = unreduced_potential * beta
 
@@ -328,8 +328,8 @@ class OpenMMEnergyMinimisation(BaseEnergyMinimisation):
 
     def _execute(self, directory, available_resources):
         import openmm
+        import openmm.unit
         from openmm import app
-        from openmm import unit as openmm_unit
 
         platform = setup_platform_with_resources(available_resources)
 
@@ -340,7 +340,7 @@ class OpenMMEnergyMinimisation(BaseEnergyMinimisation):
             disable_pbc(system=system)
 
         # TODO: Expose the constraint tolerance
-        integrator = openmm.VerletIntegrator(0.002 * openmm_unit.picoseconds)
+        integrator = openmm.VerletIntegrator(0.002 * openmm.unit.picoseconds)
         simulation = app.Simulation(
             input_pdb_file.topology, system, integrator, platform
         )

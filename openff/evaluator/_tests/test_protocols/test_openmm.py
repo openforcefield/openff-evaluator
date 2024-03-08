@@ -8,7 +8,6 @@ from os import path
 
 import mdtraj
 import numpy
-import pytest
 from openff.toolkit.topology import Molecule, Topology
 from openff.toolkit.typing.engines.smirnoff import ForceField
 from openff.units import unit
@@ -165,11 +164,9 @@ def test_evaluate_energies_openmm():
         assert ObservableType.PotentialEnergy in reduced_potentials.output_observables
 
 
-@pytest.mark.xfail(
-    reason="Broken until smirnoff_plugins is made compatible with openff.units"
-)
 def test_smirnoff_plugin_gradients():
-    from smirnoff_plugins.handlers.nonbonded import DoubleExponential
+    from smirnoff_plugins.handlers.nonbonded import DoubleExponential  # noqa
+    from smirnoff_plugins.handlers.nonbonded import DoubleExponentialHandler
 
     molecule = Molecule.from_smiles("C")
     molecule.generate_conformers(n_conformers=1)
@@ -178,34 +175,38 @@ def test_smirnoff_plugin_gradients():
     conformer = numpy.vstack([conformer, conformer + 0.5])
 
     topology = Topology.from_molecules([Molecule.from_smiles("C")] * 2)
+    topology.box_vectors = [4, 4, 4] * unit.nanometer
 
-    epsilon = 0.1094
+    epsilon = 0.1094 * unit.kilocalories_per_mole
 
-    custom_handler = DoubleExponential(version="0.3")
+    custom_handler = DoubleExponentialHandler(version="0.3")
     custom_handler.add_parameter(
         parameter_kwargs={
             "smirks": "[#6X4:1]",
-            "r_min": 1.908 * openmm_unit.angstrom,
-            "epsilon": epsilon * openmm_unit.kilocalories_per_mole,
+            "r_min": 1.908 * unit.angstrom,
+            "epsilon": epsilon,
         }
     )
     custom_handler.add_parameter(
         parameter_kwargs={
             "smirks": "[#1:1]-[#6X4]",
-            "r_min": 1.487 * openmm_unit.angstrom,
-            "epsilon": 0.0 * openmm_unit.kilocalories_per_mole,
+            "r_min": 1.487 * unit.angstrom,
+            "epsilon": 0.0 * unit.kilocalories_per_mole,
         }
     )
 
     force_field = ForceField(load_plugins=True)
     force_field.register_parameter_handler(custom_handler)
 
-    vdw_handler = force_field.get_parameter_handler("vdW")
-    vdw_handler.add_parameter(
+    force_field.get_parameter_handler("Electrostatics")
+
+    charge_handler = force_field.get_parameter_handler("ChargeIncrementModel")
+    charge_handler.partial_charge_method = "zeros"
+    charge_handler.add_parameter(
         parameter_kwargs={
-            "smirks": "[*:1]",
-            "epsilon": 0.0 * unit.kilocalories_per_mole,
-            "sigma": 1.0 * unit.angstrom,
+            "smirks": "[*:1]-[*:2]",
+            "charge_increment1": 0.0 * unit.elementary_charge,
+            "charge_increment2": 0.0 * unit.elementary_charge,
         }
     )
 
@@ -218,11 +219,14 @@ def test_smirnoff_plugin_gradients():
         ThermodynamicState(
             temperature=298.15 * unit.kelvin, pressure=1.0 * unit.atmosphere
         ),
-        force_field.create_openmm_system(topology),
+        force_field.create_interchange(topology).to_openmm(
+            combine_nonbonded_forces=False,
+        ),
         trajectory,
         ComputeResources(),
         enable_pbc=False,
     )
+
     _compute_gradients(
         [
             ParameterGradientKey(
@@ -242,6 +246,5 @@ def test_smirnoff_plugin_gradients():
 
     assert numpy.isclose(
         observables[ObservableType.PotentialEnergy].gradients[0].value,
-        observables[ObservableType.PotentialEnergy].value
-        / (epsilon * unit.kilocalorie / unit.mole),
+        observables[ObservableType.PotentialEnergy].value / epsilon,
     )
