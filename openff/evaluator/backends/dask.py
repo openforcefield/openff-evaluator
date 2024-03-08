@@ -404,7 +404,7 @@ class BaseDaskJobQueueBackend(BaseDaskBackend):
             cores=self._resources_per_worker.number_of_threads,
             memory=memory_string,
             walltime=self._resources_per_worker.wallclock_time_limit,
-            job_extra=job_extra,
+            job_extra_directives=job_extra,
             env_extra=env_extra,
             extra=extra,
             local_directory="dask-worker-space",
