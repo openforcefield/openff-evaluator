@@ -2,6 +2,7 @@
 An API for defining, storing, and loading sets of physical
 property data.
 """
+
 import abc
 import re
 import uuid
@@ -461,9 +462,9 @@ class PhysicalPropertyDataSet(TypedBaseModel):
                 data_row[f"Mole Fraction {index + 1}"] = amounts[index][MoleFraction]
                 data_row[f"Exact Amount {index + 1}"] = amounts[index][ExactAmount]
 
-            data_row[
-                f"{type(physical_property).__name__} Value ({default_unit:~})"
-            ] = value
+            data_row[f"{type(physical_property).__name__} Value ({default_unit:~})"] = (
+                value
+            )
             data_row[
                 f"{type(physical_property).__name__} Uncertainty ({default_unit:~})"
             ] = uncertainty
@@ -619,9 +620,11 @@ class PhysicalPropertyDataSet(TypedBaseModel):
                     thermodynamic_state=thermodynamic_state,
                     phase=property_phase,
                     value=data_row[property_header] * property_unit,
-                    uncertainty=None
-                    if uncertainty_header not in data_row
-                    else data_row[uncertainty_header] * property_unit,
+                    uncertainty=(
+                        None
+                        if uncertainty_header not in data_row
+                        else data_row[uncertainty_header] * property_unit
+                    ),
                     substance=substance,
                     source=MeasurementSource(
                         doi="" if not is_doi else source_string,

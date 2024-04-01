@@ -1,6 +1,7 @@
 """
 Units tests for openff.evaluator.protocols.miscellaneous
 """
+
 import operator
 import random
 import tempfile

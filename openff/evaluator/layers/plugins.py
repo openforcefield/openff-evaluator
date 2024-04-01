@@ -12,6 +12,7 @@ registered_calculation_schemas: dict of str and dict of str and type of Calculat
 
     The dictionary is of the form `registered_calculation_schemas['LayerType']['PropertyType']`
 """
+
 from collections import defaultdict
 from typing import Dict, Type
 
@@ -19,9 +20,9 @@ from openff.evaluator.datasets import PhysicalProperty
 from openff.evaluator.layers import CalculationLayer, CalculationLayerSchema
 
 registered_calculation_layers: Dict[str, Type[CalculationLayer]] = {}
-registered_calculation_schemas: Dict[
-    str, Dict[str, CalculationLayerSchema]
-] = defaultdict(dict)
+registered_calculation_schemas: Dict[str, Dict[str, CalculationLayerSchema]] = (
+    defaultdict(dict)
+)
 
 
 def register_calculation_layer(layer_class):

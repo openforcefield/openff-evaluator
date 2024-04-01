@@ -1,6 +1,7 @@
 """
 A collection of protocols for reweighting cached simulation data.
 """
+
 import abc
 import copy
 import functools

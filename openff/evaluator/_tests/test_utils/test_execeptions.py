@@ -1,6 +1,7 @@
 """
 Units tests for openff.evaluator.utils.exceptions
 """
+
 from openff.evaluator.utils import exceptions
 
 

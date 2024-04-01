@@ -2,6 +2,7 @@
 A collection of protocols for calculating the gradients of observables with respect to
 force field parameters.
 """
+
 import abc
 from typing import Union
 
