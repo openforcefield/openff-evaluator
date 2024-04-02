@@ -1,6 +1,7 @@
 """
 Defines an API for defining thermodynamic states.
 """
+
 from enum import Enum
 
 from openff.units import unit

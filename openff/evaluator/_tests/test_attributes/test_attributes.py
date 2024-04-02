@@ -1,6 +1,7 @@
 """
 Units tests for openff.evaluator.attributes
 """
+
 import json
 
 import pytest

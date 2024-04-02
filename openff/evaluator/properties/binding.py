@@ -1,6 +1,7 @@
 """
 A collection of density physical property definitions.
 """
+
 import copy
 from typing import Dict, Tuple
 

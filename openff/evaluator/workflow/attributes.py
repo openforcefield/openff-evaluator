@@ -3,6 +3,7 @@ A collection of descriptors used to mark-up class fields which
 hold importance to the workflow engine, such as the inputs or
 outputs of workflow protocols.
 """
+
 import warnings
 from enum import Enum
 

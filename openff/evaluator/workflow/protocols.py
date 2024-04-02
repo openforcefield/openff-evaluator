@@ -2,6 +2,7 @@
 A collection of specialized workflow building blocks, which when chained together,
 form a larger property estimation workflow.
 """
+
 import abc
 import copy
 import json

@@ -2,6 +2,7 @@
 A collection of protocols for assigning force field parameters to molecular
 systems.
 """
+
 import abc
 import io
 import logging
@@ -882,9 +883,11 @@ class BuildTLeapSystem(TemplateBuildSystem):
     charge_backend = InputAttribute(
         docstring="The backend framework to use to assign partial charges.",
         type_hint=ChargeBackend,
-        default_value=lambda: BuildTLeapSystem.ChargeBackend.OpenEye
-        if has_openeye()
-        else BuildTLeapSystem.ChargeBackend.AmberTools,
+        default_value=lambda: (
+            BuildTLeapSystem.ChargeBackend.OpenEye
+            if has_openeye()
+            else BuildTLeapSystem.ChargeBackend.AmberTools
+        ),
     )
 
     @staticmethod
