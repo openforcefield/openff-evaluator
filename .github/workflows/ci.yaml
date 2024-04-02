@@ -31,12 +31,12 @@ jobs:
           - ubuntu-latest
           - macOS-latest
         python-version:
-          - "3.9"
           - "3.10"
+          - "3.11"
+          - "3.12"
         pymbar-version:
           - "3.1"
         pydantic-version:
-          - "1"
           - "2"
         openmm-version:
           - "7"
@@ -45,11 +45,13 @@ jobs:
           - true
           - false
         exclude:
-          - python-version: "3.10"
+          - python-version: "3.11"
             openmm-version: "7"
+          - python-version: "3.12"
+            openeye: true
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Setup Conda Environment
         uses: mamba-org/setup-micromamba@v1
@@ -70,11 +72,6 @@ jobs:
           python -c "from openeye import oechem; assert oechem.OEChemIsLicensed()"
         env:
           SECRET_OE_LICENSE: ${{ secrets.OE_LICENSE }}
-
-      - name: Install Foyer
-        if: ${{ matrix.pydantic-version == 1 }}
-        shell: bash -l {0}
-        run: micromamba install foyer -c conda-forge
 
       - name: Install PASCAL Compiler (MacOS)
         if: startsWith(matrix.os, 'macOS')
@@ -110,7 +107,7 @@ jobs:
             docs/tutorials/tutorial03.ipynb
 
       - name: Code coverage
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           file: ./coverage.xml
           flags: unittests
