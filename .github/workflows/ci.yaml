@@ -49,6 +49,8 @@ jobs:
             openmm-version: "7"
           - python-version: "3.12"
             openmm-version: "7"
+          - os: "macOS-latest"
+            openmm-version: "7"
           - python-version: "3.12"
             openeye: true
           - python-version: "3.11"
