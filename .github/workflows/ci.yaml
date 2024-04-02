@@ -51,7 +51,7 @@ jobs:
             openeye: true
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v3
 
       - name: Setup Conda Environment
         uses: mamba-org/setup-micromamba@v1
@@ -107,7 +107,7 @@ jobs:
             docs/tutorials/tutorial03.ipynb
 
       - name: Code coverage
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v3
         with:
           file: ./coverage.xml
           flags: unittests
