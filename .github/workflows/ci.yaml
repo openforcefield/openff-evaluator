@@ -48,6 +48,8 @@ jobs:
           - python-version: "3.11"
             openmm-version: "7"
           - python-version: "3.12"
+            openmm-version: "7"
+          - python-version: "3.12"
             openeye: true
 
     steps:
