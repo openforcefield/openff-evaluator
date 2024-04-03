@@ -1,6 +1,7 @@
 """
 Units tests for openff.evaluator.utils.statistics
 """
+
 import tempfile
 from os import path
 

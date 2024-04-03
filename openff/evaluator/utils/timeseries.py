@@ -179,10 +179,10 @@ def analyze_time_series(
 
     for current_timestep in range(0, n_timesteps - 1):
         try:
-            statistical_inefficiency_array[
-                current_timestep
-            ] = _statistical_inefficiency(
-                time_series[current_timestep:n_timesteps], minimum_samples
+            statistical_inefficiency_array[current_timestep] = (
+                _statistical_inefficiency(
+                    time_series[current_timestep:n_timesteps], minimum_samples
+                )
             )
 
         except ParameterError:

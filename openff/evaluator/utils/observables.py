@@ -2,6 +2,7 @@
 A collection of classes for representing, storing, and manipulating common observables
 which are collected over the course of a molecular simulation.
 """
+
 import abc
 import copy
 import math
@@ -51,9 +52,7 @@ class _Observable(abc.ABC):
         self._value = value
         self._gradients = [] if gradients is None else gradients
 
-    def _compatible_gradients(
-        self, other: T
-    ) -> Tuple[
+    def _compatible_gradients(self, other: T) -> Tuple[
         Dict[ParameterGradientKey, ParameterGradient],
         Dict[ParameterGradientKey, ParameterGradient],
     ]:
@@ -853,9 +852,9 @@ def bootstrap(
                     range(start_index, start_index + sub_count)
                 )
 
-                sample_observables[key].value[
-                    start_index : start_index + sub_count
-                ] = sub_data.value[sample_indices]
+                sample_observables[key].value[start_index : start_index + sub_count] = (
+                    sub_data.value[sample_indices]
+                )
 
             start_index += sub_count
 

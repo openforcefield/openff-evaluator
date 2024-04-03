@@ -2,6 +2,7 @@
 A collection of miscellaneous protocols, mostly aimed at performing simple
 math operations.
 """
+
 import typing
 
 import numpy as np

@@ -178,9 +178,9 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
         # Make sure the convergence criteria is set to use the per component
         # uncertainty target.
         if use_target_uncertainty:
-            component_protocols.converge_uncertainty.conditions[
-                0
-            ].right_hand_value = ProtocolPath("per_component_uncertainty", "global")
+            component_protocols.converge_uncertainty.conditions[0].right_hand_value = (
+                ProtocolPath("per_component_uncertainty", "global")
+            )
 
         # Finally, set up the protocols which will be responsible for adding together
         # the component observables, and subtracting these from the mixture system value.

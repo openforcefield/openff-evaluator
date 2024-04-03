@@ -2,6 +2,7 @@
 A collection of protocols which employs OpenMM to evaluate and propagate the
 state of molecular systems.
 """
+
 import io
 import json
 import logging

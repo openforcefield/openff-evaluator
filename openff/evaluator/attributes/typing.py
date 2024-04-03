@@ -3,6 +3,7 @@ output types. This is *not* meant to be a means to implement dynamic
 typing into the framework, but rather to aid in statically verifying
 the protocols input and outputs align correctly.
 """
+
 import typing
 
 _supported_generic_types = {typing.Union}

@@ -2,6 +2,7 @@
 A collection of descriptors used to add meta data to
 object attributes.
 """
+
 import copy
 import inspect
 from collections.abc import Iterable, Mapping

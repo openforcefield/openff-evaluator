@@ -1,6 +1,7 @@
 """
 A set of utilities for setting up property estimation workflows.
 """
+
 from dataclasses import astuple, dataclass
 from typing import Generic, Optional, Tuple, TypeVar
 

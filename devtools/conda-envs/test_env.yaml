@@ -1,6 +1,5 @@
 name: evaluator-test-env
 channels:
-  - jaimergp/label/unsupported-cudatoolkit-shim
   - conda-forge
 dependencies:
     # Base depends
@@ -14,11 +13,9 @@ dependencies:
   - pytest-randomly
   - nbval
   - requests-mock # For testing http requests.
-  # smirnoff-plugins =0.0.3
-  # Add back when MoSDeF supports pydantic v2
-  # foyer
+  - foyer
 
-    # Shims
+    # Shim
   - pint =0.20.1
 
     # Standard dependencies

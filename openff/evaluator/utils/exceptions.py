@@ -1,6 +1,7 @@
 """
 A collection of commonly raised python exceptions.
 """
+
 import traceback
 from typing import Optional
 

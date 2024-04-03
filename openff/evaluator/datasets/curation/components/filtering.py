@@ -654,9 +654,11 @@ class FilterByCharged(CurationComponent):
 
                 # noinspection PyUnresolvedReferences
                 atom_charges = [
-                    atom.formal_charge
-                    if isinstance(atom.formal_charge, int)
-                    else atom.formal_charge.m_as(unit.elementary_charge)
+                    (
+                        atom.formal_charge
+                        if isinstance(atom.formal_charge, int)
+                        else atom.formal_charge.m_as(unit.elementary_charge)
+                    )
                     for atom in molecule.atoms
                 ]
 

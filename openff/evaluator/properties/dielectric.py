@@ -1,6 +1,7 @@
 """
 A collection of dielectric physical property definitions.
 """
+
 from openff.units import unit
 
 from openff.evaluator.attributes import UNDEFINED
