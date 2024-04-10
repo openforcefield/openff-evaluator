@@ -171,7 +171,9 @@ class PrepareReleaseCoordinates(_PrepareAPRCoordinates):
         from openmm import app
         from paprika.evaluator import Setup
 
-        mdtraj_trajectory = mdtraj.load_pdb(self.complex_file_path, standard_names=False)
+        mdtraj_trajectory = mdtraj.load_pdb(
+            self.complex_file_path, standard_names=False
+        )
 
         atom_indices_by_role = _atom_indices_by_role(
             self.substance, self.complex_file_path
