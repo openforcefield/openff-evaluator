@@ -8,6 +8,11 @@ Releases follow the ``major.minor.micro`` scheme recommended by
 * ``minor`` increments add features but do not break API compatibility
 * ``micro`` increments represent bugfix releases or improvements in documentation
 
+Current development
+-------------------
+
+* PR `#555 <https://github.com/openforcefield/openff-evaluator/pull/555>`_: More gracefully handle Packmol failures.
+
 0.4.8 - January 30, 2024
 ------------------------
 
