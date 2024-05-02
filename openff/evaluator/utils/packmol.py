@@ -704,9 +704,12 @@ def pack_box(
         )
 
         with open(input_file_path) as file_handle:
-            result = subprocess.check_output(
-                packmol_path, stdin=file_handle, stderr=subprocess.STDOUT
-            ).decode("utf-8")
+            try:
+                result = subprocess.check_output(
+                    packmol_path, stdin=file_handle, stderr=subprocess.STDOUT
+                ).decode("utf-8")
+            except subprocess.CalledProcessError as error:
+                raise PackmolRuntimeException from error
 
             if verbose:
                 logger.info(result)
