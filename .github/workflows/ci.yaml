@@ -76,7 +76,7 @@ jobs:
         run: |
           echo "${SECRET_OE_LICENSE}" > ${OE_LICENSE}
 
-          micromamba install -c openeye openeye-toolkits
+          micromamba install -c openeye "openeye-toolkits =2024.1.0"
           python -c "from openeye import oechem; assert oechem.OEChemIsLicensed()"
         env:
           SECRET_OE_LICENSE: ${{ secrets.OE_LICENSE }}
