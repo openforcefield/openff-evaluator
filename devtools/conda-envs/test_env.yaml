@@ -16,7 +16,7 @@ dependencies:
   - foyer
 
     # Shim
-  - pint =0.20.1
+  - pint >=0.21,<0.25
 
     # Standard dependencies
   - openff-toolkit >=0.14.3
