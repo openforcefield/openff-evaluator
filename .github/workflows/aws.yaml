@@ -1,7 +1,9 @@
 name: Test Self-Hosted Runner
 on:
   workflow_dispatch:
-
+  pull_request:
+    branches:
+      - "main
 jobs:
   start-aws-runner:
     runs-on: ubuntu-latest
