@@ -11,20 +11,17 @@ from openff.evaluator.datasets import PhysicalPropertyDataSet, PropertyPhase
 from openff.evaluator.datasets.curation.components.filtering import (
     FilterBySubstancesSchema,
 )
-from openff.evaluator.datasets.curation.components.freesolv import ImportFreeSolvSchema
 from openff.evaluator.datasets.curation.workflow import (
     CurationWorkflow,
     CurationWorkflowSchema,
 )
 from openff.evaluator.forcefield import ParameterGradientKey
-from openff.evaluator.layers.simulation import SimulationSchema
 from openff.evaluator.properties import (
     Density,
     DielectricConstant,
     EnthalpyOfMixing,
     EnthalpyOfVaporization,
     ExcessMolarVolume,
-    SolvationFreeEnergy,
 )
 from openff.evaluator.server import EvaluatorServer
 from openff.evaluator.storage import LocalFileStorage
@@ -62,23 +59,10 @@ def define_data_set(reweighting: bool) -> PhysicalPropertyDataSet:
         )
 
         data_set.add_properties(
-            SolvationFreeEnergy(
-                thermodynamic_state=states[1],
-                phase=PropertyPhase.Liquid,
-                substance=ethanol_substance,
-                value=0.0 * SolvationFreeEnergy.default_unit(),
-            ),
-            SolvationFreeEnergy(
-                thermodynamic_state=states[1],
-                phase=PropertyPhase.Liquid,
-                substance=ethanal_substance,
-                value=0.0 * SolvationFreeEnergy.default_unit(),
-            ),
             *CurationWorkflow.apply(
                 PhysicalPropertyDataSet(),
                 CurationWorkflowSchema(
                     component_schemas=[
-                        ImportFreeSolvSchema(),
                         FilterBySubstancesSchema(substances_to_include=[("O", "CO")]),
                     ]
                 ),
@@ -126,75 +110,6 @@ def define_data_set(reweighting: bool) -> PhysicalPropertyDataSet:
     return data_set
 
 
-def solvation_free_energy_schema() -> SimulationSchema:
-    """Override trailblazing to use the lambda values of used in the previous OFF study
-    https://github.com/MobleyLab/SMIRNOFF_paper_code/tree/master/FreeSolv
-    """
-
-    default_schema = SolvationFreeEnergy.default_simulation_schema()
-    workflow_schema = default_schema.workflow_schema
-
-    conditional_group_schema = next(
-        x for x in workflow_schema.protocol_schemas if x.id == "conditional_group"
-    )
-    conditional_group = conditional_group_schema.to_protocol()
-
-    yank_protocol = conditional_group.protocols["run_solvation_yank"]
-
-    yank_protocol.electrostatic_lambdas_1 = [
-        1.00,
-        0.75,
-        0.50,
-        0.25,
-        0.00,
-        0.00,
-        0.00,
-        0.00,
-        0.00,
-        0.00,
-        0.00,
-        0.00,
-        0.00,
-        0.00,
-        0.00,
-        0.00,
-        0.00,
-        0.00,
-        0.00,
-        0.00,
-    ]
-    yank_protocol.steric_lambdas_1 = [
-        1.00,
-        1.00,
-        1.00,
-        1.00,
-        1.00,
-        0.95,
-        0.90,
-        0.80,
-        0.70,
-        0.60,
-        0.50,
-        0.40,
-        0.35,
-        0.30,
-        0.25,
-        0.20,
-        0.15,
-        0.10,
-        0.05,
-        0.00,
-    ]
-
-    yank_protocol.electrostatic_lambdas_2 = [1.00, 0.75, 0.50, 0.25, 0.00]
-    yank_protocol.steric_lambdas_2 = [1.00, 1.00, 1.00, 1.00, 1.00]
-
-    workflow_schema.protocol_schemas.remove(conditional_group_schema)
-    workflow_schema.protocol_schemas.append(conditional_group.schema)
-
-    return default_schema
-
-
 def main():
     setup_timestamp_logging()
 
@@ -230,7 +145,7 @@ def main():
             ):
                 client = EvaluatorClient()
 
-                for allowed_layer in ["SimulationLayer", "ReweightingLayer"]:
+                for allowed_layer in ["ReweightingLayer"]:
                     data_set = define_data_set(allowed_layer == "ReweightingLayer")
 
                     options = RequestOptions()
@@ -238,13 +153,6 @@ def main():
                     options.calculation_schemas = {
                         property_type: {} for property_type in data_set.property_types
                     }
-
-                    if allowed_layer == "SimulationLayer":
-                        options.add_schema(
-                            "SimulationLayer",
-                            "SolvationFreeEnergy",
-                            solvation_free_energy_schema(),
-                        )
 
                     request, _ = client.request_estimate(
                         data_set,
