@@ -160,6 +160,4 @@ class ParameterGradient:
         )
 
 
-pint.compat.upcast_type_map[
-    "openff.evaluator.forcefield.gradients.ParameterGradient"
-] = ParameterGradient
+pint.compat.upcast_types.append(ParameterGradient)

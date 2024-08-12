@@ -872,9 +872,5 @@ def bootstrap(
     )
 
 
-pint.compat.upcast_type_map.update(
-    {
-        "openff.evaluator.utils.observables.Observable": Observable,
-        "openff.evaluator.utils.observables.ObservableArray": ObservableArray,
-    }
-)
+pint.compat.upcast_types.append(Observable)
+pint.compat.upcast_types.append(ObservableArray)
