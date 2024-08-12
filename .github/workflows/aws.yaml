@@ -51,7 +51,7 @@ jobs:
           environment-file: devtools/conda-envs/test_env.yaml
       - name: Run integration tests
         run: |
-          cd integration-tests
+          cd integration-tests/default-workflows/
           python run.py
   stop-aws-runner:
     runs-on: ubuntu-latest
