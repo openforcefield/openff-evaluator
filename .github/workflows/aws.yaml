@@ -5,6 +5,10 @@ on:
     branches:
       - "main"
 
+defaults:
+  run:
+    shell: bash -l {0}
+
 jobs:
   start-aws-runner:
     runs-on: ubuntu-latest
