@@ -148,6 +148,9 @@ class _Constraint:
     or composition at which a measurement was recorded.
     """
 
+    def __repr__(self):
+        return f"Constraint(type={self.type}, value={self.value})"
+
     def __init__(self):
         self.type = _ConstraintType.Undefined
         self.value = 0.0
@@ -355,6 +358,9 @@ class _CombinedUncertainty(_PropertyUncertainty):
 
 class _Compound:
     """A wrapper around a ThermoML Compound node."""
+
+    def __repr__(self):
+        return f"Compound(smiles={self.smiles}, index={self.index})"
 
     def __init__(self):
         self.smiles = None
@@ -833,7 +839,7 @@ class _PureOrMixtureData:
         Returns
         -------
         openff.evaluator.unit.Quantity
-            The molecular weight.
+            The molecular weight in units of grams per mole.
         """
 
         from openff.toolkit.topology import Molecule
@@ -854,9 +860,9 @@ class _PureOrMixtureData:
         for atom in molecule.atoms:
             molecular_weight += atom.mass
 
-        # Molecuar weight in Daltons is not per-mol by SI definitions, but
-        # divide through by Avogadro's number as if it is
-        return molecular_weight / unit.mol
+        # Molecular weight in Daltons is not a molar quantity, so need
+        # multiply it through by Avogadro's number per mol to become gram/mol
+        return unit.avogadro_number * molecular_weight / unit.mol
 
     @staticmethod
     def _solvent_mole_fractions_to_moles(
@@ -1043,7 +1049,7 @@ class _PureOrMixtureData:
                         mass_fractions[compound_index].to(unit.dimensionless).magnitude
                     )
 
-        total_mass = 1 * unit.dalton
+        total_mass = 1 * unit.gram
         total_solvent_mass = total_mass
 
         moles = {}
@@ -1703,6 +1709,13 @@ class ThermoMLProperty:
                 )
 
             return standard_state
+
+    def __repr__(self):
+        return (
+            f"<ThermoMLProperty {self.type_string}, substance={self.substance}, "
+            "thermodynamic_state={self.thermodynamic_state}, "
+            f"value={self.value}, uncertainty={self.uncertainty} >"
+        )
 
     def __init__(self, type_string):
         self.type_string = type_string
