@@ -5,12 +5,18 @@ Units tests for openff.evaluator.datasets
 import pytest
 from openff.units import unit
 
+import numpy as np
+
+
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.datasets import PhysicalProperty, PropertyPhase
 from openff.evaluator.datasets.thermoml import thermoml_property
 from openff.evaluator.datasets.thermoml.thermoml import (
     ThermoMLDataSet,
     _unit_from_thermoml_string,
+    _PureOrMixtureData,
+    _Constraint, _ConstraintType,
+    _Compound,
 )
 from openff.evaluator.plugins import register_default_plugins
 from openff.evaluator.properties import EnthalpyOfMixing
@@ -185,6 +191,7 @@ def test_thermoml_molality_constraints():
 
     assert data_set is not None
     assert len(data_set) > 0
+    assert len(data_set.properties[0].substance) > 1
 
 
 def test_thermoml_mole_constraints():
@@ -220,3 +227,124 @@ def test_thermoml_mole_constraints():
 
     assert data_set is not None
     assert len(data_set) > 0
+
+
+
+class TestPureOrMixtureData:
+
+    @staticmethod
+    def _generate_dummy_compounds():
+        solute = _Compound()
+        solute.smiles = "C"
+        solute.compound_index = 0
+
+        solvent = _Compound()
+        solvent.smiles = "O"
+        solvent.compound_index = 1
+
+        return solute, solvent
+
+    @pytest.mark.parametrize("molality, expected_mole_fraction", [
+        (1.0, 0.0176965),
+        (0.0, 0.0),
+        (55.508, 0.5)
+    ])
+    def test_convert_molality_no_solvent_provided(
+        self,
+        molality: float,
+        expected_mole_fraction: float
+    ):
+        constraint = _Constraint()
+        constraint.type = _ConstraintType.ComponentMolality
+        constraint.value = molality * unit.mole / unit.kilogram
+        constraint.compound_index = 0
+
+        solute, solvent = self._generate_dummy_compounds()
+
+        mole_fractions = _PureOrMixtureData._convert_molality(
+            [constraint],
+            compounds={0: solute, 1: solvent},
+        )
+        assert np.isclose(
+            mole_fractions[0].m_as(unit.dimensionless),
+            expected_mole_fraction,
+            atol=1e-5,
+        )
+        assert np.isclose(
+            mole_fractions[1].m_as(unit.dimensionless),
+            1 - expected_mole_fraction,
+            atol=1e-5,
+        )
+
+    @pytest.mark.parametrize(
+        "mass_fraction, expected_mole_fraction",
+        [
+            (1.0, 1.0),
+            (0.0, 0.0),
+            (0.5, 0.528962),
+        ]
+    )
+    def test_convert_mass_fractions(
+        self,
+        mass_fraction,
+        expected_mole_fraction,
+    ):
+        constraint = _Constraint()
+        constraint.type = _ConstraintType.ComponentMassFraction
+        constraint.value = mass_fraction
+        constraint.compound_index = 0
+
+        solute, solvent = self._generate_dummy_compounds()
+
+        mole_fractions = _PureOrMixtureData._convert_mass_fractions(
+            [constraint],
+            compounds={0: solute, 1: solvent},
+        )
+
+        assert np.isclose(
+            mole_fractions[0].m_as(unit.dimensionless),
+            expected_mole_fraction,
+            atol=1e-5,
+        )
+        assert np.isclose(
+            mole_fractions[1].m_as(unit.dimensionless),
+            1 - expected_mole_fraction,
+            atol=1e-5,
+        )
+
+
+    @pytest.mark.parametrize(
+        "mole_fraction, expected_solute_moles, expected_solvent_moles",
+        [
+            (1.0, 62.33416, 0.0),
+            (0.0, 0.0, 55.5084),
+            (0.5, 29.36177, 29.36177),
+        ]
+    )
+    def test_solvent_mole_fractions_to_moles(
+        self,
+        mole_fraction: float,
+        expected_solute_moles: float,
+        expected_solvent_moles: float,
+    ):
+        solvent_mass = 1 * unit.kilogram
+        solvent_mole_fractions = {
+            0: mole_fraction,
+            1: 1 - mole_fraction
+        }
+        solvent_compounds = dict(enumerate(self._generate_dummy_compounds()))
+        moles = _PureOrMixtureData._solvent_mole_fractions_to_moles(
+            solvent_mass,
+            solvent_mole_fractions,
+            solvent_compounds,
+        )
+        assert np.isclose(
+            moles[0].m_as(unit.moles),
+            expected_solute_moles,
+            atol=1e-5,
+        )
+        assert np.isclose(
+            moles[1].m_as(unit.moles),
+            expected_solvent_moles,
+            atol=1e-5,
+        )
