@@ -148,6 +148,9 @@ class _Constraint:
     or composition at which a measurement was recorded.
     """
 
+    def __repr__(self):
+        return f"Constraint(type={self.type}, value={self.value})"
+
     def __init__(self):
         self.type = _ConstraintType.Undefined
         self.value = 0.0
@@ -355,6 +358,9 @@ class _CombinedUncertainty(_PropertyUncertainty):
 
 class _Compound:
     """A wrapper around a ThermoML Compound node."""
+
+    def __repr__(self):
+        return f"Compound(smiles={self.smiles}, index={self.index})"
 
     def __init__(self):
         self.smiles = None
@@ -856,7 +862,7 @@ class _PureOrMixtureData:
 
         # Molecuar weight in Daltons is not per-mol by SI definitions, but
         # divide through by Avogadro's number as if it is
-        return molecular_weight / unit.mol
+        return unit.avogadro_number * molecular_weight / unit.mol
 
     @staticmethod
     def _solvent_mole_fractions_to_moles(
@@ -1043,7 +1049,7 @@ class _PureOrMixtureData:
                         mass_fractions[compound_index].to(unit.dimensionless).magnitude
                     )
 
-        total_mass = 1 * unit.dalton
+        total_mass = 1 * unit.gram
         total_solvent_mass = total_mass
 
         moles = {}
@@ -1703,6 +1709,13 @@ class ThermoMLProperty:
                 )
 
             return standard_state
+        
+    def __repr__(self):
+        return (
+            f"<ThermoMLProperty {self.type_string}, substance={self.substance}, "
+            "thermodynamic_state={self.thermodynamic_state}, "
+            f"value={self.value}, uncertainty={self.uncertainty} >"
+        )
 
     def __init__(self, type_string):
         self.type_string = type_string
@@ -1845,7 +1858,7 @@ class ThermoMLProperty:
 
         if method_name_node is None or property_name_node is None:
             raise RuntimeError("A property does not have a name / method entry.")
-
+        
         if property_name_node.text not in ThermoMLDataSet.registered_properties:
             logging.debug(
                 f"An unsupported property was found "
