@@ -1709,7 +1709,7 @@ class ThermoMLProperty:
                 )
 
             return standard_state
-        
+
     def __repr__(self):
         return (
             f"<ThermoMLProperty {self.type_string}, substance={self.substance}, "
@@ -1858,7 +1858,7 @@ class ThermoMLProperty:
 
         if method_name_node is None or property_name_node is None:
             raise RuntimeError("A property does not have a name / method entry.")
-        
+
         if property_name_node.text not in ThermoMLDataSet.registered_properties:
             logging.debug(
                 f"An unsupported property was found "
