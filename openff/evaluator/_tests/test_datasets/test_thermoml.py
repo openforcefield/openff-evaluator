@@ -2,21 +2,20 @@
 Units tests for openff.evaluator.datasets
 """
 
+import numpy as np
 import pytest
 from openff.units import unit
-
-import numpy as np
-
 
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.datasets import PhysicalProperty, PropertyPhase
 from openff.evaluator.datasets.thermoml import thermoml_property
 from openff.evaluator.datasets.thermoml.thermoml import (
     ThermoMLDataSet,
-    _unit_from_thermoml_string,
-    _PureOrMixtureData,
-    _Constraint, _ConstraintType,
     _Compound,
+    _Constraint,
+    _ConstraintType,
+    _PureOrMixtureData,
+    _unit_from_thermoml_string,
 )
 from openff.evaluator.plugins import register_default_plugins
 from openff.evaluator.properties import EnthalpyOfMixing
@@ -229,7 +228,6 @@ def test_thermoml_mole_constraints():
     assert len(data_set) > 0
 
 
-
 class TestPureOrMixtureData:
 
     @staticmethod
@@ -244,15 +242,12 @@ class TestPureOrMixtureData:
 
         return solute, solvent
 
-    @pytest.mark.parametrize("molality, expected_mole_fraction", [
-        (1.0, 0.0176965),
-        (0.0, 0.0),
-        (55.508, 0.5)
-    ])
+    @pytest.mark.parametrize(
+        "molality, expected_mole_fraction",
+        [(1.0, 0.0176965), (0.0, 0.0), (55.508, 0.5)],
+    )
     def test_convert_molality_no_solvent_provided(
-        self,
-        molality: float,
-        expected_mole_fraction: float
+        self, molality: float, expected_mole_fraction: float
     ):
         constraint = _Constraint()
         constraint.type = _ConstraintType.ComponentMolality
@@ -282,7 +277,7 @@ class TestPureOrMixtureData:
             (1.0, 1.0),
             (0.0, 0.0),
             (0.5, 0.528962),
-        ]
+        ],
     )
     def test_convert_mass_fractions(
         self,
@@ -312,14 +307,13 @@ class TestPureOrMixtureData:
             atol=1e-5,
         )
 
-
     @pytest.mark.parametrize(
         "mole_fraction, expected_solute_moles, expected_solvent_moles",
         [
             (1.0, 62.33416, 0.0),
             (0.0, 0.0, 55.5084),
             (0.5, 29.36177, 29.36177),
-        ]
+        ],
     )
     def test_solvent_mole_fractions_to_moles(
         self,
@@ -328,10 +322,7 @@ class TestPureOrMixtureData:
         expected_solvent_moles: float,
     ):
         solvent_mass = 1 * unit.kilogram
-        solvent_mole_fractions = {
-            0: mole_fraction,
-            1: 1 - mole_fraction
-        }
+        solvent_mole_fractions = {0: mole_fraction, 1: 1 - mole_fraction}
         solvent_compounds = dict(enumerate(self._generate_dummy_compounds()))
         moles = _PureOrMixtureData._solvent_mole_fractions_to_moles(
             solvent_mass,
