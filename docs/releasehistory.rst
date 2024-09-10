@@ -11,6 +11,12 @@ Releases follow the ``major.minor.micro`` scheme recommended by
 Current development
 -------------------
 
+* PR `#569 <https://github.com/openforcefield/openff-evaluator/pull/569>`_: Fixes a bug in which molecular weights were not scaled by Avogadro's number.
+* PR `#562 <https://github.com/openforcefield/openff-evaluator/pull/562>`_: Updates for Pint 0.21 and newer (likely through 0.23).
+
+0.4.9 - August 30, 2024
+------------------------
+
 * PR `#555 <https://github.com/openforcefield/openff-evaluator/pull/555>`_: More gracefully handle Packmol failures.
 
 0.4.8 - January 30, 2024
