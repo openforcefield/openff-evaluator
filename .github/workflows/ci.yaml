@@ -39,24 +39,10 @@ jobs:
         pydantic-version:
           - "2"
         openmm-version:
-          - "7"
           - "8"
         openeye:
           - true
           - false
-        exclude:
-          - python-version: "3.11"
-            openmm-version: "7"
-          - python-version: "3.12"
-            openmm-version: "7"
-          - os: "macos-12"
-            openmm-version: "7"
-          - python-version: "3.12"
-            openeye: true
-          - python-version: "3.11"
-            pymbar-version: "3.1"
-          - python-version: "3.12"
-            pymbar-version: "3.1"
 
     steps:
       - uses: actions/checkout@v4
