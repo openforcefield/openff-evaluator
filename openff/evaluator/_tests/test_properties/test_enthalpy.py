@@ -6,9 +6,8 @@ from openff.toolkit.topology import Topology
 from openff.units import unit
 from openff.utilities.utilities import get_data_dir_path
 from openmm.openmm import System as OpenMMSystem
-from openff.evaluator.datasets import (
-    PropertyPhase,
-)
+
+from openff.evaluator.datasets import PropertyPhase
 from openff.evaluator.properties import EnthalpyOfMixing
 from openff.evaluator.properties.enthalpy import EnthalpyOfMixing
 from openff.evaluator.substances import Component, MoleFraction, Substance
