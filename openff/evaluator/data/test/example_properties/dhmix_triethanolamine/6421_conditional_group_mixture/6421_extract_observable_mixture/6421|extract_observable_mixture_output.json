@@ -1,0 +1,8 @@
+{".value": {"value": {"value": 
+{"value": 98.85450603530933, "unit": "kilojoule / mole", "@type": "openff.evaluator.unit.Quantity"}, 
+"error": {"value": 0.03656679163343165, "unit": "kilojoule / mole", "@type": "openff.evaluator.unit.Quantity"}, 
+"@type": "openff.evaluator.unit.Measurement"}, 
+"gradients": [], "@type": "openff.evaluator.utils.observables.Observable"}, 
+".time_series_statistics": {"n_total_points": 5000, "n_uncorrelated_points": 166, 
+"statistical_inefficiency": 1.8644334601714905, "equilibration_index": 4668, 
+"@type": "openff.evaluator.utils.timeseries.TimeSeriesStatistics"}}
