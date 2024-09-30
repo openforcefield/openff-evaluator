@@ -6,18 +6,12 @@ from openff.toolkit.topology import Topology
 from openff.units import unit
 from openff.utilities.utilities import get_data_dir_path
 from openmm.openmm import System as OpenMMSystem
-
-from openff.evaluator import properties
-from openff.evaluator.client import RequestOptions
 from openff.evaluator.datasets import (
-    PhysicalProperty,
-    PhysicalPropertyDataSet,
     PropertyPhase,
 )
-from openff.evaluator.datasets.thermoml import thermoml_property
-from openff.evaluator.properties import Density, EnthalpyOfMixing
+from openff.evaluator.properties import EnthalpyOfMixing
 from openff.evaluator.properties.enthalpy import EnthalpyOfMixing
-from openff.evaluator.substances import Component, ExactAmount, MoleFraction, Substance
+from openff.evaluator.substances import Component, MoleFraction, Substance
 from openff.evaluator.thermodynamics import ThermodynamicState
 from openff.evaluator.workflow import Workflow
 
@@ -61,7 +55,7 @@ class TestEnthalpyOfMixing:
         metadata = Workflow.generate_default_metadata(
             physical_property, str(data_directory / "force-field.json")
         )
-        uuid = "6547"
+        uuid = "6421"
         workflow = Workflow.from_schema(
             workflow_schema, metadata=metadata, unique_id=uuid
         )
