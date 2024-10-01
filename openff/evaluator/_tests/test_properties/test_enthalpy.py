@@ -1,7 +1,9 @@
 <<<<<<< HEAD
 import os
+
 =======
 import json
+
 >>>>>>> 223075d (fix tests)
 import pathlib
 import shutil
@@ -20,10 +22,12 @@ from openff.evaluator.properties import EnthalpyOfMixing
 from openff.evaluator.protocols import analysis
 from openff.evaluator.substances import Component, MoleFraction, Substance
 from openff.evaluator.thermodynamics import ThermodynamicState
+
 <<<<<<< HEAD
 =======
-from openff.evaluator.workflow import Workflow
 from openff.evaluator.utils.serialization import TypedJSONEncoder
+from openff.evaluator.workflow import Workflow
+
 >>>>>>> 223075d (fix tests)
 from openff.evaluator.utils import graph
 from openff.evaluator.utils.observables import Observable
