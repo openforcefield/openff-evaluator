@@ -30,7 +30,7 @@ from openff.evaluator.thermodynamics import ThermodynamicState
 from openff.evaluator.utils import setup_timestamp_logging
 from openff.evaluator.utils.utils import temporarily_change_directory
 
-os.setenv("CUDA_VISIBLE_DEVICES", "0")
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 
 def define_data_set(reweighting: bool) -> PhysicalPropertyDataSet:
