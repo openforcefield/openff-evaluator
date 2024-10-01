@@ -4,8 +4,8 @@ from openff.toolkit.typing.engines.smirnoff import ForceField
 from openff.units import unit
 
 from openff import evaluator
-from openff.evaluator.backends import QueueWorkerResources
-from openff.evaluator.backends.dask import DaskLSFBackend
+from openff.evaluator.backends.backends import ComputeResources
+from openff.evaluator.backends.dask import DaskLocalCluster
 from openff.evaluator.client import EvaluatorClient, RequestOptions
 from openff.evaluator.datasets import PhysicalPropertyDataSet, PropertyPhase
 from openff.evaluator.datasets.curation.components.filtering import (
@@ -123,23 +123,17 @@ def main():
     os.makedirs(os.path.join(version, "results"))
 
     with temporarily_change_directory(version):
-        with DaskLSFBackend(
-            minimum_number_of_workers=1,
-            maximum_number_of_workers=12,
-            resources_per_worker=QueueWorkerResources(
+        with DaskLocalCluster(
+            number_of_workers=1,
+            resources_per_worker=ComputeResources(
+                number_of_threads=1,
                 number_of_gpus=1,
-                preferred_gpu_toolkit=QueueWorkerResources.GPUToolkit.CUDA,
-                per_thread_memory_limit=5 * unit.gigabyte,
-                wallclock_time_limit="05:59",
+                preferred_gpu_toolkit=ComputeResources.GPUToolkit.CUDA,
             ),
-            setup_script_commands=[
-                f"conda activate openff-evaluator-{version}",
-                "module load cuda/10.0",
-            ],
-            queue_name="gpuqueue",
-        ) as calculation_backend:
+        ) as local_backend:
+
             with EvaluatorServer(
-                calculation_backend,
+                local_backend,
                 working_directory="outputs",
                 storage_backend=LocalFileStorage("cached-data"),
             ):
