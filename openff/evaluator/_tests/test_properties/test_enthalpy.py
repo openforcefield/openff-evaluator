@@ -1,10 +1,4 @@
-<<<<<<< HEAD
-import os
-
-=======
 import json
-
->>>>>>> 223075d (fix tests)
 import pathlib
 import shutil
 
@@ -22,14 +16,9 @@ from openff.evaluator.properties import EnthalpyOfMixing
 from openff.evaluator.protocols import analysis
 from openff.evaluator.substances import Component, MoleFraction, Substance
 from openff.evaluator.thermodynamics import ThermodynamicState
-
-<<<<<<< HEAD
-=======
 from openff.evaluator.utils.serialization import TypedJSONEncoder
 from openff.evaluator.workflow import Workflow
-
->>>>>>> 223075d (fix tests)
-from openff.evaluator.utils import graph
+from openff.evaluator.utils.serialization import TypedJSONEncoder
 from openff.evaluator.utils.observables import Observable
 from openff.evaluator.workflow import Workflow
 
@@ -86,16 +75,10 @@ class TestEnthalpyOfMixing:
         "input_mole_fractions, output_mole_fractions",
         [
             [(0.5, 0.5), (0.5, 0.5)],
-<<<<<<< HEAD
-            [(0.1037, 0.8963), (0.104, 0.896)],
-            [(0.1111, 0.2222, 0.1667), (0.222, 0.444, 0.334)],
-        ],
-=======
             [(0.1037, 0.8963), (0.10, 0.90)],
         ]
->>>>>>> 223075d (fix tests)
     )
-    def test_mole_fractions(self, input_mole_fractions, output_mole_fractions, tmpdir):
+    def test_mole_fractions_direct_simulation(self, input_mole_fractions, output_mole_fractions, tmpdir):
         """
         This test *only* checks the part where mole fractions are weighted
         """
@@ -199,11 +182,8 @@ class TestEnthalpyOfMixing:
                     output_mole_fractions[i] * 10,
                 )
 
-<<<<<<< HEAD
-=======
 
 
->>>>>>> 223075d (fix tests)
     def test_expected_output_from_production_simulation(self, tmpdir):
         """
         This is an integration test of sorts,
