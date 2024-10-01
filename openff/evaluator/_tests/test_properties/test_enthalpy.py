@@ -1,9 +1,9 @@
+import os
 import pathlib
 import shutil
-import os
 
-import pytest
 import numpy as np
+import pytest
 from openff.toolkit.topology import Topology
 from openff.toolkit.typing.engines.smirnoff import ForceField
 from openff.units import unit
@@ -11,14 +11,15 @@ from openff.utilities.utilities import get_data_dir_path
 from openmm.openmm import System as OpenMMSystem
 
 from openff.evaluator.datasets import PropertyPhase
-from openff.evaluator.protocols import analysis
-from openff.evaluator.utils.observables import Observable
-from openff.evaluator.properties import EnthalpyOfMixing
 from openff.evaluator.forcefield import SmirnoffForceFieldSource
+from openff.evaluator.properties import EnthalpyOfMixing
+from openff.evaluator.protocols import analysis
 from openff.evaluator.substances import Component, MoleFraction, Substance
 from openff.evaluator.thermodynamics import ThermodynamicState
-from openff.evaluator.workflow import Workflow
 from openff.evaluator.utils import graph
+from openff.evaluator.utils.observables import Observable
+from openff.evaluator.workflow import Workflow
+
 
 def _write_dummy_trajectory_file(directory):
     """Write a dummy trajectory file to disk.
@@ -45,6 +46,7 @@ def _get_dummy_enthalpy_of_mixing(substance):
         uncertainty=1.0 * unit.kilojoules_per_mole,
     )
 
+
 def _write_force_field(force_field: str = "openff-2.0.0.offxml"):
     """
     Write a force field file to disk.
@@ -53,25 +55,27 @@ def _write_force_field(force_field: str = "openff-2.0.0.offxml"):
     with open("force-field.json", "w") as file:
         file.write(SmirnoffForceFieldSource.from_object(ff).json())
 
+
 def _generate_dummy_observable(name):
     """Generate fake observable data for calculating with mole fractions"""
     observable = analysis.AverageObservable(name)
     observable.value = Observable(
         value=unit.Measurement(
-            value=10 * unit.kilojoules_per_mole,
-            error=1 * unit.kilojoules_per_mole
+            value=10 * unit.kilojoules_per_mole, error=1 * unit.kilojoules_per_mole
         )
     )
     return observable
 
+
 class TestEnthalpyOfMixing:
 
     @pytest.mark.parametrize(
-        "input_mole_fractions, output_mole_fractions", [
+        "input_mole_fractions, output_mole_fractions",
+        [
             [(0.5, 0.5), (0.5, 0.5)],
             [(0.1037, 0.8963), (0.104, 0.896)],
-            [(0.1111, 0.2222, 0.1667), (0.222, 0.444, 0.334)]
-        ]
+            [(0.1111, 0.2222, 0.1667), (0.222, 0.444, 0.334)],
+        ],
     )
     def test_mole_fractions(self, input_mole_fractions, output_mole_fractions, tmpdir):
         """
@@ -84,13 +88,13 @@ class TestEnthalpyOfMixing:
             {"BaseBuildSystem": "BuildSmirnoffSystem"}
         )
         possible_smiles = ["O", "OCCN(CCO)CCO", "CO", "CCO"]
-        
+
         substance = Substance()
         n_components = len(input_mole_fractions)
         for i in range(n_components):
             substance.add_component(
                 Component(smiles=possible_smiles[i]),
-                MoleFraction(input_mole_fractions[i])
+                MoleFraction(input_mole_fractions[i]),
             )
 
         physical_property = _get_dummy_enthalpy_of_mixing(substance)
@@ -105,7 +109,9 @@ class TestEnthalpyOfMixing:
             uuid = "4000"
 
             # generate workflow
-            workflow = Workflow.from_schema(workflow_schema, metadata=metadata, unique_id=uuid)
+            workflow = Workflow.from_schema(
+                workflow_schema, metadata=metadata, unique_id=uuid
+            )
             workflow_graph = workflow.to_graph()
             protocol_graph = workflow_graph._protocol_graph
             parent_outputs = []
@@ -116,7 +122,7 @@ class TestEnthalpyOfMixing:
                         protocol,
                         True,
                         available_resources=None,
-                        safe_exceptions=True
+                        safe_exceptions=True,
                     )
                     # keep the output JSON files to pass in as input to mole fraction protocols
                     parent_outputs.append(output)
@@ -143,13 +149,13 @@ class TestEnthalpyOfMixing:
                     True,
                     *parent_outputs,
                     available_resources=None,
-                    safe_exceptions=True
+                    safe_exceptions=True,
                 )
 
                 # check mole fraction substance directly
                 assert np.isclose(
                     wmf.full_substance.amounts[possible_smiles[i] + "{solv}"][0].value,
-                    output_mole_fractions[i]
+                    output_mole_fractions[i],
                 )
 
                 # check weighted value
@@ -157,9 +163,6 @@ class TestEnthalpyOfMixing:
                     wmf.weighted_value.value.m_as(unit.kilojoules_per_mole),
                     output_mole_fractions[i] * 10,
                 )
-
-
-
 
     def test_expected_output_from_production_simulation(self, tmpdir):
         """
@@ -176,7 +179,7 @@ class TestEnthalpyOfMixing:
         Note: the test is expected to take a few minutes to run.
 
         TODO: add further tests on earlier steps (e.g. parameterisation)
-        
+
         """
         # locate our saved test data
         data_directory = pathlib.Path(
@@ -229,7 +232,7 @@ class TestEnthalpyOfMixing:
                     tmp_path
                     / f"{uuid}_conditional_group_{suffix}"
                     / f"{uuid}_production_simulation_{suffix}"
-                )     
+                )
 
             result = workflow.execute()
 
@@ -280,8 +283,12 @@ class TestEnthalpyOfMixing:
         enth1 = cg1.protocols[f"{uuid}|extract_observable_component_1"].value
         enth_mix = cg_mix.protocols[f"{uuid}|extract_observable_mixture"].value
 
-        assert np.isclose(enth0.value.m_as(unit.kilojoules_per_mole), -44.879, atol=1e-3)
-        assert np.isclose(enth1.value.m_as(unit.kilojoules_per_mole), 251.418, atol=1e-3)
+        assert np.isclose(
+            enth0.value.m_as(unit.kilojoules_per_mole), -44.879, atol=1e-3
+        )
+        assert np.isclose(
+            enth1.value.m_as(unit.kilojoules_per_mole), 251.418, atol=1e-3
+        )
         assert np.isclose(
             enth_mix.value.m_as(unit.kilojoules_per_mole), 98.855, atol=1e-3
         )
@@ -290,9 +297,7 @@ class TestEnthalpyOfMixing:
         wmf0 = cg0.protocols[f"{uuid}|weight_by_mole_fraction_0"]
         wmf1 = cg1.protocols[f"{uuid}|weight_by_mole_fraction_1"]
 
-        assert np.isclose(
-            wmf0.full_substance.amounts[r"O{solv}"][0].value, 0.51
-        )
+        assert np.isclose(wmf0.full_substance.amounts[r"O{solv}"][0].value, 0.51)
         assert np.isclose(
             wmf1.full_substance.amounts[r"OCCN(CCO)CCO{solv}"][0].value, 0.49
         )
@@ -306,9 +311,7 @@ class TestEnthalpyOfMixing:
 
         # check adding the two together
         add = workflow.protocols[f"{uuid}|add_component_observables"].result
-        assert np.isclose(
-            add.value.m_as(unit.kilojoules_per_mole), 100.307, atol=1e-3
-        )
+        assert np.isclose(add.value.m_as(unit.kilojoules_per_mole), 100.307, atol=1e-3)
 
         # check final value
         assert np.isclose(
