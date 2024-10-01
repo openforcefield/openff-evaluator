@@ -510,36 +510,6 @@ Built-in Workflow Protocols
     OpenMMSimulation
     OpenMMEvaluateEnergies
 
-**Paprika**
-
-.. currentmodule:: openff.evaluator.protocols.paprika.coordinates
-.. autosummary::
-    :nosignatures:
-    :toctree: api/generated/
-
-    PreparePullCoordinates
-    PrepareReleaseCoordinates
-    AddDummyAtoms
-
-.. currentmodule:: openff.evaluator.protocols.paprika.restraints
-.. autosummary::
-    :nosignatures:
-    :toctree: api/generated/
-
-    GenerateAttachRestraints
-    GeneratePullRestraints
-    GenerateReleaseRestraints
-    ApplyRestraints
-
-.. currentmodule:: openff.evaluator.protocols.paprika.analysis
-.. autosummary::
-    :nosignatures:
-    :toctree: api/generated/
-
-    AnalyzeAPRPhase
-    ComputeSymmetryCorrection
-    ComputeReferenceWork
-
 **Reweighting**
 
 .. currentmodule:: openff.evaluator.protocols.reweighting
