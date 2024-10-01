@@ -23,7 +23,6 @@ dependencies:
     - requests
     - python-dateutil
     - pydantic <2.0.0a0
-    - paprika
     - taproom
     - dataclasses
     - pandas =1
