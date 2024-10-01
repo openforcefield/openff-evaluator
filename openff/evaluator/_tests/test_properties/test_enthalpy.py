@@ -77,6 +77,7 @@ class TestEnthalpyOfMixing:
         """
         This test *only* checks the part where mole fractions are weighted
         """
+        # build our enthalpy of mixing target
         default_schema = EnthalpyOfMixing.default_simulation_schema(n_molecules=1000)
         workflow_schema = default_schema.workflow_schema
         workflow_schema.replace_protocol_types(
@@ -95,18 +96,18 @@ class TestEnthalpyOfMixing:
         physical_property = _get_dummy_enthalpy_of_mixing(substance)
         with tmpdir.as_cwd():
             here = pathlib.Path(".")
+
+            # generate force field and metadata
             _write_force_field()
             metadata = Workflow.generate_default_metadata(
                 physical_property, "force-field.json"
             )
             uuid = "4000"
+
+            # generate workflow
             workflow = Workflow.from_schema(workflow_schema, metadata=metadata, unique_id=uuid)
             workflow_graph = workflow.to_graph()
             protocol_graph = workflow_graph._protocol_graph
-            dependants_graph = protocol_graph._build_dependants_graph(
-                protocol_graph._protocols_by_id, False, False
-            )
-            dependencies = graph.dependants_to_dependencies(dependants_graph)
             parent_outputs = []
             for name, protocol in workflow_graph.protocols.items():
                 if "build" in name:
@@ -117,6 +118,7 @@ class TestEnthalpyOfMixing:
                         available_resources=None,
                         safe_exceptions=True
                     )
+                    # keep the output JSON files to pass in as input to mole fraction protocols
                     parent_outputs.append(output)
 
             for i in range(n_components):
@@ -132,7 +134,7 @@ class TestEnthalpyOfMixing:
                 with path.open("w") as file:
                     file.write(_generate_dummy_observable(name).json())
 
-                # now check mole fractions
+                # now check mole fraction protocol execution
                 cg = workflow_graph.protocols[f"{uuid}|conditional_group_component_{i}"]
                 wmf = cg.protocols[f"{uuid}|weight_by_mole_fraction_{i}"]
                 protocol_graph._execute_protocol(
@@ -172,9 +174,11 @@ class TestEnthalpyOfMixing:
         - the decorrelated trajectory and observables
 
         Note: the test is expected to take a few minutes to run.
+
+        TODO: add further tests on earlier steps (e.g. parameterisation)
         
         """
-
+        # locate our saved test data
         data_directory = pathlib.Path(
             get_data_dir_path(
                 "test/example_properties/dhmix_triethanolamine", "openff.evaluator"
@@ -195,6 +199,7 @@ class TestEnthalpyOfMixing:
                         protocol.inputs[".output_frequency"] = 2000
                         protocol.inputs[".checkpoint_frequency"] = 10
 
+        # build the enthalpy of mixing target
         substance = Substance()
         substance.add_component(Component(smiles="O"), MoleFraction(0.5098))
         substance.add_component(Component(smiles="OCCN(CCO)CCO"), MoleFraction(0.4902))
