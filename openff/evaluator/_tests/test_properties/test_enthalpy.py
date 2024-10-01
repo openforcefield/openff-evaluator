@@ -16,10 +16,8 @@ from openff.evaluator.properties import EnthalpyOfMixing
 from openff.evaluator.protocols import analysis
 from openff.evaluator.substances import Component, MoleFraction, Substance
 from openff.evaluator.thermodynamics import ThermodynamicState
-from openff.evaluator.utils.serialization import TypedJSONEncoder
-from openff.evaluator.workflow import Workflow
-from openff.evaluator.utils.serialization import TypedJSONEncoder
 from openff.evaluator.utils.observables import Observable
+from openff.evaluator.utils.serialization import TypedJSONEncoder
 from openff.evaluator.workflow import Workflow
 
 
@@ -76,9 +74,11 @@ class TestEnthalpyOfMixing:
         [
             [(0.5, 0.5), (0.5, 0.5)],
             [(0.1037, 0.8963), (0.10, 0.90)],
-        ]
+        ],
     )
-    def test_mole_fractions_direct_simulation(self, input_mole_fractions, output_mole_fractions, tmpdir):
+    def test_mole_fractions_direct_simulation(
+        self, input_mole_fractions, output_mole_fractions, tmpdir
+    ):
         """
         This test *only* checks the part where mole fractions are weighted
         """
@@ -182,8 +182,6 @@ class TestEnthalpyOfMixing:
                     output_mole_fractions[i] * 10,
                 )
 
-
-
     def test_expected_output_from_production_simulation(self, tmpdir):
         """
         This is an integration test of sorts,
@@ -274,7 +272,9 @@ class TestEnthalpyOfMixing:
             assert np.isclose(substance0.amounts[r"O{solv}"][0].value, 1)
             assert np.isclose(substance1.amounts[r"OCCN(CCO)CCO{solv}"][0].value, 1)
             assert np.isclose(substance_mix.amounts[r"O{solv}"][0].value, 0.51)
-            assert np.isclose(substance_mix.amounts[r"OCCN(CCO)CCO{solv}"][0].value, 0.49)
+            assert np.isclose(
+                substance_mix.amounts[r"OCCN(CCO)CCO{solv}"][0].value, 0.49
+            )
 
             # check assignment and parameterization
             system0 = workflow.protocols[
@@ -303,8 +303,12 @@ class TestEnthalpyOfMixing:
             enth1 = cg1.protocols[f"{uuid}|extract_observable_component_1"].value
             enth_mix = cg_mix.protocols[f"{uuid}|extract_observable_mixture"].value
 
-            assert np.isclose(enth0.value.m_as(unit.kilojoules_per_mole), -44.879, atol=1e-3)
-            assert np.isclose(enth1.value.m_as(unit.kilojoules_per_mole), 251.418, atol=1e-3)
+            assert np.isclose(
+                enth0.value.m_as(unit.kilojoules_per_mole), -44.879, atol=1e-3
+            )
+            assert np.isclose(
+                enth1.value.m_as(unit.kilojoules_per_mole), 251.418, atol=1e-3
+            )
             assert np.isclose(
                 enth_mix.value.m_as(unit.kilojoules_per_mole), 98.855, atol=1e-3
             )
@@ -313,18 +317,20 @@ class TestEnthalpyOfMixing:
             wmf0 = cg0.protocols[f"{uuid}|weight_by_mole_fraction_0"]
             wmf1 = cg1.protocols[f"{uuid}|weight_by_mole_fraction_1"]
 
-            assert np.isclose(
-                wmf0.full_substance.amounts[r"O{solv}"][0].value, 0.51
-            )
+            assert np.isclose(wmf0.full_substance.amounts[r"O{solv}"][0].value, 0.51)
             assert np.isclose(
                 wmf1.full_substance.amounts[r"OCCN(CCO)CCO{solv}"][0].value, 0.49
             )
 
             assert np.isclose(
-                wmf0.weighted_value.value.m_as(unit.kilojoules_per_mole), -22.888, atol=1e-3
+                wmf0.weighted_value.value.m_as(unit.kilojoules_per_mole),
+                -22.888,
+                atol=1e-3,
             )
             assert np.isclose(
-                wmf1.weighted_value.value.m_as(unit.kilojoules_per_mole), 123.195, atol=1e-3
+                wmf1.weighted_value.value.m_as(unit.kilojoules_per_mole),
+                123.195,
+                atol=1e-3,
             )
 
             # check adding the two together

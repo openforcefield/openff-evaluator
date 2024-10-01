@@ -171,8 +171,7 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
             "value", component_protocols.analysis_protocol.id
         )
         weight_by_mole_fraction.full_substance = ProtocolPath(
-            "output_substance",
-            mixture_protocols.build_coordinates.id
+            "output_substance", mixture_protocols.build_coordinates.id
         )
         weight_by_mole_fraction.component = component_substance
 
