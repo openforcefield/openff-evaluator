@@ -83,7 +83,7 @@ class TestEnthalpyOfMixing:
         This test *only* checks the part where mole fractions are weighted.
 
         It does the following:
-        
+
         * creates an EnthalpyOfMixing target
         * executes the "build" where molecules are packed into a box with Packmol
         * creates some dummy observable data
@@ -122,7 +122,7 @@ class TestEnthalpyOfMixing:
             )
             workflow_graph = workflow.to_graph()
             protocol_graph = workflow_graph._protocol_graph
-            
+
             # execute the build protocol, saving the output file paths
             parent_outputs = []
             for name, protocol in workflow_graph.protocols.items():
