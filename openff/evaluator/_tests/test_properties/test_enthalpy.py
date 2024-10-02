@@ -80,7 +80,14 @@ class TestEnthalpyOfMixing:
         self, input_mole_fractions, output_mole_fractions, tmpdir
     ):
         """
-        This test *only* checks the part where mole fractions are weighted
+        This test *only* checks the part where mole fractions are weighted.
+
+        It does the following:
+        
+        * creates an EnthalpyOfMixing target
+        * executes the "build" where molecules are packed into a box with Packmol
+        * creates some dummy observable data
+        * calculates the mole fraction weighting of said data
         """
         # build our enthalpy of mixing target
         default_schema = EnthalpyOfMixing.default_simulation_schema(n_molecules=100)
@@ -115,6 +122,8 @@ class TestEnthalpyOfMixing:
             )
             workflow_graph = workflow.to_graph()
             protocol_graph = workflow_graph._protocol_graph
+            
+            # execute the build protocol, saving the output file paths
             parent_outputs = []
             for name, protocol in workflow_graph.protocols.items():
                 if "build" in name:
@@ -254,7 +263,7 @@ class TestEnthalpyOfMixing:
 
             result = workflow.execute()
 
-            # manually check mole fractions
+            # manually check mole fractions from built coordinates are as expected
             substance0 = workflow.protocols[
                 f"{uuid}|build_coordinates_component_0"
             ].output_substance
@@ -267,7 +276,7 @@ class TestEnthalpyOfMixing:
 
             assert len(substance0.amounts) == 1
             assert len(substance1.amounts) == 1
-            assert len(substance_mix.amounts) == 2
+            assert len(substance_mix.amounts) == 2  # binary mixture
 
             assert np.isclose(substance0.amounts[r"O{solv}"][0].value, 1)
             assert np.isclose(substance1.amounts[r"OCCN(CCO)CCO{solv}"][0].value, 1)
@@ -298,7 +307,7 @@ class TestEnthalpyOfMixing:
             cg_mix = workflow.protocols[f"{uuid}|conditional_group_mixture"]
 
             # check enthalpy is correct
-            # note this is not re-simulated, but it *is* re-calculated
+            # note this is just read in
             enth0 = cg0.protocols[f"{uuid}|extract_observable_component_0"].value
             enth1 = cg1.protocols[f"{uuid}|extract_observable_component_1"].value
             enth_mix = cg_mix.protocols[f"{uuid}|extract_observable_mixture"].value
