@@ -1,0 +1,89 @@
+name: Test Self-Hosted Runner
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - "main"
+
+defaults:
+  run:
+    shell: bash -l {0}
+
+jobs:
+  start-aws-runner:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    outputs:
+      mapping: ${{ steps.aws-start.outputs.mapping }}
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::649715411074:role/gh-actions-runner-role
+          aws-region: us-east-1
+      - name: Create cloud runner
+        id: aws-start
+        uses: omsf-eco-infra/gha-runner@v0.3.0
+        with:
+          provider: "aws"
+          action: "start"
+          aws_image_id: ami-0d5079d9be06933e5
+          aws_instance_type: g4dn.xlarge
+          aws_region_name: us-east-1
+          aws_home_dir: /home/ubuntu
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+  self-hosted-test:
+    runs-on: self-hosted
+    needs:
+      - start-aws-runner
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Print disk usage
+        run: "df -h"
+
+      - name: Print Docker details
+        run: "docker version || true"
+
+      - name: Setup Conda Environment
+        uses: mamba-org/setup-micromamba@v1
+        with:
+          micromamba-version: '1.5.10-0'
+          environment-file: devtools/conda-envs/test_env.yaml
+
+      - name: Install Package and test plugins
+        run: python -m pip install . utilities/test_plugins/
+
+      - name: Double-check local installation
+        run: python -c "from openff.evaluator import __version__; print(__version__)"
+      - name: Run integration tests
+        run: |
+          cd integration-tests/default-workflows/
+          python run.py
+  stop-aws-runner:
+    runs-on: ubuntu-latest
+    permissions:
+        id-token: write
+        contents: read
+    needs:
+      - start-aws-runner
+      - self-hosted-test
+    if: ${{ always() }}
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::649715411074:role/gh-actions-runner-role
+          aws-region: us-east-1
+      - name: Stop instances
+        uses: omsf-eco-infra/gha-runner@v0.3.0
+        with:
+          provider: "aws"
+          action: "stop"
+          instance_mapping: ${{ needs.start-aws-runner.outputs.mapping }}
+          aws_region_name: us-east-1
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}

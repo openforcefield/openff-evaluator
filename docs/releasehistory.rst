@@ -8,10 +8,11 @@ Releases follow the ``major.minor.micro`` scheme recommended by
 * ``minor`` increments add features but do not break API compatibility
 * ``micro`` increments represent bugfix releases or improvements in documentation
 
-Current development
--------------------
+0.4.10 - October 3, 2024
+------------------------
 
-* PR `#577 <https://github.com/openforcefield/openff-evaluator/pull/569>`_: Fixes a bug in which target mole fractions, not the simulated mole fractions, were used when calculating mixture properties.
+* PR `#577 <https://github.com/openforcefield/openff-evaluator/pull/577>`_: Fixes a bug in which target mole fractions, not the simulated mole fractions, were used when calculating mixture properties.
+* PR `#574 <https://github.com/openforcefield/openff-evaluator/pull/574>`_: Unconditionally use the new ``pydantic.v1`` import path for more consistent access to the v1 API.
 * PR `#569 <https://github.com/openforcefield/openff-evaluator/pull/569>`_: Fixes a bug in which molecular weights were not scaled by Avogadro's number.
 * PR `#562 <https://github.com/openforcefield/openff-evaluator/pull/562>`_: Updates for Pint 0.21 and newer (likely through 0.23).
 
