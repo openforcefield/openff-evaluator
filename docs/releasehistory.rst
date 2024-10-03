@@ -11,6 +11,7 @@ Releases follow the ``major.minor.micro`` scheme recommended by
 Current development
 -------------------
 
+* PR `#577 <https://github.com/openforcefield/openff-evaluator/pull/569>`_: Fixes a bug in which target mole fractions, not the simulated mole fractions, were used when calculating mixture properties.
 * PR `#569 <https://github.com/openforcefield/openff-evaluator/pull/569>`_: Fixes a bug in which molecular weights were not scaled by Avogadro's number.
 * PR `#562 <https://github.com/openforcefield/openff-evaluator/pull/562>`_: Updates for Pint 0.21 and newer (likely through 0.23).
 
