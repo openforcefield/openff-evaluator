@@ -1,0 +1,1 @@
+{"output_frequency": 2000, "checkpoint_frequency": 10, "steps_per_iteration": 10000000, "current_step_number": 10000000, "@type": "openff.evaluator.protocols.openmm.OpenMMSimulation._Checkpoint"}
