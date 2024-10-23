@@ -18,7 +18,7 @@ jobs:
 
   test:
 
-    name: 💻 ${{ matrix.os }}, 🐍 ${{ matrix.python-version }}, 👀 ${{ matrix.openeye }}, pymbar ${{ matrix.pymbar-version }}, Pydantic ${{ matrix.pydantic-version }}, OpenMM ${{ matrix.openmm-version }}
+    name: 💻 ${{ matrix.os }}, 🐍 ${{ matrix.python-version }}, 👀 ${{ matrix.openeye }}, pymbar ${{ matrix.pymbar-version }}
     runs-on: ${{ matrix.os }}
 
     env:
@@ -28,17 +28,15 @@ jobs:
       fail-fast: false
       matrix:
         os:
+          - macos-13
+          - macos-latest
           - ubuntu-latest
-          - macos-12
         python-version:
           - "3.10"
           - "3.11"
+          - "3.12"
         pymbar-version:
           - "3.1"
-        pydantic-version:
-          - "2"
-        openmm-version:
-          - "8"
         openeye:
           - true
           - false
@@ -47,15 +45,12 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Setup Conda Environment
-        uses: mamba-org/setup-micromamba@v1
+        uses: mamba-org/setup-micromamba@v2
         with:
-          micromamba-version: '1.5.10-0'
           environment-file: devtools/conda-envs/test_env.yaml
           create-args: >-
             python=${{ matrix.python-version }}
             pymbar=${{ matrix.pymbar-version }}
-            pydantic=${{ matrix.pydantic-version }}
-            openmm=${{ matrix.openmm-version }}
 
       - name: Install OpenEye
         if: matrix.openeye
@@ -68,7 +63,7 @@ jobs:
           SECRET_OE_LICENSE: ${{ secrets.OE_LICENSE }}
 
       - name: Install PASCAL Compiler (MacOS)
-        if: startsWith(matrix.os, 'macOS')
+        if: startsWith(matrix.os, 'macos')
         run: brew install fpc
 
       - name: Install PASCAL Compiler (Ubuntu)
@@ -90,7 +85,7 @@ jobs:
         run: python -m pytest -v --cov=openff openff/evaluator/_tests/ --cov-report=xml --color=yes
 
       - name: Run (non-GPU) tutorials
-        if: ${{ matrix.pymbar-version == 3.1 }}
+        if: ${{ matrix.pymbar-version == '3.1' }}
         run: |
           # ForceBalance requires pymbar 3, so don't run these tests if we are using pymbar 4,
           # even though we're not running the fitting tutorial
