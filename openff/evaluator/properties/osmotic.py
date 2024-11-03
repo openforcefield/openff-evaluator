@@ -13,6 +13,8 @@ import openmm
 import openmm.app
 import openmm.unit
 import scipy.spatial.distance
+from openff.toolkit import Molecule
+from openff.units import unit
 
 from openff.evaluator.backends import ComputeResources
 from openff.evaluator.datasets import PhysicalProperty, PropertyPhase
@@ -29,8 +31,6 @@ from openff.evaluator.utils import packmol
 from openff.evaluator.utils.observables import ObservableType
 from openff.evaluator.workflow import WorkflowSchema
 from openff.evaluator.workflow.utils import ProtocolPath
-from openff.toolkit import Molecule
-from openff.units import unit
 
 _LOGGER = logging.getLogger(__name__)
 
