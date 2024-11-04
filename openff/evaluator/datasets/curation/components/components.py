@@ -3,8 +3,8 @@ import logging
 from typing import overload
 
 import pandas
+from pydantic import BaseModel
 
-from openff.evaluator._pydantic import BaseModel
 from openff.evaluator.datasets import PhysicalPropertyDataSet
 
 logger = logging.getLogger(__name__)

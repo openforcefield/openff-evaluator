@@ -6,8 +6,8 @@ from dask.base import tokenize
 from dask.utils import funcname
 from openff.units import unit
 from openff.utilities.utilities import requires_package
+from pydantic import BaseModel, Field
 
-from openff.evaluator._pydantic import BaseModel, Field
 from openff.evaluator.backends.backends import PodResources
 from openff.evaluator.backends.dask import BaseDaskBackend, BaseDaskJobQueueBackend
 from openff.evaluator.workflow.schemas import ProtocolSchema

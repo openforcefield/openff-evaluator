@@ -8,9 +8,9 @@ from typing import Optional, Union
 
 import pandas
 import requests
+from pydantic import Field, HttpUrl
 from typing_extensions import Literal
 
-from openff.evaluator._pydantic import Field, HttpUrl
 from openff.evaluator.datasets.curation.components import (
     CurationComponent,
     CurationComponentSchema,
