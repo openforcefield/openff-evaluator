@@ -18,7 +18,7 @@ jobs:
 
   test:
 
-    name: 💻 ${{ matrix.os }}, 🐍 ${{ matrix.python-version }}, 👀 ${{ matrix.openeye }}, pymbar ${{ matrix.pymbar-version }}, Pydantic ${{ matrix.pydantic-version }}, OpenMM ${{ matrix.openmm-version }}
+    name: 💻 ${{ matrix.os }}, 🐍 ${{ matrix.python-version }}, 👀 ${{ matrix.openeye }}, pymbar ${{ matrix.pymbar-version }}, OpenMM ${{ matrix.openmm-version }}
     runs-on: ${{ matrix.os }}
 
     env:
@@ -35,8 +35,6 @@ jobs:
           - "3.11"
         pymbar-version:
           - "3.1"
-        pydantic-version:
-          - "2"
         openmm-version:
           - "8"
         openeye:
@@ -54,7 +52,6 @@ jobs:
           create-args: >-
             python=${{ matrix.python-version }}
             pymbar=${{ matrix.pymbar-version }}
-            pydantic=${{ matrix.pydantic-version }}
             openmm=${{ matrix.openmm-version }}
 
       - name: Install OpenEye

@@ -2,15 +2,24 @@ import functools
 import itertools
 import logging
 from collections import defaultdict
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import numpy
 import pandas
 from openff.units import unit
+from pydantic import (
+    Field,
+    PositiveFloat,
+    PositiveInt,
+    confloat,
+    conint,
+    constr,
+    root_validator,
+    validator,
+)
 from scipy.optimize import linear_sum_assignment
 from typing_extensions import Literal
 
-from openff.evaluator._pydantic import Field, root_validator, validator
 from openff.evaluator.datasets.curation.components import (
     CurationComponent,
     CurationComponentSchema,
@@ -23,21 +32,6 @@ from openff.evaluator.utils.checkmol import (
     ChemicalEnvironment,
     analyse_functional_groups,
 )
-
-if TYPE_CHECKING:
-    conint = int
-    confloat = float
-    PositiveInt = int
-    PositiveFloat = float
-
-else:
-    from openff.evaluator._pydantic import (
-        PositiveFloat,
-        PositiveInt,
-        confloat,
-        conint,
-        constr,
-    )
 
 logger = logging.getLogger(__name__)
 
