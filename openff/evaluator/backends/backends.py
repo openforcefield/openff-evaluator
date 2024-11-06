@@ -219,6 +219,88 @@ class QueueWorkerResources(ComputeResources):
         return not self.__eq__(other)
 
 
+class PodResources(ComputeResources):
+    """A class to represent the resources available to a single worker in a Dask Kubernetes cluster."""
+    def __init__(
+        self,
+        number_of_threads=1,
+        number_of_gpus=0,
+        preferred_gpu_toolkit=ComputeResources.GPUToolkit.auto,
+        preferred_gpu_precision=None,
+        memory_limit=4 * unit.gigabytes,
+        ephemeral_storage_limit=20 * unit.gigabytes,
+        additional_limit_specifications=None,
+    ):
+        """Constructs a new ComputeResources object.
+
+        Notes
+        -----
+        Both the requested `number_of_threads` and the `number_of_gpus` must be less than
+        or equal to the number of threads (/cpus/cores) and GPUs available to each compute
+        node in the cluster respectively, such that a single worker is able to be accommodated
+        by a single compute node.
+
+        Parameters
+        ----------
+        per_thread_memory_limit: openmm.unit.Quantity
+            The maximum amount of memory available to each thread.
+        wallclock_time_limit: str
+            The maximum amount of wall clock time that a worker can run for. This should
+            be a string of the form `HH:MM` where HH is the number of hours and MM the number
+            of minutes
+        """
+        super().__init__(number_of_threads, number_of_gpus, preferred_gpu_toolkit)
+
+        self._memory_limit = memory_limit
+        self._ephemeral_storage_limit = ephemeral_storage_limit
+        self._additional_limit_specifications = {}
+        if additional_limit_specifications is not None:
+            assert isinstance(additional_limit_specifications, dict)
+            self._additional_limit_specifications.update(additional_limit_specifications)
+
+    def __getstate__(self):
+        state = super().__getstate__()
+        state["memory_limit"] = self._memory_limit
+        state["ephemeral_storage_limit"] = self._ephemeral_storage_limit
+
+        return state
+    
+    def __setstate__(self, state):
+        super().__setstate__(state)
+
+        self._memory_limit = state["memory_limit"]
+        self._ephemeral_storage_limit = state["ephemeral_storage_limit"]
+    
+    def __eq__(self, other):
+        return (
+            super().__eq__(other)
+            and self._memory_limit == other._memory_limit
+            and self._ephemeral_storage_limit == other._ephemeral_storage_limit
+        )
+    
+    def __ne__(self, other):
+        return not self.__eq__(other)
+    
+    def _to_kubernetes_resource_limits(self) -> dict[str, str]:
+        """Converts this object into a dictionary of Kubernetes resource limits."""
+        memory_gb = self._memory_limit.to(unit.gigabytes).m
+        ephemeral_storage_gb = self._ephemeral_storage_limit.to(unit.gigabytes).m
+        resource_limits = {
+            "cpu": str(self._number_of_threads),
+            "memory": f"{memory_gb}Gi",
+            "ephemeral-storage": f"{ephemeral_storage_gb}Gi",
+        }
+
+        if self._number_of_gpus > 0:
+            resource_limits["nvidia.com/gpu"] = str(self._number_of_gpus)
+
+        resource_limits.update({
+            k: str(v)
+            for k, v in self._additional_limit_specifications.items()
+        })
+        return resource_limits
+
+
 class CalculationBackend(abc.ABC):
     """An abstract base representation of an openff-evaluator calculation backend. A backend is
     responsible for coordinating, distributing and running calculations on the
