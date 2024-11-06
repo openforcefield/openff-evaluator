@@ -174,7 +174,7 @@ class BaseDaskKubernetesBackend(BaseDaskBackend):
     submit_task = BaseDaskJobQueueBackend.submit_task
 
 
-class DaskKubernetesBackend(BaseDaskBackend):
+class DaskKubernetesBackend(BaseDaskKubernetesBackend):
     """A class which defines a Dask backend which runs on a Kubernetes cluster"""
 
     def __init__(
