@@ -190,6 +190,7 @@ class DaskKubernetesBackend(BaseDaskKubernetesBackend):
         env: dict = None,
         secrets: list[KubernetesSecret] = None,
         volumes: list[KubernetesPersistentVolumeClaim] = None,
+        cluster_kwargs: dict = None
     ):
         
         super().__init__(
@@ -229,6 +230,11 @@ class DaskKubernetesBackend(BaseDaskKubernetesBackend):
             for volume in volumes:
                 assert isinstance(volume, BaseKubernetesVolume)
                 self._volumes.append(volume)
+
+        self._cluster_kwargs = {}
+        if cluster_kwargs is not None:
+            assert isinstance(cluster_kwargs, dict)
+            self._cluster_kwargs.update(cluster_kwargs)
     
 
     @requires_package("dask_kubernetes")
@@ -297,7 +303,7 @@ class DaskKubernetesBackend(BaseDaskKubernetesBackend):
         self._cluster = KubeCluster(
             namespace=self._namespace,
             custom_cluster_spec=spec,
-            shutdown_on_close=True,
+            **self._cluster_kwargs
 
         )
         self._cluster.adapt(
