@@ -163,6 +163,7 @@ class BaseDaskKubernetesBackend(BaseDaskBackend):
         namespace: str = "openforcefield",
         number_of_workers: int = -1,
         resources_per_worker: PodResources = PodResources(),
+        annotate_resources: bool = False,
     ):
         
         super().__init__(number_of_workers, resources_per_worker)
@@ -170,8 +171,41 @@ class BaseDaskKubernetesBackend(BaseDaskBackend):
         self._cluster_name = cluster_name
         self._cluster_port = cluster_port
         self._namespace = namespace
+        self._annotate_resources = annotate_resources
 
-    submit_task = BaseDaskJobQueueBackend.submit_task
+    def submit_task(self, function, *args, **kwargs):
+        from openff.evaluator.workflow.plugins import registered_workflow_protocols
+
+        key = kwargs.pop("key", None)
+
+        protocols_to_import = [
+            protocol_class.__module__ + "." + protocol_class.__qualname__
+            for protocol_class in registered_workflow_protocols.values()
+        ]
+
+        # look for simulation protocols
+        if self._annotate_resources:
+            resources = kwargs.get("resources", {})
+            if len(args) >= 2:
+                # schema is the second argument
+                schema_json = args[1]
+                if '".allow_gpu_platforms": true' in schema_json:
+                    resources["GPU"] = 1
+            else:
+                resources["GPU"] = 0
+            kwargs["resources"] = resources
+
+        return self._client.submit(
+            BaseDaskJobQueueBackend._wrapped_function,
+            function,
+            *args,
+            **kwargs,
+            available_resources=self._resources_per_worker,
+            registered_workflow_protocols=protocols_to_import,
+            gpu_assignments={},
+            per_worker_logging=True,
+            key=key,
+        )
 
 
 class DaskKubernetesBackend(BaseDaskKubernetesBackend):
@@ -190,7 +224,8 @@ class DaskKubernetesBackend(BaseDaskKubernetesBackend):
         env: dict = None,
         secrets: list[KubernetesSecret] = None,
         volumes: list[KubernetesPersistentVolumeClaim] = None,
-        cluster_kwargs: dict = None
+        cluster_kwargs: dict = None,
+        annotate_resources: bool = False,
     ):
         
         super().__init__(
@@ -198,7 +233,8 @@ class DaskKubernetesBackend(BaseDaskKubernetesBackend):
             cluster_port,
             namespace,
             minimum_number_of_workers,
-            resources_per_worker
+            resources_per_worker,
+            annotate_resources=annotate_resources,
         )
 
         assert isinstance(resources_per_worker, PodResources)
