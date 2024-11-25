@@ -191,8 +191,10 @@ class BaseDaskKubernetesBackend(BaseDaskBackend):
                 schema_json = args[1]
                 if '".allow_gpu_platforms": true' in schema_json:
                     resources["GPU"] = 1
+                    resources["notGPU"] = 0
             else:
                 resources["GPU"] = 0
+                resources["notGPU"] = 1
             kwargs["resources"] = resources
 
         return self._client.submit(
