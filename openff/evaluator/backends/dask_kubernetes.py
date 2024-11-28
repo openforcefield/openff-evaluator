@@ -188,8 +188,12 @@ class BaseDaskKubernetesBackend(BaseDaskBackend):
             resources = kwargs.get("resources", {})
             if len(args) >= 2:
                 # schema is the second argument
+                # awful temporary terribad hack
                 schema_json = args[1]
-                if '".allow_gpu_platforms": true' in schema_json:
+                if (
+                    '".allow_gpu_platforms": true' in schema_json
+                    or "energy_minimisation" in schema_json
+                ):
                     resources["GPU"] = 1
                     resources["notGPU"] = 0
             else:
