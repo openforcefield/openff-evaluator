@@ -163,7 +163,7 @@ class BaseDaskKubernetesBackend(BaseDaskBackend):
         namespace: str = "openforcefield",
         number_of_workers: int = -1,
         resources_per_worker: PodResources = PodResources(),
-        annotate_resources: bool = False,
+        annotate_resources: bool = True,
     ):
         
         super().__init__(number_of_workers, resources_per_worker)
@@ -194,7 +194,7 @@ class BaseDaskKubernetesBackend(BaseDaskBackend):
                     '".allow_gpu_platforms": true' in schema_json
                     or "energy_minimisation" in schema_json
                 ):
-                    resources["GPU"] = 1
+                    resources["GPU"] = 0.5
                     resources["notGPU"] = 0
             else:
                 resources["GPU"] = 0
