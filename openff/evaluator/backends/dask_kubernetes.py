@@ -200,6 +200,7 @@ class BaseDaskKubernetesBackend(BaseDaskBackend):
                 resources["GPU"] = 0
                 resources["notGPU"] = 1
             kwargs["resources"] = resources
+            logger.info(f"Annotating resources: {resources}")
 
         return self._client.submit(
             BaseDaskJobQueueBackend._wrapped_function,
