@@ -196,9 +196,9 @@ class BaseDaskKubernetesBackend(BaseDaskBackend):
                 ):
                     resources["GPU"] = 0.5
                     resources["notGPU"] = 0
-            else:
-                resources["GPU"] = 0
-                resources["notGPU"] = 1
+                else:
+                    resources["GPU"] = 0
+                    resources["notGPU"] = 1
             kwargs["resources"] = resources
         logger.info(f"Annotating resources {self._annotate_resources}: {resources}")
 
