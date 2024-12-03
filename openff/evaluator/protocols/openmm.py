@@ -367,8 +367,7 @@ class OpenMMSimulation(BaseSimulation):
     """Performs a molecular dynamics simulation in a given ensemble using
     an OpenMM backend.
 
-    This protocol employs the Langevin integrator implemented in the ``openmmtools``
-    package to propagate the state of the system using the default BAOAB splitting [1]_.
+    This protocol employs the LangevinMiddleIntegrator implemented in openmm.
     Further, simulations which are run in the NPT simulation will have a Monte Carlo
     barostat (openmm.MonteCarloBarostat) applied every 25 steps (the OpenMM
     default).
@@ -558,7 +557,9 @@ class OpenMMSimulation(BaseSimulation):
             self.enable_pbc,
         )
 
-    def _setup_simulation_objects(self, temperature, pressure, available_resources):
+    def _setup_simulation_objects(
+        self, temperature, pressure, available_resources
+    ) -> tuple["openmm.Context", "openmm.LangevinMiddleIntegrator"]:
         """Initializes the objects needed to perform the simulation.
         This comprises of a context, and an integrator.
 
@@ -576,8 +577,8 @@ class OpenMMSimulation(BaseSimulation):
         openmm.Context
             The created openmm context which takes advantage
             of the available compute resources.
-        openmmtools.integrators.LangevinIntegrator
-            The Langevin integrator which will propogate
+        openmm.LangevinMiddleIntegrator
+            The LangevinMiddleIntegrator which will propogate
             the simulation.
         """
 
@@ -618,10 +619,10 @@ class OpenMMSimulation(BaseSimulation):
         thermostat_friction = to_openmm(self.thermostat_friction)
         timestep = to_openmm(self.timestep)
 
-        integrator = openmmtools.integrators.LangevinIntegrator(
+        integrator = openmm.LangevinMiddleIntegrator(
             temperature=temperature,
-            collision_rate=thermostat_friction,
-            timestep=timestep,
+            frictionCoeff=thermostat_friction,
+            stepSize=timestep,
         )
 
         # Create the simulation context.
