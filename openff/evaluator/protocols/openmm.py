@@ -620,9 +620,9 @@ class OpenMMSimulation(BaseSimulation):
         timestep = to_openmm(self.timestep)
 
         integrator = openmm.LangevinMiddleIntegrator(
-            temperature=temperature,
-            frictionCoeff=thermostat_friction,
-            stepSize=timestep,
+            temperature,
+            thermostat_friction,
+            timestep,
         )
 
         # Create the simulation context.
