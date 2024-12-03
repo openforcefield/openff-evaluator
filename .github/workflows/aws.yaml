@@ -49,9 +49,8 @@ jobs:
         run: "docker version || true"
 
       - name: Setup Conda Environment
-        uses: mamba-org/setup-micromamba@v1
+        uses: mamba-org/setup-micromamba@v2
         with:
-          micromamba-version: '1.5.10-0'
           environment-file: devtools/conda-envs/test_env.yaml
 
       - name: Install Package and test plugins
