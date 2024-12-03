@@ -14,7 +14,7 @@ from pydantic import (
     confloat,
     conint,
     constr,
-    root_validator,
+    model_validator,
     validator,
 )
 from scipy.optimize import linear_sum_assignment
@@ -149,15 +149,15 @@ class FilterByTemperatureSchema(CurationComponentSchema):
         description="Retain data points measured for temperatures below this value (K)",
     )
 
-    @root_validator
-    def _min_max(cls, values):
-        minimum_temperature = values.get("minimum_temperature")
-        maximum_temperature = values.get("maximum_temperature")
+    @model_validator(mode="after")
+    def _min_max(self):
+        if (
+            self.minimum_temperature is not None
+            and self.maximum_temperature is not None
+        ):
+            assert self.maximum_temperature > self.minimum_temperature
 
-        if minimum_temperature is not None and maximum_temperature is not None:
-            assert maximum_temperature > minimum_temperature
-
-        return values
+        return self
 
 
 class FilterByTemperature(CurationComponent):
@@ -199,15 +199,12 @@ class FilterByPressureSchema(CurationComponentSchema):
         description="Retain data points measured for pressures below this value (kPa)",
     )
 
-    @root_validator
-    def _min_max(cls, values):
-        minimum_pressure = values.get("minimum_pressure")
-        maximum_pressure = values.get("maximum_pressure")
+    @model_validator(mode="after")
+    def _min_max(self):
+        if self.minimum_pressure is not None and self.maximum_pressure is not None:
+            assert self.maximum_pressure > self.minimum_pressure
 
-        if minimum_pressure is not None and maximum_pressure is not None:
-            assert maximum_pressure > minimum_pressure
-
-        return values
+        return self
 
 
 class FilterByPressure(CurationComponent):
@@ -373,15 +370,12 @@ class FilterByElementsSchema(CurationComponentSchema):
         "`allowed_elements`",
     )
 
-    @root_validator
-    def _validate_mutually_exclusive(cls, values):
-        allowed_elements = values.get("allowed_elements")
-        forbidden_elements = values.get("forbidden_elements")
+    @model_validator(mode="after")
+    def _validate_mutually_exclusive(self):
+        assert self.allowed_elements is not None or self.forbidden_elements is not None
+        assert self.allowed_elements is None or self.forbidden_elements is None
 
-        assert allowed_elements is not None or forbidden_elements is not None
-        assert allowed_elements is None or forbidden_elements is None
-
-        return values
+        return self
 
 
 class FilterByElements(CurationComponent):
@@ -439,14 +433,14 @@ class FilterByPropertyTypesSchema(CurationComponentSchema):
         "required to have been measured at the same state.",
     )
 
-    @root_validator
-    def _validate_n_components(cls, values):
-        property_types = values.get("property_types")
-        n_components = values.get("n_components")
+    @model_validator(mode="after")
+    def _validate_n_components(self):
+        property_types = self.property_types
+        n_components = self.n_components
 
         assert all(x in property_types for x in n_components)
 
-        return values
+        return self
 
 
 class FilterByPropertyTypes(CurationComponent):
@@ -718,15 +712,12 @@ class FilterBySmilesSchema(CurationComponentSchema):
         "This option only applies when `smiles_to_include` is set.",
     )
 
-    @root_validator
-    def _validate_mutually_exclusive(cls, values):
-        smiles_to_include = values.get("smiles_to_include")
-        smiles_to_exclude = values.get("smiles_to_exclude")
+    @model_validator
+    def _validate_mutually_exclusive(self):
+        assert self.smiles_to_include is not None or self.smiles_to_exclude is not None
+        assert self.smiles_to_include is None or self.smiles_to_exclude is None
 
-        assert smiles_to_include is not None or smiles_to_exclude is not None
-        assert smiles_to_include is None or smiles_to_exclude is None
-
-        return values
+        return self
 
 
 class FilterBySmiles(CurationComponent):
@@ -798,7 +789,7 @@ class FilterBySmirksSchema(CurationComponentSchema):
         "when `smirks_to_include` is set.",
     )
 
-    @root_validator
+    @model_validator
     def _validate_mutually_exclusive(cls, values):
         smirks_to_include = values.get("smirks_to_include")
         smirks_to_exclude = values.get("smirks_to_exclude")
@@ -972,7 +963,7 @@ class FilterBySubstancesSchema(CurationComponentSchema):
         "This option is mutually exclusive with `substances_to_include`.",
     )
 
-    @root_validator
+    @model_validator
     def _validate_mutually_exclusive(cls, values):
         substances_to_include = values.get("substances_to_include")
         substances_to_exclude = values.get("substances_to_exclude")
@@ -1091,7 +1082,7 @@ class FilterByEnvironmentsSchema(CurationComponentSchema):
         assert all(len(y) == x for x, y in value.items())
         return value
 
-    @root_validator
+    @model_validator
     def _validate_mutually_exclusive(cls, values):
         at_least_one_environment = values.get("at_least_one_environment")
         strictly_specified_environments = values.get("strictly_specified_environments")
