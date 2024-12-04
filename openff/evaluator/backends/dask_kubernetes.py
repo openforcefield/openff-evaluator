@@ -36,9 +36,6 @@ class BaseKubernetesVolume(BaseModel):
     mount_path: str = Field(
         ..., description="The path to mount the volume to."
     )
-    read_only: bool = Field(
-        False, description="Whether the volume should be read-only."
-    )
 
     def _to_volume_mount_spec(self):
         mount_path = self.mount_path
@@ -70,6 +67,9 @@ class KubernetesSecret(BaseKubernetesVolume):
     sub_path: str = Field(
         None, description="The sub path to mount the secret to."
     )
+    read_only: bool = Field(
+        True, description="Whether the volume should be read-only."
+    )
 
     def _to_volume_spec(self):
         return {
@@ -100,6 +100,10 @@ class KubernetesSecret(BaseKubernetesVolume):
 
 class KubernetesPersistentVolumeClaim(BaseKubernetesVolume):
     """A helper class for specifying Kubernetes volumes."""
+
+    read_only: bool = Field(
+        False, description="Whether the volume should be read-only."
+    )
     def _generate_pvc_spec(
         self,
         storage_class_name: str = "rook-cephfs-central",
@@ -139,6 +143,10 @@ class KubernetesPersistentVolumeClaim(BaseKubernetesVolume):
 
 class KubernetesEmptyDirVolume(BaseKubernetesVolume):
     """A helper class for specifying Kubernetes emptyDir volumes."""
+
+    read_only: bool = Field(
+        False, description="Whether the volume should be read-only."
+    )
     def _to_volume_spec(self):
         return {
             "name": self.name,
@@ -156,22 +164,81 @@ class KubernetesEmptyDirVolume(BaseKubernetesVolume):
 
 
 class BaseDaskKubernetesBackend(BaseDaskBackend):
+
+
     def __init__(
         self,
+        gpu_resources_per_worker=None,
+        cpu_resources_per_worker=None,
         cluster_name="openff-evaluator",
         cluster_port=8786,
+        disable_nanny_process=False,
+        image: str = "ghcr.io/lilyminium/openff-images:evaluator-0.4.10-kubernetes-dask-v0",
         namespace: str = "openforcefield",
-        number_of_workers: int = -1,
-        resources_per_worker: PodResources = PodResources(),
-        annotate_resources: bool = True,
+        env: dict = None,
+        secrets: list[KubernetesSecret] = None,
+        volumes: list[KubernetesPersistentVolumeClaim] = None,
+        cluster_kwargs: dict = None,
+        annotate_resources: bool = False,
+        include_jupyter: bool = False,
     ):
+        default_resources = None
+        other_resources = {}
+        if gpu_resources_per_worker is not None:
+            # preference gpu resources over cpu
+            assert isinstance(gpu_resources_per_worker, PodResources)
+            default_resources = gpu_resources_per_worker
+            other_resources["cpu"] = cpu_resources_per_worker
+        elif cpu_resources_per_worker is not None:
+            assert isinstance(cpu_resources_per_worker, PodResources)
+            default_resources = cpu_resources_per_worker
+        else:
+            raise ValueError(
+                "Either gpu_resources_per_worker or cpu_resources_per_worker must be specified."
+            )
         
-        super().__init__(number_of_workers, resources_per_worker)
+        super().__init__(
+            default_resources._minimum_number_of_workers,
+            default_resources,
+        )
 
         self._cluster_name = cluster_name
         self._cluster_port = cluster_port
         self._namespace = namespace
         self._annotate_resources = annotate_resources
+        self._image = image
+        self._other_resources = other_resources
+        self._include_jupyter = include_jupyter
+        self._disable_nanny_process = disable_nanny_process
+        self._env = {}
+        if env is not None:
+            assert isinstance(env, dict)
+            self._env.update(env)
+
+        self._secrets = []
+        if secrets is not None:
+            assert isinstance(secrets, list)
+            for secret in secrets:
+                assert isinstance(secret, KubernetesSecret)
+                self._secrets.append(secret)
+        
+        self._volumes = []
+        if volumes is not None:
+            assert isinstance(volumes, list)
+            for volume in volumes:
+                assert isinstance(volume, BaseKubernetesVolume)
+                self._volumes.append(volume)
+
+        # fail if there are no volumes -- we need volumes...
+        # unless we swap to S3?
+        if len(self._volumes) == 0:
+            raise ValueError("No volumes specified. We need at least a filesystem")
+
+        self._cluster_kwargs = {}
+        if cluster_kwargs is not None:
+            assert isinstance(cluster_kwargs, dict)
+            self._cluster_kwargs.update(cluster_kwargs)
+
 
     def submit_task(self, function, *args, **kwargs):
         from openff.evaluator.workflow.plugins import registered_workflow_protocols
@@ -200,7 +267,7 @@ class BaseDaskKubernetesBackend(BaseDaskBackend):
                     resources["GPU"] = 0
                     resources["notGPU"] = 1
             kwargs["resources"] = resources
-        logger.info(f"Annotating resources {self._annotate_resources}: {resources}")
+            logger.info(f"Annotating resources: {resources}")
 
         return self._client.submit(
             BaseDaskJobQueueBackend._wrapped_function,
@@ -216,72 +283,54 @@ class BaseDaskKubernetesBackend(BaseDaskBackend):
 
 
 class DaskKubernetesBackend(BaseDaskKubernetesBackend):
-    """A class which defines a Dask backend which runs on a Kubernetes cluster"""
+    """
+    A class which defines a Dask backend which runs on a Kubernetes cluster
+    
+    This class is a wrapper around the Dask Kubernetes cluster class that
+    uses the Dask Kubernetes operator. It allows for the creation of a
+    Dask cluster on a Kubernetes cluster with adaptive scaling.
+    However, adaptive scaling currently *only applies to the "default" worker group*.
+    This is preferentially the GPU worker group, but will fall back to the CPU
+    worker group if no GPU worker resources are specified.
 
-    def __init__(
-        self,
-        minimum_number_of_workers=1,
-        maximum_number_of_workers=1,
-        resources_per_worker=PodResources(),
-        cluster_name="openff-evaluator",
-        cluster_port=8786,
-        disable_nanny_process=False,
-        image: str = "ghcr.io/lilyminium/openff-images:evaluator-0.4.10-kubernetes-dask-v0",
-        namespace: str = "openforcefield",
-        env: dict = None,
-        secrets: list[KubernetesSecret] = None,
-        volumes: list[KubernetesPersistentVolumeClaim] = None,
-        cluster_kwargs: dict = None,
-        annotate_resources: bool = False,
-    ):
-        
-        super().__init__(
-            cluster_name,
-            cluster_port,
-            namespace,
-            minimum_number_of_workers,
-            resources_per_worker,
-            annotate_resources=annotate_resources,
-        )
-
-        assert isinstance(resources_per_worker, PodResources)
-        assert minimum_number_of_workers <= maximum_number_of_workers
-
-        if resources_per_worker.number_of_gpus > 0:
-            if resources_per_worker.number_of_gpus > 1:
-                raise ValueError("Only one GPU per worker is currently supported.")
-        
-        self._minimum_number_of_workers = minimum_number_of_workers
-        self._maximum_number_of_workers = maximum_number_of_workers
-        self._image = image
-        self._disable_nanny_process = disable_nanny_process
-        self._env = {}
-        if env is not None:
-            assert isinstance(env, dict)
-            self._env.update(env)
-
-        self._secrets = []
-        if secrets is not None:
-            assert isinstance(secrets, list)
-            for secret in secrets:
-                assert isinstance(secret, KubernetesSecret)
-                self._secrets.append(secret)
-        
-        self._volumes = []
-        if volumes is not None:
-            assert isinstance(volumes, list)
-            for volume in volumes:
-                assert isinstance(volume, BaseKubernetesVolume)
-                self._volumes.append(volume)
-
-        self._cluster_kwargs = {}
-        if cluster_kwargs is not None:
-            assert isinstance(cluster_kwargs, dict)
-            self._cluster_kwargs.update(cluster_kwargs)
+    Parameters
+    ----------
+    gpu_resources_per_worker: PodResources
+        The resources to allocate to each GPU worker.
+    cpu_resources_per_worker: PodResources
+        The resources to allocate to each CPU worker.
+    cluster_name: str
+        The name of the Dask cluster.
+    cluster_port: int
+        The port to use for the Dask cluster.
+    disable_nanny_process: bool
+        Whether to disable the Dask nanny process.
+    image: str
+        The Docker image to use for the Dask cluster.
+    namespace: str
+        The Kubernetes namespace to use.
+    env: dict
+        The environment variables to use for the Dask cluster.
+    secrets: list[KubernetesSecret]
+        The Kubernetes secrets to use for the Dask cluster.
+    volumes: list[KubernetesPersistentVolumeClaim]
+        The Kubernetes volumes to use for the Dask cluster.
+    cluster_kwargs: dict
+        Additional keyword arguments to pass to the Dask KubeCluster
+        constructor.
+    annotate_resources: bool
+        Whether to annotate resources for the Dask cluster.
+    include_jupyter: bool
+        Whether to include a Jupyter notebook in the Dask cluster.
+    """
     
 
     @requires_package("dask_kubernetes")
-    def _generate_cluster_spec(self):
+    def _generate_cluster_spec(self) -> dict[str, dict]:
+        """
+        Generate a Dask Kubernetes cluster specification
+        that can be used to create a Dask cluster on a Kubernetes cluster.
+        """
         from dask_kubernetes.operator import make_cluster_spec
 
         resources = self._resources_per_worker._to_kubernetes_resource_limits()
@@ -292,9 +341,9 @@ class DaskKubernetesBackend(BaseDaskKubernetesBackend):
         spec = make_cluster_spec(
             name=self._cluster_name,
             image=self._image,
-            n_workers=self._minimum_number_of_workers,
+            n_workers=self._resources_per_worker._minimum_number_of_workers,
             resources=full_resources,
-            jupyter=False,
+            jupyter=self._include_jupyter,
             env=self._env
         )
 
@@ -305,35 +354,97 @@ class DaskKubernetesBackend(BaseDaskKubernetesBackend):
         scheduler_resources["requests"].pop("nvidia.com/gpu", None)
         scheduler_resources["limits"].pop("nvidia.com/gpu", None)
 
+        # set up port
         scheduler_container["resources"] = scheduler_resources
         port_list = scheduler_container["ports"]
         for port_spec in port_list:
             if port_spec["name"] == "tcp-comm":
                 port_spec["containerPort"] = self._cluster_port
 
+        # update worker spec
         worker_spec = spec["spec"]["worker"]["spec"]
+        if self._resources_per_worker._affinity_specification:
+            worker_spec["affinity"] = copy.deepcopy(
+                self._resources_per_worker._affinity_specification
+            )
+
+        # update worker command with resources
+        if self._annotate_resources:
+            self._resources_per_worker._update_worker_with_resources(worker_spec)
         worker_container = worker_spec["containers"][0]
 
         # add volume mounts
-        worker_container["volumeMounts"] = []
-        scheduler_container["volumeMounts"] = []
-        worker_spec["volumes"] = []
-        scheduler_spec["volumes"] = []
+        volume_mounts, volumes = self._generate_volume_specifications()
+
+        # deepcopy all the dicts in case we write out to yaml
+        # having references to the same object makes things weird
+        worker_container["volumeMounts"] = copy.deepcopy(volume_mounts)
+        scheduler_container["volumeMounts"] = copy.deepcopy(volume_mounts)
+        worker_spec["volumes"] = copy.deepcopy(volumes)
+        scheduler_spec["volumes"] = copy.deepcopy(volumes)
+
+        return spec
+    
+    def _generate_volume_specifications(self) -> tuple[list[dict], list[dict]]:
+        """
+        Generate the volume mount and volume specifications for the cluster
+
+        Returns
+        -------
+        tuple[list[dict], list[dict]]
+            A tuple of lists of dictionaries representing the volume mounts
+            and volumes for the cluster, in that order.
+        """
+        volume_mounts = []
+        volumes = []
+
         for volume in self._volumes + self._secrets:
             volume_spec = volume._to_volume_spec()
             volume_mount_spec = volume._to_volume_mount_spec()
 
-            worker_container["volumeMounts"].append(dict(volume_mount_spec))
-            scheduler_container["volumeMounts"].append(dict(volume_mount_spec))
+            volume_mounts.append(dict(volume_mount_spec))
+            volumes.append(dict(volume_spec))
+        
+        return volume_mounts, volumes
 
-            worker_spec["volumes"].append(
-                copy.deepcopy(volume_spec)
-            )
-            scheduler_spec["volumes"].append(
-                copy.deepcopy(volume_spec)
+
+    @requires_package("dask_kubernetes")
+    def _generate_worker_spec(self, pod_resources) -> dict[str, dict]:
+        """
+        Generate a Dask Kubernetes worker specification
+        """
+        from dask_kubernetes.operator import make_worker_spec
+
+        resources = pod_resources._to_kubernetes_resource_limits()
+
+        k8s_resources = {
+            "limits": copy.deepcopy(resources),
+            "requests": copy.deepcopy(resources),
+        }
+
+        worker_spec = make_worker_spec(
+            resources=k8s_resources,
+            n_workers=pod_resources._maximum_number_of_workers,
+            image=self._image,
+            env=self._env,
+        )
+
+        # add volume mounts
+        worker_container = worker_spec["spec"]["containers"][0]
+        volume_mounts, volumes = self._generate_volume_specifications()
+        worker_container["volumeMounts"] = copy.deepcopy(volume_mounts)
+        worker_spec["spec"]["volumes"] = copy.deepcopy(volumes)
+
+        # update worker spec
+        if self._resources_per_worker._affinity_specification:
+            worker_spec["spec"]["affinity"] = copy.deepcopy(
+                self._resources_per_worker._affinity_specification
             )
 
-        return spec
+        # update worker command with resources
+        if self._annotate_resources:
+            pod_resources._update_worker_with_resources(worker_spec["spec"])
+        return worker_spec
 
     @requires_package("dask_kubernetes")
     def start(self):
@@ -350,13 +461,31 @@ class DaskKubernetesBackend(BaseDaskKubernetesBackend):
 
         )
         self._cluster.adapt(
-            minimum=self._minimum_number_of_workers,
-            maximum=self._maximum_number_of_workers,
+            minimum=self._resources_per_worker._minimum_number_of_workers,
+            maximum=self._resources_per_worker._maximum_number_of_workers,
         )
+        # add other worker groups
+        for name, resources in self._other_resources.items():
+            worker_spec = self._generate_worker_spec(resources)
+            self._cluster.add_worker_group(
+                name=name,
+                n_workers=resources._maximum_number_of_workers,
+                custom_spec=worker_spec,
+            )
+
         super().start()
 
 
 class DaskKubernetesExistingBackend(BaseDaskKubernetesBackend):
+    """
+    A class which defines a Dask backend which runs on an existing Kubernetes cluster.
+
+    This class simply connects to an existing Dask cluster.
+    Note that it is still important to define default resources
+    as some of these get passed onto the protocols themselves,
+    e.g. GPU availability and the GPUToolkit.
+    
+    """
     def start(self):
         self._cluster = (
             f"tcp://{self._cluster_name}-scheduler"
