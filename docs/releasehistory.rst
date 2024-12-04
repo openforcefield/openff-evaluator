@@ -8,6 +8,11 @@ Releases follow the ``major.minor.micro`` scheme recommended by
 * ``minor`` increments add features but do not break API compatibility
 * ``micro`` increments represent bugfix releases or improvements in documentation
 
+Current development
+-------------------
+
+* PR `#588 <https://github.com/openforcefield/openff-evaluator/pull/588>`_: Updates the default OpenMM simulation protocol to use ``openmm.LangevinMiddleIntegrator`` instead of ``openmmtools.integrators.LangevinIntegrator``.
+
 0.4.10 - October 3, 2024
 ------------------------
 
