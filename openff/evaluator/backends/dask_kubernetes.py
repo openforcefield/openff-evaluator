@@ -339,6 +339,8 @@ class DaskKubernetesBackend(BaseDaskKubernetesBackend):
         # remove any gpu specifications from scheduler
         scheduler_spec = spec["spec"]["scheduler"]["spec"]
         scheduler_container = scheduler_spec["containers"][0]
+        # need longer than default
+        scheduler_container["readinessProbe"]["timeoutSeconds"] = 3600
         scheduler_resources = copy.deepcopy(full_resources)
         scheduler_resources["requests"].pop("nvidia.com/gpu", None)
         scheduler_resources["limits"].pop("nvidia.com/gpu", None)
