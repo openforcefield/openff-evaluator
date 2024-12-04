@@ -287,11 +287,13 @@ class PodResources(ComputeResources):
         self._maximum_number_of_workers = maximum_number_of_workers
         if additional_limit_specifications is not None:
             assert isinstance(additional_limit_specifications, dict)
-            self._additional_limit_specifications.update(additional_limit_specifications)
+            self._additional_limit_specifications.update(
+                additional_limit_specifications
+            )
         if affinity_specification is not None:
             assert isinstance(affinity_specification, dict)
             self._affinity_specification = affinity_specification
-        
+
         if number_of_gpus > 0:
             resources = {"GPU": number_of_gpus, "notGPU": 0}
         else:
@@ -300,26 +302,26 @@ class PodResources(ComputeResources):
 
     def __getstate__(self):
         state = super().__getstate__()
-        
+
         for attr in type(self)._additional_attrs:
             state[attr] = getattr(self, f"_{attr}")
 
         return state
-    
+
     def __setstate__(self, state):
         super().__setstate__(state)
         for attr in type(self)._additional_attrs:
             setattr(self, f"_{attr}", state[attr])
-    
+
     def __eq__(self, other):
         equals = (type(other) == type(self)) and super().__eq__(other)
         for attr in type(self)._additional_attrs:
             equals &= getattr(self, f"_{attr}") == getattr(other, f"_{attr}")
         return equals
-    
+
     def __ne__(self, other):
         return not self.__eq__(other)
-    
+
     def _to_kubernetes_resource_limits(self) -> dict[str, str]:
         """Converts this object into a dictionary of Kubernetes resource limits."""
         memory_gb = self._memory_limit.to(unit.gigabytes).m
@@ -333,26 +335,24 @@ class PodResources(ComputeResources):
         if self._number_of_gpus > 0:
             resource_limits["nvidia.com/gpu"] = str(self._number_of_gpus)
 
-        resource_limits.update({
-            k: str(v)
-            for k, v in self._additional_limit_specifications.items()
-        })
+        resource_limits.update(
+            {k: str(v) for k, v in self._additional_limit_specifications.items()}
+        )
         return resource_limits
-    
+
     def _to_dask_worker_resources(self) -> list[str]:
         """Append the resources to the list of resources for a Dask worker."""
         if not self._resources:
             return []
         resources = ",".join([f"{k}={v}" for k, v in self._resources.items()])
         return ["--resources", resources]
-    
+
     def _update_worker_with_resources(self, worker_spec: dict) -> dict:
         worker_container = worker_spec["containers"][0]
         worker_command = list(worker_container["args"])
         worker_command.extend(self._resources_per_worker._to_dask_worker_resources())
         worker_container["args"] = worker_command
         return worker_spec
-
 
 
 class CalculationBackend(abc.ABC):

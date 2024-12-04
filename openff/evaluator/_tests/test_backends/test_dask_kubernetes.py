@@ -3,7 +3,6 @@ import pathlib
 
 import pytest
 import yaml
-
 from openff.units import unit
 from openff.utilities.utilities import get_data_dir_path
 
@@ -11,8 +10,9 @@ from openff.evaluator.backends.backends import PodResources
 from openff.evaluator.backends.dask_kubernetes import (
     DaskKubernetesBackend,
     KubernetesEmptyDirVolume,
-    KubernetesSecret
+    KubernetesSecret,
 )
+
 
 class TestDaskKubernetesBackend:
     @pytest.fixture
@@ -21,18 +21,20 @@ class TestDaskKubernetesBackend:
             "nodeAffinity": {
                 "requiredDuringSchedulingIgnoredDuringExecution": {
                     "nodeSelectorTerms": [
-                        {"matchExpressions": [
-                            {
-                                "key": "nvidia.com/cuda.runtime.major",
-                                "operator": "In",
-                                "values": ["12"],
-                            },
-                            {
-                                "key": "nvidia.com/cuda.runtime.minor",
-                                "operator": "In",
-                                "values": ["4"],
-                            },
-                        ]}
+                        {
+                            "matchExpressions": [
+                                {
+                                    "key": "nvidia.com/cuda.runtime.major",
+                                    "operator": "In",
+                                    "values": ["12"],
+                                },
+                                {
+                                    "key": "nvidia.com/cuda.runtime.minor",
+                                    "operator": "In",
+                                    "values": ["4"],
+                                },
+                            ]
+                        }
                     ]
                 }
             }
@@ -44,7 +46,7 @@ class TestDaskKubernetesBackend:
             minimum_number_of_workers=1,
             maximum_number_of_workers=10,
         )
-    
+
     @pytest.fixture
     def cpu_resources(self):
         return PodResources(
@@ -83,7 +85,7 @@ class TestDaskKubernetesBackend:
             secrets=[secret],
         )
         return calculation_backend
-    
+
     def test_no_initialization_without_volumes(self, gpu_resources):
         with pytest.raises(ValueError, match="No volumes specified"):
             DaskKubernetesBackend(
@@ -103,7 +105,6 @@ class TestDaskKubernetesBackend:
     def test_no_initialization_without_resources(self):
         with pytest.raises(ValueError, match="must be specified"):
             DaskKubernetesBackend()
-    
 
     def test_generate_volume_specifications(self, calculation_backend):
         volume_mounts, volumes = calculation_backend._generate_volume_specifications()
@@ -136,9 +137,7 @@ class TestDaskKubernetesBackend:
 
     def test_generate_worker_spec(self, calculation_backend):
         data_directory = pathlib.Path(
-            get_data_dir_path(
-                "test/kubernetes", "openff.evaluator"
-            )
+            get_data_dir_path("test/kubernetes", "openff.evaluator")
         )
         reference_file = data_directory / "dask_worker_spec.yaml"
 
@@ -149,22 +148,18 @@ class TestDaskKubernetesBackend:
             reference_spec = yaml.safe_load(file)
 
         assert worker_spec == reference_spec
-        
 
     def test_generate_cluster_spec(self, calculation_backend):
         cluster_spec = calculation_backend._generate_cluster_spec()
-        
+
         data_directory = pathlib.Path(
-            get_data_dir_path(
-                "test/kubernetes", "openff.evaluator"
-            )
+            get_data_dir_path("test/kubernetes", "openff.evaluator")
         )
         reference_file = data_directory / "dask_cluster_spec.yaml"
         with open(reference_file, "r") as file:
             reference_spec = yaml.safe_load(file)
-        
-        assert cluster_spec == reference_spec
 
+        assert cluster_spec == reference_spec
 
     @pytest.mark.skip(reason="Currently only works with existing kubectl credentials.")
     def test_start(self, calculation_backend):

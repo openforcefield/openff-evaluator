@@ -1,28 +1,25 @@
 import contextlib
 import copy
-from enum import Enum
 import logging
 import os
 import pathlib
 import subprocess
 import time
-
-
-from openff.evaluator._pydantic import BaseModel, Field
-from openff.evaluator.backends.dask import (
-    BaseDaskBackend, BaseDaskJobQueueBackend
-)
-from openff.evaluator.backends.backends import PodResources
+from enum import Enum
 
 from openff.units import unit
 from openff.utilities.utilities import requires_package
 
+from openff.evaluator._pydantic import BaseModel, Field
+from openff.evaluator.backends.backends import PodResources
+from openff.evaluator.backends.dask import BaseDaskBackend, BaseDaskJobQueueBackend
 
 logger = logging.getLogger(__name__)
 
 
 class AccessMode(Enum):
     """An enumeration of the different access modes for a Kubernetes PVC"""
+
     READ_WRITE_ONCE = "ReadWriteOnce"
     READ_WRITE_MANY = "ReadWriteMany"
     READ_ONLY_MANY = "ReadOnlyMany"
@@ -30,12 +27,11 @@ class AccessMode(Enum):
 
 class BaseKubernetesVolume(BaseModel):
     """A helper base class for specifying Kubernetes volume-like objects."""
+
     name: str = Field(
         ..., description="The name assigned to the volume during this run."
     )
-    mount_path: str = Field(
-        ..., description="The path to mount the volume to."
-    )
+    mount_path: str = Field(..., description="The path to mount the volume to.")
 
     def _to_volume_mount_spec(self):
         mount_path = self.mount_path
@@ -46,7 +42,6 @@ class BaseKubernetesVolume(BaseModel):
             "mountPath": mount_path,
             "readOnly": self.read_only,
         }
-    
 
     @requires_package("kubernetes")
     def _to_volume_mount_k8s(self):
@@ -57,37 +52,32 @@ class BaseKubernetesVolume(BaseModel):
             mount_path=self.mount_path,
             read_only=self.read_only,
         )
-    
+
 
 class KubernetesSecret(BaseKubernetesVolume):
     """A helper class for specifying Kubernetes secrets."""
-    secret_name: str = Field(
-        ..., description="The name of the saved secret to use."
-    )
-    sub_path: str = Field(
-        None, description="The sub path to mount the secret to."
-    )
-    read_only: bool = Field(
-        True, description="Whether the volume should be read-only."
-    )
+
+    secret_name: str = Field(..., description="The name of the saved secret to use.")
+    sub_path: str = Field(None, description="The sub path to mount the secret to.")
+    read_only: bool = Field(True, description="Whether the volume should be read-only.")
 
     def _to_volume_spec(self):
         return {
             "name": self.name,
             "secret": {"secretName": self.secret_name},
         }
-    
+
     def _to_volume_mount_spec(self):
         spec = super()._to_volume_mount_spec()
         spec["subPath"] = self.sub_path
         return spec
-    
+
     @requires_package("kubernetes")
     def _to_volume_mount_k8s(self):
         volume_mount = super()._to_volume_mount_k8s()
         volume_mount.sub_path = self.sub_path
         return volume_mount
-    
+
     @requires_package("kubernetes")
     def _to_volume_k8s(self):
         from kubernetes import client
@@ -104,6 +94,7 @@ class KubernetesPersistentVolumeClaim(BaseKubernetesVolume):
     read_only: bool = Field(
         False, description="Whether the volume should be read-only."
     )
+
     def _generate_pvc_spec(
         self,
         storage_class_name: str = "rook-cephfs-central",
@@ -128,7 +119,7 @@ class KubernetesPersistentVolumeClaim(BaseKubernetesVolume):
             "name": self.name,
             "persistentVolumeClaim": {"claimName": self.name},
         }
-    
+
     @requires_package("kubernetes")
     def _to_volume_k8s(self):
         from kubernetes import client
@@ -139,7 +130,7 @@ class KubernetesPersistentVolumeClaim(BaseKubernetesVolume):
                 claim_name=self.name
             ),
         )
-    
+
 
 class KubernetesEmptyDirVolume(BaseKubernetesVolume):
     """A helper class for specifying Kubernetes emptyDir volumes."""
@@ -147,12 +138,13 @@ class KubernetesEmptyDirVolume(BaseKubernetesVolume):
     read_only: bool = Field(
         False, description="Whether the volume should be read-only."
     )
+
     def _to_volume_spec(self):
         return {
             "name": self.name,
             "emptyDir": {},
         }
-    
+
     @requires_package("kubernetes")
     def _to_volume_k8s(self):
         from kubernetes import client
@@ -164,7 +156,6 @@ class KubernetesEmptyDirVolume(BaseKubernetesVolume):
 
 
 class BaseDaskKubernetesBackend(BaseDaskBackend):
-
 
     def __init__(
         self,
@@ -196,7 +187,7 @@ class BaseDaskKubernetesBackend(BaseDaskBackend):
             raise ValueError(
                 "Either gpu_resources_per_worker or cpu_resources_per_worker must be specified."
             )
-        
+
         super().__init__(
             default_resources._minimum_number_of_workers,
             default_resources,
@@ -221,7 +212,7 @@ class BaseDaskKubernetesBackend(BaseDaskBackend):
             for secret in secrets:
                 assert isinstance(secret, KubernetesSecret)
                 self._secrets.append(secret)
-        
+
         self._volumes = []
         if volumes is not None:
             assert isinstance(volumes, list)
@@ -238,7 +229,6 @@ class BaseDaskKubernetesBackend(BaseDaskBackend):
         if cluster_kwargs is not None:
             assert isinstance(cluster_kwargs, dict)
             self._cluster_kwargs.update(cluster_kwargs)
-
 
     def submit_task(self, function, *args, **kwargs):
         from openff.evaluator.workflow.plugins import registered_workflow_protocols
@@ -285,7 +275,7 @@ class BaseDaskKubernetesBackend(BaseDaskBackend):
 class DaskKubernetesBackend(BaseDaskKubernetesBackend):
     """
     A class which defines a Dask backend which runs on a Kubernetes cluster
-    
+
     This class is a wrapper around the Dask Kubernetes cluster class that
     uses the Dask Kubernetes operator. It allows for the creation of a
     Dask cluster on a Kubernetes cluster with adaptive scaling.
@@ -323,7 +313,6 @@ class DaskKubernetesBackend(BaseDaskKubernetesBackend):
     include_jupyter: bool
         Whether to include a Jupyter notebook in the Dask cluster.
     """
-    
 
     @requires_package("dask_kubernetes")
     def _generate_cluster_spec(self) -> dict[str, dict]:
@@ -344,7 +333,7 @@ class DaskKubernetesBackend(BaseDaskKubernetesBackend):
             n_workers=self._resources_per_worker._minimum_number_of_workers,
             resources=full_resources,
             jupyter=self._include_jupyter,
-            env=self._env
+            env=self._env,
         )
 
         # remove any gpu specifications from scheduler
@@ -384,7 +373,7 @@ class DaskKubernetesBackend(BaseDaskKubernetesBackend):
         scheduler_spec["volumes"] = copy.deepcopy(volumes)
 
         return spec
-    
+
     def _generate_volume_specifications(self) -> tuple[list[dict], list[dict]]:
         """
         Generate the volume mount and volume specifications for the cluster
@@ -404,9 +393,8 @@ class DaskKubernetesBackend(BaseDaskKubernetesBackend):
 
             volume_mounts.append(dict(volume_mount_spec))
             volumes.append(dict(volume_spec))
-        
-        return volume_mounts, volumes
 
+        return volume_mounts, volumes
 
     @requires_package("dask_kubernetes")
     def _generate_worker_spec(self, pod_resources) -> dict[str, dict]:
@@ -455,10 +443,7 @@ class DaskKubernetesBackend(BaseDaskKubernetesBackend):
 
         spec = self._generate_cluster_spec()
         self._cluster = KubeCluster(
-            namespace=self._namespace,
-            custom_cluster_spec=spec,
-            **self._cluster_kwargs
-
+            namespace=self._namespace, custom_cluster_spec=spec, **self._cluster_kwargs
         )
         self._cluster.adapt(
             minimum=self._resources_per_worker._minimum_number_of_workers,
@@ -484,8 +469,9 @@ class DaskKubernetesExistingBackend(BaseDaskKubernetesBackend):
     Note that it is still important to define default resources
     as some of these get passed onto the protocols themselves,
     e.g. GPU availability and the GPUToolkit.
-    
+
     """
+
     def start(self):
         self._cluster = (
             f"tcp://{self._cluster_name}-scheduler"
@@ -493,6 +479,6 @@ class DaskKubernetesExistingBackend(BaseDaskKubernetesBackend):
             f"{self._cluster_port}"
         )
         super().start()
-    
+
     def stop(self):
         logger.warning("Cannot stop an existing Kubernetes cluster.")
