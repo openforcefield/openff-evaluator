@@ -350,7 +350,7 @@ class PodResources(ComputeResources):
     def _update_worker_with_resources(self, worker_spec: dict) -> dict:
         worker_container = worker_spec["containers"][0]
         worker_command = list(worker_container["args"])
-        worker_command.extend(self._resources_per_worker._to_dask_worker_resources())
+        worker_command.extend(self._to_dask_worker_resources())
         worker_container["args"] = worker_command
         return worker_spec
 
