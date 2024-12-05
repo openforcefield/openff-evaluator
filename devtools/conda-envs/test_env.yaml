@@ -25,6 +25,7 @@ dependencies:
   - dask >=2.7.0
   - distributed >=2.7.0
   - dask-jobqueue >=0.8.0
+  - dask-kubernetes
   - uncertainties
   - openmmtools
   - pyyaml
