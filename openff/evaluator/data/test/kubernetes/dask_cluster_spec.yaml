@@ -55,7 +55,7 @@ spec:
             port: http-dashboard
           initialDelaySeconds: 0
           periodSeconds: 1
-          timeoutSeconds: 300
+          timeoutSeconds: 3600
         resources:
           limits:
             cpu: '1'
