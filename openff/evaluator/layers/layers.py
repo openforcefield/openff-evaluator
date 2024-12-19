@@ -115,9 +115,9 @@ class CalculationLayer(abc.ABC):
         """
         raise NotImplementedError()
 
-    @staticmethod
+    @classmethod
     def _await_results(
-        layer_name,
+        cls,
         calculation_backend,
         storage_backend,
         batch,
@@ -151,8 +151,8 @@ class CalculationLayer(abc.ABC):
         )
 
         def callback_wrapper(results_future):
-            CalculationLayer._process_results(
-                results_future, batch, layer_name, storage_backend, callback
+            cls._process_results(
+                results_future, batch, storage_backend, callback
             )
 
         if synchronous:
@@ -196,8 +196,8 @@ class CalculationLayer(abc.ABC):
 
             storage_backend.store_object(data_object, data_directory_path)
 
-    @staticmethod
-    def _process_results(results_future, batch, layer_name, storage_backend, callback):
+    @classmethod
+    def _process_results(cls, results_future, batch, storage_backend, callback):
         """Processes the results of a calculation layer, updates the server request,
         then passes it back to the callback ready for propagation to the next layer
         in the stack.
@@ -208,13 +208,12 @@ class CalculationLayer(abc.ABC):
             The future object which will hold the results.
         batch: Batch
             The batch which spawned the awaited results.
-        layer_name: str
-            The name of the layer processing the results.
         storage_backend: StorageBackend
             The backend used to store / retrieve data from previous calculations.
         callback: function
             The function to call when the backend returns the results (or an error).
         """
+        layer_name = cls.__name__
 
         # Wrap everything in a try catch to make sure the whole calculation backend /
         # server doesn't go down when an unexpected exception occurs.
