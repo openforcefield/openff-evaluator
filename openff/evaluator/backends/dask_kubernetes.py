@@ -459,6 +459,7 @@ class DaskKubernetesBackend(BaseDaskKubernetesBackend):
                 n_workers=resources._maximum_number_of_workers,
                 custom_spec=worker_spec,
             )
+            logger.info(f"Added worker group {name} with {resources}")
 
         super().start()
 
