@@ -145,10 +145,14 @@ class CalculationLayer(abc.ABC):
         synchronous: bool
             If true, this function will block until the calculation has completed.
         """
+        print("callback")
+        print(submitted_futures)
 
         callback_future = calculation_backend.submit_task(
             return_args, *submitted_futures
         )
+        print(callback_future)
+        callback_future.result()
 
         def callback_wrapper(results_future):
             cls._process_results(
@@ -160,8 +164,8 @@ class CalculationLayer(abc.ABC):
         else:
             callback_future.add_done_callback(callback_wrapper)
 
-    @staticmethod
-    def _store_cached_output(batch, returned_output, storage_backend):
+    @classmethod
+    def _store_cached_output(cls, batch, returned_output, storage_backend):
         """Stores any cached pieces of simulation data using a storage backend.
 
         Parameters
@@ -193,8 +197,157 @@ class CalculationLayer(abc.ABC):
                     data_object.force_field_id = batch.force_field_id
                 if isinstance(data_object.source_calculation_id, PlaceholderValue):
                     data_object.source_calculation_id = batch.id
+                data_object.calculation_layer = cls.__name__
 
             storage_backend.store_object(data_object, data_directory_path)
+
+    @classmethod
+    def _get_matched_queued_properties(cls, returned_output, batch):
+        """Get the properties which were estimated by the layer.
+
+        Parameters
+        ----------
+        returned_output: CalculationLayerResult
+            The output of the calculation layer.
+        batch: Batch
+            The request which generated the cached data.
+
+        Returns
+        -------
+        list of PhysicalProperty
+            The properties which were estimated by the layer.
+        """
+
+
+    @classmethod
+    def _process_single_result(cls, returned_output, batch, storage_backend):
+        """Process a single output result
+
+        This method is used to process the output of a calculation layer.
+        It will store any data which should be cached.
+
+        Parameters
+        ----------
+        returned_output: CalculationLayerResult
+            The output of the calculation layer.
+        batch: Batch
+            The request which generated the cached data.
+        storage_backend: StorageBackend
+            The backend to use to store the cached data.
+
+        Returns
+        -------
+        CalculationLayerResult
+            The output of the calculation layer.
+        """
+        if returned_output is None:
+            # Indicates the layer could not calculate this
+            # particular property.
+            return
+
+        if not isinstance(returned_output, CalculationLayerResult):
+            # Make sure we are actually dealing with the object we expect.
+            raise ValueError(
+                "The output of the calculation was not "
+                "a CalculationLayerResult as expected."
+            )
+
+        if len(returned_output.exceptions) > 0:
+            # If exceptions were raised, make sure to add them to the list.
+            batch.exceptions.extend(returned_output.exceptions)
+
+            logger.info(
+                f"Exceptions were raised while executing batch {batch.id}"
+            )
+
+            for exception in returned_output.exceptions:
+                logger.info(str(exception))
+
+        else:
+            # Make sure to store any important calculation data if no exceptions
+            # were thrown.
+            if (
+                returned_output.data_to_store is not None
+                and batch.enable_data_caching
+            ):
+                cls._store_cached_output(
+                    batch, returned_output, storage_backend
+                )
+
+        cls._move_property_from_queued_to_estimated(returned_output, batch)
+
+    @classmethod
+    def _move_property_from_queued_to_estimated(cls, returned_output, batch):
+        """Moves a property from the queued to the estimated list.
+
+        Parameters
+        ----------
+        returned_output: CalculationLayerResult
+            The output of the calculation layer.
+        batch: Batch
+            The request which generated the cached data.
+        """
+        matches = []
+
+        if returned_output.physical_property != UNDEFINED:
+            matches = [
+                x
+                for x in batch.queued_properties
+                if x.id == returned_output.physical_property.id
+            ]
+
+            if len(matches) > 1:
+                raise ValueError(
+                    f"A property id ({returned_output.physical_property.id}) "
+                    f"conflict occurred."
+                )
+
+            elif len(matches) == 0:
+                logger.info(
+                    "A calculation layer returned results for a property not in "
+                    "the queue. This sometimes and expectedly occurs when using "
+                    "queue based calculation backends, but should be investigated."
+                )
+
+                return
+
+        if returned_output.physical_property == UNDEFINED:
+            if len(returned_output.exceptions) == 0:
+                logger.info(
+                    "A calculation layer did not return an estimated property nor did it "
+                    "raise an Exception. This sometimes and expectedly occurs when using "
+                    "queue based calculation backends, but should be investigated."
+                )
+
+            return
+
+        if len(returned_output.exceptions) > 0:
+            return
+
+        # Check that the property has been estimated to within the
+        # requested tolerance.
+        uncertainty = returned_output.physical_property.uncertainty
+        options = batch.options.calculation_schemas[
+            returned_output.physical_property.__class__.__name__
+        ][cls.__name__]
+
+        if (
+            options.absolute_tolerance != UNDEFINED
+            and options.absolute_tolerance < uncertainty
+        ):
+            return
+        elif (
+            options.relative_tolerance != UNDEFINED
+            and options.relative_tolerance * uncertainty < uncertainty
+        ):
+            return
+
+        # Move the property from queued to estimated.
+        for match in matches:
+            batch.queued_properties.remove(match)
+
+        batch.estimated_properties.append(returned_output.physical_property)
+
 
     @classmethod
     def _process_results(cls, results_future, batch, storage_backend, callback):
@@ -213,8 +366,6 @@ class CalculationLayer(abc.ABC):
         callback: function
             The function to call when the backend returns the results (or an error).
         """
-        layer_name = cls.__name__
-
         # Wrap everything in a try catch to make sure the whole calculation backend /
         # server doesn't go down when an unexpected exception occurs.
         try:
@@ -226,100 +377,7 @@ class CalculationLayer(abc.ABC):
             results_future.release()
 
             for returned_output in results:
-                if returned_output is None:
-                    # Indicates the layer could not calculate this
-                    # particular property.
-                    continue
-
-                if not isinstance(returned_output, CalculationLayerResult):
-                    # Make sure we are actually dealing with the object we expect.
-                    raise ValueError(
-                        "The output of the calculation was not "
-                        "a CalculationLayerResult as expected."
-                    )
-
-                if len(returned_output.exceptions) > 0:
-                    # If exceptions were raised, make sure to add them to the list.
-                    batch.exceptions.extend(returned_output.exceptions)
-
-                    logger.info(
-                        f"Exceptions were raised while executing batch {batch.id}"
-                    )
-
-                    for exception in returned_output.exceptions:
-                        logger.info(str(exception))
-
-                else:
-                    # Make sure to store any important calculation data if no exceptions
-                    # were thrown.
-                    if (
-                        returned_output.data_to_store is not None
-                        and batch.enable_data_caching
-                    ):
-                        CalculationLayer._store_cached_output(
-                            batch, returned_output, storage_backend
-                        )
-
-                matches = []
-
-                if returned_output.physical_property != UNDEFINED:
-                    matches = [
-                        x
-                        for x in batch.queued_properties
-                        if x.id == returned_output.physical_property.id
-                    ]
-
-                    if len(matches) > 1:
-                        raise ValueError(
-                            f"A property id ({returned_output.physical_property.id}) "
-                            f"conflict occurred."
-                        )
-
-                    elif len(matches) == 0:
-                        logger.info(
-                            "A calculation layer returned results for a property not in "
-                            "the queue. This sometimes and expectedly occurs when using "
-                            "queue based calculation backends, but should be investigated."
-                        )
-
-                        continue
-
-                if returned_output.physical_property == UNDEFINED:
-                    if len(returned_output.exceptions) == 0:
-                        logger.info(
-                            "A calculation layer did not return an estimated property nor did it "
-                            "raise an Exception. This sometimes and expectedly occurs when using "
-                            "queue based calculation backends, but should be investigated."
-                        )
-
-                    continue
-
-                if len(returned_output.exceptions) > 0:
-                    continue
-
-                # Check that the property has been estimated to within the
-                # requested tolerance.
-                uncertainty = returned_output.physical_property.uncertainty
-                options = batch.options.calculation_schemas[
-                    returned_output.physical_property.__class__.__name__
-                ][layer_name]
-
-                if (
-                    options.absolute_tolerance != UNDEFINED
-                    and options.absolute_tolerance < uncertainty
-                ):
-                    continue
-                elif (
-                    options.relative_tolerance != UNDEFINED
-                    and options.relative_tolerance * uncertainty < uncertainty
-                ):
-                    continue
-
-                # Move the property from queued to estimated.
-                for match in matches:
-                    batch.queued_properties.remove(match)
-
-                batch.estimated_properties.append(returned_output.physical_property)
+                cls._process_single_result(returned_output, batch, storage_backend)
 
         except Exception as e:
             logger.exception(f"Error processing layer results for request {batch.id}")
@@ -391,7 +449,6 @@ class CalculationLayer(abc.ABC):
         )
 
         cls._await_results(
-            cls.__name__,
             calculation_backend,
             storage_backend,
             batch,
