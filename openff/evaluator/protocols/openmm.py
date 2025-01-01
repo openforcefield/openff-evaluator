@@ -1014,6 +1014,10 @@ class OpenMMSimulation(BaseSimulation):
             app.PDBFile.writeFile(topology, positions, configuration_file)
 
 
+class OpenMMEquilibration(OpenMMSimulation):
+    """TO DO"""
+
+
 @workflow_protocol()
 class OpenMMEvaluateEnergies(BaseEvaluateEnergies):
     """Re-evaluates the energy of a series of configurations for a given set of force

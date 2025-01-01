@@ -145,13 +145,10 @@ class CalculationLayer(abc.ABC):
         synchronous: bool
             If true, this function will block until the calculation has completed.
         """
-        print("callback")
-        print(submitted_futures)
 
         callback_future = calculation_backend.submit_task(
             return_args, *submitted_futures
         )
-        print(callback_future)
         callback_future.result()
 
         def callback_wrapper(results_future):
@@ -303,6 +300,7 @@ class CalculationLayer(abc.ABC):
         )
 
         cls._await_results(
+            cls.__name__,
             calculation_backend,
             storage_backend,
             batch,

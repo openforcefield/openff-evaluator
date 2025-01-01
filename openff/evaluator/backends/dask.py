@@ -813,6 +813,8 @@ class DaskLocalCluster(BaseDaskBackend):
         available_resources = kwargs["available_resources"]
         gpu_assignments = kwargs.pop("gpu_assignments")
 
+        kwargs["logger_path"] = "worker.log"
+
         if available_resources.number_of_gpus > 0:
             worker_id = distributed.get_worker().id
             available_resources._gpu_device_indices = gpu_assignments[worker_id]

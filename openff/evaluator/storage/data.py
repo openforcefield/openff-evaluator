@@ -235,6 +235,12 @@ class StoredSimulationData(BaseSimulationData):
         type_hint=int,
     )
 
+    calculation_layer = StorageAttribute(
+        docstring="The CalculationLayer used to generate this data.",
+        type_hint=str,
+        optional=True,
+    )
+
     @classmethod
     def most_information(cls, stored_data_1, stored_data_2):
         """Returns the data object with the lowest

@@ -295,6 +295,12 @@ class SimulationDataQuery(BaseSimulationDataQuery):
         optional=True,
     )
 
+    calculation_layer = QueryAttribute(
+        docstring="Calculation layer type (e.g. 'SimulationLayer', 'ReweightingLayer')",
+        type_hint=str,
+        optional=True,
+    )
+
 
 class FreeEnergyDataQuery(BaseSimulationDataQuery):
     """A class used to query a ``StorageBackend`` for ``FreeEnergyData`` objects which

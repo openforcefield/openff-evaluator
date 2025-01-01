@@ -44,7 +44,7 @@ def default_storage_query():
 
 class ReweightingSchema(WorkflowCalculationSchema):
     """A schema which encodes the options and the workflow schema
-    that the `SimulationLayer` should use when estimating a given class
+    that the `ReweightingLayer` should use when estimating a given class
     of physical properties using the built-in workflow framework.
     """
 

@@ -10,11 +10,15 @@ from openff.evaluator.datasets.thermoml import thermoml_property
 from openff.evaluator.layers import register_calculation_schema
 from openff.evaluator.layers.reweighting import ReweightingLayer, ReweightingSchema
 from openff.evaluator.layers.simulation import SimulationLayer, SimulationSchema
+from openff.evaluator.layers.equilibration import EquilibrationSchema
+from openff.evaluator.layers.preequilibrated_simulation import PreequilibratedSimulationSchema
 from openff.evaluator.properties.properties import EstimableExcessProperty
 from openff.evaluator.protocols import analysis
 from openff.evaluator.protocols.utils import (
     generate_reweighting_protocols,
     generate_simulation_protocols,
+    generate_equilibration_protocols,
+    generate_preequilibrated_simulation_protocols
 )
 from openff.evaluator.utils.observables import ObservableType
 from openff.evaluator.workflow.schemas import WorkflowSchema
@@ -28,10 +32,112 @@ class Density(PhysicalProperty):
     @classmethod
     def default_unit(cls):
         return unit.gram / unit.millilitre
+    
+    @classmethod
+    def _generate_default_simulation_protocols(
+        cls,
+        absolute_tolerance=UNDEFINED,
+        relative_tolerance=UNDEFINED,
+        n_molecules=1000,
+        schema_class=SimulationSchema,
+        protocol_generator_function: callable = generate_simulation_protocols,
+    ):
+        assert absolute_tolerance == UNDEFINED or relative_tolerance == UNDEFINED
 
-    @staticmethod
+        calculation_schema = schema_class()
+        calculation_schema.absolute_tolerance = absolute_tolerance
+        calculation_schema.relative_tolerance = relative_tolerance
+
+        use_target_uncertainty = (
+            absolute_tolerance != UNDEFINED or relative_tolerance != UNDEFINED
+        )
+
+        # Define the protocols which will run the simulation itself.
+        protocols, value_source, output_to_store = protocol_generator_function(
+            analysis.AverageObservable("average_density"),
+            use_target_uncertainty,
+            n_molecules=n_molecules,
+        )
+        # Specify that the average density should be estimated.
+        protocols.analysis_protocol.observable = ProtocolPath(
+            f"observables[{ObservableType.Density.value}]",
+            protocols.production_simulation.id,
+        )
+
+        # Build the workflow schema.
+        schema = WorkflowSchema()
+
+        if hasattr(protocols, "build_coordinates"):
+            schema.protocol_schemas = [
+                protocols.build_coordinates.schema,
+                protocols.assign_parameters.schema,
+                protocols.energy_minimisation.schema,
+                protocols.equilibration_simulation.schema,
+                protocols.converge_uncertainty.schema,
+                protocols.decorrelate_trajectory.schema,
+                protocols.decorrelate_observables.schema,
+            ]
+        else:
+            schema.protocol_schemas = [
+                protocols.assign_parameters.schema,
+                protocols.energy_minimisation.schema,
+                protocols.equilibration_simulation.schema,
+                protocols.converge_uncertainty.schema,
+                protocols.decorrelate_trajectory.schema,
+                protocols.decorrelate_observables.schema,
+            ]
+
+        schema.outputs_to_store = {"full_system": output_to_store}
+        schema.final_value_source = value_source
+
+        calculation_schema.workflow_schema = schema
+        return calculation_schema
+    
+    @classmethod
+    def default_equilibration_schema(
+        cls,
+        absolute_tolerance=UNDEFINED,
+        relative_tolerance=UNDEFINED,
+        n_molecules=1000,
+    ) -> EquilibrationSchema:
+        
+        assert absolute_tolerance == UNDEFINED or relative_tolerance == UNDEFINED
+
+        calculation_schema = EquilibrationSchema()
+        calculation_schema.absolute_tolerance = absolute_tolerance
+        calculation_schema.relative_tolerance = relative_tolerance
+
+        use_target_uncertainty = (
+            absolute_tolerance != UNDEFINED or relative_tolerance != UNDEFINED
+        )
+
+        # Define the protocols which will run the simulation itself.
+        protocols, value_source, output_to_store = generate_equilibration_protocols(
+            use_target_uncertainty,
+            n_molecules=n_molecules,
+        )
+
+        # Build the workflow schema.
+        schema = WorkflowSchema()
+
+        schema.protocol_schemas = [
+            protocols.build_coordinates.schema,
+            protocols.assign_parameters.schema,
+            protocols.energy_minimisation.schema,
+            # protocols.equilibration_simulation.schema,
+            protocols.converge_uncertainty.schema,
+        ]
+
+        schema.outputs_to_store = {"full_system": output_to_store}
+        schema.final_value_source = value_source
+
+        calculation_schema.workflow_schema = schema
+        return calculation_schema
+        
+
+    @classmethod
     def default_simulation_schema(
-        absolute_tolerance=UNDEFINED, relative_tolerance=UNDEFINED, n_molecules=1000
+        cls, absolute_tolerance=UNDEFINED, relative_tolerance=UNDEFINED, n_molecules=1000
     ) -> SimulationSchema:
         """Returns the default calculation schema to use when estimating
         this class of property from direct simulations.
@@ -51,49 +157,34 @@ class Density(PhysicalProperty):
         SimulationSchema
             The schema to follow when estimating this property.
         """
-        assert absolute_tolerance == UNDEFINED or relative_tolerance == UNDEFINED
-
-        calculation_schema = SimulationSchema()
-        calculation_schema.absolute_tolerance = absolute_tolerance
-        calculation_schema.relative_tolerance = relative_tolerance
-
-        use_target_uncertainty = (
-            absolute_tolerance != UNDEFINED or relative_tolerance != UNDEFINED
-        )
-
-        # Define the protocols which will run the simulation itself.
-        protocols, value_source, output_to_store = generate_simulation_protocols(
-            analysis.AverageObservable("average_density"),
-            use_target_uncertainty,
+        return cls._generate_default_simulation_protocols(
+            absolute_tolerance=absolute_tolerance,
+            relative_tolerance=relative_tolerance,
             n_molecules=n_molecules,
-        )
-        # Specify that the average density should be estimated.
-        protocols.analysis_protocol.observable = ProtocolPath(
-            f"observables[{ObservableType.Density.value}]",
-            protocols.production_simulation.id,
+            schema_class=SimulationSchema,
+            protocol_generator_function=generate_simulation_protocols
         )
 
-        # Build the workflow schema.
-        schema = WorkflowSchema()
+    @classmethod
+    def default_preequilibrated_simulation_schema(
+        cls,
+        absolute_tolerance=UNDEFINED,
+        relative_tolerance=UNDEFINED,
+        n_molecules=1000,
+    ) -> PreequilibratedSimulationSchema:
+        schema = cls._generate_default_simulation_protocols(
+            absolute_tolerance=absolute_tolerance,
+            relative_tolerance=relative_tolerance,
+            n_molecules=n_molecules,
+            schema_class=PreequilibratedSimulationSchema,
+            protocol_generator_function=generate_preequilibrated_simulation_protocols
+        )
+        schema.number_of_molecules = n_molecules
+        return schema
 
-        schema.protocol_schemas = [
-            protocols.build_coordinates.schema,
-            protocols.assign_parameters.schema,
-            protocols.energy_minimisation.schema,
-            protocols.equilibration_simulation.schema,
-            protocols.converge_uncertainty.schema,
-            protocols.decorrelate_trajectory.schema,
-            protocols.decorrelate_observables.schema,
-        ]
-
-        schema.outputs_to_store = {"full_system": output_to_store}
-        schema.final_value_source = value_source
-
-        calculation_schema.workflow_schema = schema
-        return calculation_schema
-
-    @staticmethod
+    @classmethod
     def default_reweighting_schema(
+        cls,
         absolute_tolerance=UNDEFINED,
         relative_tolerance=UNDEFINED,
         n_effective_samples=50,

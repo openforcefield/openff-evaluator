@@ -1052,7 +1052,6 @@ class ProtocolGraph:
                     available_resources=compute_resources,
                     safe_exceptions=safe_exceptions,
                 )
-
         return protocol_outputs
 
     @staticmethod
