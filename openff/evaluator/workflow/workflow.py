@@ -939,11 +939,9 @@ class WorkflowGraph:
         import warnings
         if calculation_backend is None and compute_resources is None:
             compute_resources = ComputeResources(number_of_threads=1)
-        warnings.warn("executing")
         protocol_outputs = self._protocol_graph.execute(
             root_directory, calculation_backend, compute_resources
         )
-        warnings.warn(str(protocol_outputs.keys()))
 
         value_futures = []
 
