@@ -217,6 +217,7 @@ class CalculationLayer(abc.ABC):
         callback: function
             The function to call when the backend returns the results (or an error).
         """
+
         # Wrap everything in a try catch to make sure the whole calculation backend /
         # server doesn't go down when an unexpected exception occurs.
         try:
@@ -228,7 +229,100 @@ class CalculationLayer(abc.ABC):
             results_future.release()
 
             for returned_output in results:
-                cls._process_single_result(returned_output, batch, storage_backend)
+                if returned_output is None:
+                    # Indicates the layer could not calculate this
+                    # particular property.
+                    continue
+
+                if not isinstance(returned_output, CalculationLayerResult):
+                    # Make sure we are actually dealing with the object we expect.
+                    raise ValueError(
+                        "The output of the calculation was not "
+                        "a CalculationLayerResult as expected."
+                    )
+
+                if len(returned_output.exceptions) > 0:
+                    # If exceptions were raised, make sure to add them to the list.
+                    batch.exceptions.extend(returned_output.exceptions)
+
+                    logger.info(
+                        f"Exceptions were raised while executing batch {batch.id}"
+                    )
+
+                    for exception in returned_output.exceptions:
+                        logger.info(str(exception))
+
+                else:
+                    # Make sure to store any important calculation data if no exceptions
+                    # were thrown.
+                    if (
+                        returned_output.data_to_store is not None
+                        and batch.enable_data_caching
+                    ):
+                        CalculationLayer._store_cached_output(
+                            batch, returned_output, storage_backend
+                        )
+
+                matches = []
+
+                if returned_output.physical_property != UNDEFINED:
+                    matches = [
+                        x
+                        for x in batch.queued_properties
+                        if x.id == returned_output.physical_property.id
+                    ]
+
+                    if len(matches) > 1:
+                        raise ValueError(
+                            f"A property id ({returned_output.physical_property.id}) "
+                            f"conflict occurred."
+                        )
+
+                    elif len(matches) == 0:
+                        logger.info(
+                            "A calculation layer returned results for a property not in "
+                            "the queue. This sometimes and expectedly occurs when using "
+                            "queue based calculation backends, but should be investigated."
+                        )
+
+                        continue
+
+                if returned_output.physical_property == UNDEFINED:
+                    if len(returned_output.exceptions) == 0:
+                        logger.info(
+                            "A calculation layer did not return an estimated property nor did it "
+                            "raise an Exception. This sometimes and expectedly occurs when using "
+                            "queue based calculation backends, but should be investigated."
+                        )
+
+                    continue
+
+                if len(returned_output.exceptions) > 0:
+                    continue
+
+                # Check that the property has been estimated to within the
+                # requested tolerance.
+                uncertainty = returned_output.physical_property.uncertainty
+                options = batch.options.calculation_schemas[
+                    returned_output.physical_property.__class__.__name__
+                ][layer_name]
+
+                if (
+                    options.absolute_tolerance != UNDEFINED
+                    and options.absolute_tolerance < uncertainty
+                ):
+                    continue
+                elif (
+                    options.relative_tolerance != UNDEFINED
+                    and options.relative_tolerance * uncertainty < uncertainty
+                ):
+                    continue
+
+                # Move the property from queued to estimated.
+                for match in matches:
+                    batch.queued_properties.remove(match)
+
+                batch.estimated_properties.append(returned_output.physical_property)
 
         except Exception as e:
             logger.exception(f"Error processing layer results for request {batch.id}")
