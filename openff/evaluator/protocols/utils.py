@@ -482,8 +482,8 @@ def generate_equilibration_protocols(
 
         condition = groups.ConditionalGroup.Condition()
         # set to n_frames
-        condition.right_hand_value = 100
-        condition.type = groups.ConditionalGroup.Condition.Type.GreaterThan
+        condition.right_hand_value = ProtocolPath("target_uncertainty", "global")
+        condition.type = groups.ConditionalGroup.Condition.Type.LessThan
         condition.left_hand_value = ProtocolPath(
             "value.error", conditional_group.id, analysis_protocol.id
         )
