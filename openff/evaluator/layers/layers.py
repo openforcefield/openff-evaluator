@@ -149,7 +149,6 @@ class CalculationLayer(abc.ABC):
         callback_future = calculation_backend.submit_task(
             return_args, *submitted_futures
         )
-        callback_future.result()
 
         def callback_wrapper(results_future):
             CalculationLayer._process_results(
