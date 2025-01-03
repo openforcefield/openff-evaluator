@@ -1023,12 +1023,9 @@ class ProtocolGraph:
         for protocol_id in execution_order:
             protocol = self._protocols_by_id[protocol_id]
             parent_outputs = []
-            print("protocol id")
-            print(protocol_id)
 
             for dependency in dependencies[protocol_id]:
                 parent_outputs.append(protocol_outputs[dependency])
-                print(dependency)
 
             directory_name = protocol_id.replace("|", "_")
             directory_name = directory_name.replace(":", "_")
@@ -1126,6 +1123,7 @@ class ProtocolGraph:
             previous_outputs = {}
 
             for parent_id, previous_output_path in previous_output_paths:
+                print("previous output", parent_id, previous_output_path)
                 with open(previous_output_path) as file:
                     parent_output = json.load(file, cls=TypedJSONDecoder)
 
@@ -1136,6 +1134,7 @@ class ProtocolGraph:
 
                 for protocol_path, output_value in parent_output.items():
                     protocol_path = ProtocolPath.from_string(protocol_path)
+                    print(" > protocol path", protocol_path)
 
                     if (
                         protocol_path.start_protocol is None
