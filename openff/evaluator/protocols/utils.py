@@ -533,6 +533,7 @@ def generate_equilibration_protocols(
     output_to_store.trajectory_file_name = trajectory_path
     output_to_store.coordinate_file_name = coordinate_file
     output_to_store.source_calculation_id = PlaceholderValue()
+    output_to_store.calculation_layer = "EquilibrationLayer"
 
     # Define where the final values come from.
     final_value_source = ProtocolPath(
