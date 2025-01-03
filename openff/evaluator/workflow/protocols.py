@@ -1107,9 +1107,13 @@ class ProtocolGraph:
         try:
             # Check if the output of this protocol already exists and
             # whether we allow returning the found output.
+            print("OUTPUT PATH", output_path)
             if os.path.isfile(output_path) and enable_checkpointing:
+                print("isfile")
                 with open(output_path) as file:
                     outputs = json.load(file, cls=TypedJSONDecoder)
+                
+                print("outputs", outputs)
 
                 if not isinstance(outputs, WorkflowException):
                     for protocol_path, output in outputs.items():
@@ -1130,6 +1134,7 @@ class ProtocolGraph:
                 # If one of the results is a failure exit early and propagate
                 # the exception up the graph.
                 if isinstance(parent_output, EvaluatorException):
+                    print("is exception")
                     return protocol.id, previous_output_path
 
                 for protocol_path, output_value in parent_output.items():
