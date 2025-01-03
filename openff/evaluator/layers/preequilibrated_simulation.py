@@ -142,7 +142,7 @@ class PreequilibratedSimulationLayer(WorkflowCalculationLayer):
             assert len(query_list) == 1
 
             storage_key, data_object, data_directory = query_list[0]
-            coordinate_file = os.path.join(data_directory, data_object.coordinate_file_path)
+            coordinate_file = os.path.join(data_directory, data_object.coordinate_file_name)
             assert os.path.exists(coordinate_file)
             global_metadata["equilibrated_file_path"] = os.path.abspath(coordinate_file)
             global_metadata["full_substance"] = data_object.substance
