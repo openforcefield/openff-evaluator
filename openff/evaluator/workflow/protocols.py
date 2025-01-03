@@ -1023,9 +1023,12 @@ class ProtocolGraph:
         for protocol_id in execution_order:
             protocol = self._protocols_by_id[protocol_id]
             parent_outputs = []
+            print("protocol id")
+            print(protocol_id)
 
             for dependency in dependencies[protocol_id]:
                 parent_outputs.append(protocol_outputs[dependency])
+                print(dependency)
 
             directory_name = protocol_id.replace("|", "_")
             directory_name = directory_name.replace(":", "_")
