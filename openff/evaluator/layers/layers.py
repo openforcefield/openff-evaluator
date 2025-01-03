@@ -161,8 +161,8 @@ class CalculationLayer(abc.ABC):
         else:
             callback_future.add_done_callback(callback_wrapper)
 
-    @classmethod
-    def _store_cached_output(cls, batch, returned_output, storage_backend):
+    @staticmethod
+    def _store_cached_output(batch, returned_output, storage_backend, layer_name):
         """Stores any cached pieces of simulation data using a storage backend.
 
         Parameters
@@ -194,7 +194,7 @@ class CalculationLayer(abc.ABC):
                     data_object.force_field_id = batch.force_field_id
                 if isinstance(data_object.source_calculation_id, PlaceholderValue):
                     data_object.source_calculation_id = batch.id
-                data_object.calculation_layer = cls.__name__
+                data_object.calculation_layer = layer_name
 
             storage_backend.store_object(data_object, data_directory_path)
 
@@ -260,7 +260,7 @@ class CalculationLayer(abc.ABC):
                         and batch.enable_data_caching
                     ):
                         CalculationLayer._store_cached_output(
-                            batch, returned_output, storage_backend
+                            batch, returned_output, storage_backend, layer_name
                         )
 
                 matches = []
