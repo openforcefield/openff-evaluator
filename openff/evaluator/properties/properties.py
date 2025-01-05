@@ -581,6 +581,7 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
         calculation_schema = PreequilibratedSimulationSchema()
         calculation_schema.absolute_tolerance = absolute_tolerance
         calculation_schema.relative_tolerance = relative_tolerance
+        calculation_schema.number_of_molecules = n_molecules
 
         calculation_schema.workflow_schema = schema
         return calculation_schema
