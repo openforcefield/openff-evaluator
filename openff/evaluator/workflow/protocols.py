@@ -1181,10 +1181,16 @@ class ProtocolGraph:
                         )
 
                     target_protocol_ids = target_path.protocol_ids
-
-                    target_value = previous_outputs[
-                        ProtocolPath(property_name, *target_protocol_ids)
-                    ]
+                    _path = ProtocolPath(property_name, *target_protocol_ids)
+                    try:
+                        target_value = previous_outputs[
+                            ProtocolPath(property_name, *target_protocol_ids)
+                        ]
+                    except KeyError:
+                        raise KeyError(
+                            f"Could not find {_path}. "
+                            f"Available keys: {list(previous_outputs.keys())}"
+                        )
 
                     if property_index is not None:
                         target_value = target_value[property_index]
