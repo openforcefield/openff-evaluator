@@ -298,50 +298,6 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
             "_mixture",
         )
 
-        # if hasattr(component_protocols, "build_coordinates"):
-        #     # Make sure the protocols point to the correct substance.
-        #     component_protocols.build_coordinates.substance = component_substance
-            
-        #     (
-        #         component_protocols.analysis_protocol.divisor,
-        #         component_n_molar_molecules,
-        #     ) = cls._n_molecules_divisor(
-        #         ProtocolPath(
-        #             "output_number_of_molecules", component_protocols.build_coordinates.id
-        #         ),
-        #         f"_component_{component_replicator.placeholder_id}",
-        #     )
-        # else:
-        #     (
-        #         component_protocols.analysis_protocol.divisor,
-        #         component_n_molar_molecules,
-        #     ) = cls._n_molecules_divisor(
-        #         ProtocolPath(
-        #             "full_number_of_molecules", "global"
-        #         ),
-        #         f"_component_{component_replicator.placeholder_id}",
-        #     )
-        # if hasattr(mixture_protocols, "build_coordinates"):
-        #     (
-        #         mixture_protocols.analysis_protocol.divisor,
-        #         mixture_n_molar_molecules,
-        #     ) = cls._n_molecules_divisor(
-        #         ProtocolPath(
-        #             "output_number_of_molecules", mixture_protocols.build_coordinates.id
-        #         ),
-        #         "_mixture",
-        #     )
-        # else:
-        #     (
-        #         mixture_protocols.analysis_protocol.divisor,
-        #         mixture_n_molar_molecules,
-        #     ) = cls._n_molecules_divisor(
-        #         ProtocolPath(
-        #             "full_number_of_molecules", "global"
-        #         ),
-        #         "_mixture",
-        #     )
-
 
         # Weight the component value by the mole fraction.
         weight_by_mole_fraction = miscellaneous.WeightByMoleFraction(
@@ -384,42 +340,24 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
         # Build the final workflow schema
         schema = WorkflowSchema()
 
-        if hasattr(component_protocols, "build_coordinates"):
-            schema.protocol_schemas = [
-                component_protocols.build_coordinates.schema,
-                component_protocols.assign_parameters.schema,
-                component_protocols.energy_minimisation.schema,
-                component_protocols.equilibration_simulation.schema,
-                component_protocols.converge_uncertainty.schema,
-                component_protocols.decorrelate_trajectory.schema,
-                component_protocols.decorrelate_observables.schema,
-                mixture_protocols.build_coordinates.schema,
-                mixture_protocols.assign_parameters.schema,
-                mixture_protocols.energy_minimisation.schema,
-                mixture_protocols.equilibration_simulation.schema,
-                mixture_protocols.converge_uncertainty.schema,
-                mixture_protocols.decorrelate_trajectory.schema,
-                mixture_protocols.decorrelate_observables.schema,
-                add_component_observables.schema,
-                calculate_excess_observable.schema,
-            ]
-        else:
-            schema.protocol_schemas = [
-                component_protocols.assign_parameters.schema,
-                component_protocols.energy_minimisation.schema,
-                component_protocols.equilibration_simulation.schema,
-                component_protocols.converge_uncertainty.schema,
-                component_protocols.decorrelate_trajectory.schema,
-                component_protocols.decorrelate_observables.schema,
-                mixture_protocols.assign_parameters.schema,
-                mixture_protocols.energy_minimisation.schema,
-                mixture_protocols.equilibration_simulation.schema,
-                mixture_protocols.converge_uncertainty.schema,
-                mixture_protocols.decorrelate_trajectory.schema,
-                mixture_protocols.decorrelate_observables.schema,
-                add_component_observables.schema,
-                calculate_excess_observable.schema,
-            ]
+        schema.protocol_schemas = [
+            component_protocols.build_coordinates.schema,
+            component_protocols.assign_parameters.schema,
+            component_protocols.energy_minimisation.schema,
+            component_protocols.equilibration_simulation.schema,
+            component_protocols.converge_uncertainty.schema,
+            component_protocols.decorrelate_trajectory.schema,
+            component_protocols.decorrelate_observables.schema,
+            mixture_protocols.build_coordinates.schema,
+            mixture_protocols.assign_parameters.schema,
+            mixture_protocols.energy_minimisation.schema,
+            mixture_protocols.equilibration_simulation.schema,
+            mixture_protocols.converge_uncertainty.schema,
+            mixture_protocols.decorrelate_trajectory.schema,
+            mixture_protocols.decorrelate_observables.schema,
+            add_component_observables.schema,
+            calculate_excess_observable.schema,
+        ]
 
         if component_n_molar_molecules is not None:
             schema.protocol_schemas.append(component_n_molar_molecules.schema)

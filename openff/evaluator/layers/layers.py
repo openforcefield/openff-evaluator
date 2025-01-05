@@ -306,6 +306,8 @@ class CalculationLayer(abc.ABC):
                     returned_output.physical_property.__class__.__name__
                 ][layer_name]
 
+                print("uncertainty", uncertainty, "n matches", len(matches))
+
                 if (
                     options.absolute_tolerance != UNDEFINED
                     and options.absolute_tolerance < uncertainty
@@ -316,6 +318,7 @@ class CalculationLayer(abc.ABC):
                     and options.relative_tolerance * uncertainty < uncertainty
                 ):
                     continue
+                print("uncertainty ok")
 
                 # Move the property from queued to estimated.
                 for match in matches:
