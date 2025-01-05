@@ -1151,6 +1151,8 @@ class ProtocolGraph:
 
             # Pass the outputs of previously executed protocols as input to the
             # protocol to execute.
+            print("=== PREVOIUS OUT PUTS ===")
+            print(previous_outputs)
             for input_path in protocol.required_inputs:
                 value_references = protocol.get_value_references(input_path)
 
