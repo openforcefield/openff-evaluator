@@ -1107,14 +1107,10 @@ class ProtocolGraph:
         try:
             # Check if the output of this protocol already exists and
             # whether we allow returning the found output.
-            print("OUTPUT PATH", output_path)
             if os.path.isfile(output_path) and enable_checkpointing:
-                print("isfile")
                 with open(output_path) as file:
                     outputs = json.load(file, cls=TypedJSONDecoder)
                 
-                print("outputs", outputs)
-
                 if not isinstance(outputs, WorkflowException):
                     for protocol_path, output in outputs.items():
                         protocol_path = ProtocolPath.from_string(protocol_path)
@@ -1127,19 +1123,16 @@ class ProtocolGraph:
             previous_outputs = {}
 
             for parent_id, previous_output_path in previous_output_paths:
-                print("previous output", parent_id, previous_output_path)
                 with open(previous_output_path) as file:
                     parent_output = json.load(file, cls=TypedJSONDecoder)
 
                 # If one of the results is a failure exit early and propagate
                 # the exception up the graph.
                 if isinstance(parent_output, EvaluatorException):
-                    print("is exception")
                     return protocol.id, previous_output_path
 
                 for protocol_path, output_value in parent_output.items():
                     protocol_path = ProtocolPath.from_string(protocol_path)
-                    print(" > protocol path", protocol_path)
 
                     if (
                         protocol_path.start_protocol is None
@@ -1151,8 +1144,6 @@ class ProtocolGraph:
 
             # Pass the outputs of previously executed protocols as input to the
             # protocol to execute.
-            print("=== PREVOIUS OUT PUTS ===")
-            print(previous_outputs)
             for input_path in protocol.required_inputs:
                 value_references = protocol.get_value_references(input_path)
 
@@ -1181,16 +1172,9 @@ class ProtocolGraph:
                         )
 
                     target_protocol_ids = target_path.protocol_ids
-                    _path = ProtocolPath(property_name, *target_protocol_ids)
-                    try:
-                        target_value = previous_outputs[
-                            ProtocolPath(property_name, *target_protocol_ids)
-                        ]
-                    except KeyError:
-                        raise KeyError(
-                            f"Could not find {_path}. "
-                            f"Available keys: {list(previous_outputs.keys())}"
-                        )
+                    target_value = previous_outputs[
+                        ProtocolPath(property_name, *target_protocol_ids)
+                    ]
 
                     if property_index is not None:
                         target_value = target_value[property_index]
