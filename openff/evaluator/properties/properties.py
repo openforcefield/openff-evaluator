@@ -162,7 +162,6 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
         absolute_tolerance=UNDEFINED,
         relative_tolerance=UNDEFINED,
         n_molecules=1000,
-        schema_class=SimulationSchema,
         protocol_generator_function: callable = generate_simulation_protocols,
     ):
         """Returns the default calculation schema to use when estimating
@@ -185,10 +184,6 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
         """
         assert absolute_tolerance == UNDEFINED or relative_tolerance == UNDEFINED
 
-        calculation_schema = schema_class()
-        calculation_schema.absolute_tolerance = absolute_tolerance
-        calculation_schema.relative_tolerance = relative_tolerance
-
         use_target_uncertainty = (
             absolute_tolerance != UNDEFINED or relative_tolerance != UNDEFINED
         )
@@ -209,26 +204,6 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
             f"observables[{cls._observable_type().value}]",
             mixture_protocols.production_simulation.id,
         )
-        if hasattr(mixture_protocols, "build_coordinates"):
-            (
-                mixture_protocols.analysis_protocol.divisor,
-                mixture_n_molar_molecules,
-            ) = cls._n_molecules_divisor(
-                ProtocolPath(
-                    "output_number_of_molecules", mixture_protocols.build_coordinates.id
-                ),
-                "_mixture",
-            )
-        else:
-            (
-                mixture_protocols.analysis_protocol.divisor,
-                mixture_n_molar_molecules,
-            ) = cls._n_molecules_divisor(
-                ProtocolPath(
-                    "full_number_of_molecules", "global"
-                ),
-                "_mixture",
-            )
 
         # Define the protocols to use for each component, creating a replicator that
         # will copy these for each component in the mixture substance.
@@ -250,29 +225,123 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
             component_protocols.production_simulation.id,
         )
 
-        if hasattr(component_protocols, "build_coordinates"):
-            # Make sure the protocols point to the correct substance.
-            component_protocols.build_coordinates.substance = component_substance
+        return (
+            mixture_protocols,
+            mixture_value,
+            mixture_stored_data,
+            component_replicator,
+            component_protocols,
+            component_substance,
+            component_stored_data,
+            use_target_uncertainty
+        )
+    
+    @classmethod
+    def default_simulation_schema(
+        cls,
+        absolute_tolerance=UNDEFINED,
+        relative_tolerance=UNDEFINED,
+        n_molecules=1000,
+    ) -> SimulationSchema:
+        """Returns the default calculation schema to use when estimating
+        this class of property from direct simulations.
+
+        Parameters
+        ----------
+        absolute_tolerance: openff.evaluator.unit.Quantity, optional
+            The absolute tolerance to estimate the property to within.
+        relative_tolerance: float
+            The tolerance (as a fraction of the properties reported
+            uncertainty) to estimate the property to within.
+        n_molecules: int
+            The number of molecules to use in the simulation.
+
+        Returns
+        -------
+        SimulationSchema
+            The schema to follow when estimating this property.
+        """
+
+        (
+            mixture_protocols,
+            mixture_value,
+            mixture_stored_data,
+            component_replicator,
+            component_protocols,
+            component_substance,
+            component_stored_data,
+            use_target_uncertainty
+        ) = cls._generate_default_simulation_protocols(
+            absolute_tolerance=absolute_tolerance,
+            relative_tolerance=relative_tolerance,
+            n_molecules=n_molecules,
+            protocol_generator_function=generate_simulation_protocols,
+        )
+
+        component_protocols.build_coordinates.substance = component_substance
+        (
+            component_protocols.analysis_protocol.divisor,
+            component_n_molar_molecules,
+        ) = cls._n_molecules_divisor(
+            ProtocolPath(
+                "output_number_of_molecules", component_protocols.build_coordinates.id
+            ),
+            f"_component_{component_replicator.placeholder_id}",
+        )
+        (
+            mixture_protocols.analysis_protocol.divisor,
+            mixture_n_molar_molecules,
+        ) = cls._n_molecules_divisor(
+            ProtocolPath(
+                "output_number_of_molecules", mixture_protocols.build_coordinates.id
+            ),
+            "_mixture",
+        )
+
+        # if hasattr(component_protocols, "build_coordinates"):
+        #     # Make sure the protocols point to the correct substance.
+        #     component_protocols.build_coordinates.substance = component_substance
             
-            (
-                component_protocols.analysis_protocol.divisor,
-                component_n_molar_molecules,
-            ) = cls._n_molecules_divisor(
-                ProtocolPath(
-                    "output_number_of_molecules", component_protocols.build_coordinates.id
-                ),
-                f"_component_{component_replicator.placeholder_id}",
-            )
-        else:
-            (
-                component_protocols.analysis_protocol.divisor,
-                component_n_molar_molecules,
-            ) = cls._n_molecules_divisor(
-                ProtocolPath(
-                    "full_number_of_molecules", "global"
-                ),
-                f"_component_{component_replicator.placeholder_id}",
-            )
+        #     (
+        #         component_protocols.analysis_protocol.divisor,
+        #         component_n_molar_molecules,
+        #     ) = cls._n_molecules_divisor(
+        #         ProtocolPath(
+        #             "output_number_of_molecules", component_protocols.build_coordinates.id
+        #         ),
+        #         f"_component_{component_replicator.placeholder_id}",
+        #     )
+        # else:
+        #     (
+        #         component_protocols.analysis_protocol.divisor,
+        #         component_n_molar_molecules,
+        #     ) = cls._n_molecules_divisor(
+        #         ProtocolPath(
+        #             "full_number_of_molecules", "global"
+        #         ),
+        #         f"_component_{component_replicator.placeholder_id}",
+        #     )
+        # if hasattr(mixture_protocols, "build_coordinates"):
+        #     (
+        #         mixture_protocols.analysis_protocol.divisor,
+        #         mixture_n_molar_molecules,
+        #     ) = cls._n_molecules_divisor(
+        #         ProtocolPath(
+        #             "output_number_of_molecules", mixture_protocols.build_coordinates.id
+        #         ),
+        #         "_mixture",
+        #     )
+        # else:
+        #     (
+        #         mixture_protocols.analysis_protocol.divisor,
+        #         mixture_n_molar_molecules,
+        #     ) = cls._n_molecules_divisor(
+        #         ProtocolPath(
+        #             "full_number_of_molecules", "global"
+        #         ),
+        #         "_mixture",
+        #     )
+
 
         # Weight the component value by the mole fraction.
         weight_by_mole_fraction = miscellaneous.WeightByMoleFraction(
@@ -368,11 +437,13 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
             f"component_{component_replicator.placeholder_id}": component_stored_data,
         }
 
+        calculation_schema = SimulationSchema()
+        calculation_schema.absolute_tolerance = absolute_tolerance
+        calculation_schema.relative_tolerance = relative_tolerance
+
         calculation_schema.workflow_schema = schema
         return calculation_schema
-        
     
-
     @classmethod
     def default_preequilibrated_simulation_schema(
         cls,
@@ -395,52 +466,194 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
 
         Returns
         -------
-        PreequilibratedSimulationSchema
-            The schema to follow when estimating this property.
-        """
-        schema = cls._generate_default_simulation_protocols(
-            absolute_tolerance=absolute_tolerance,
-            relative_tolerance=relative_tolerance,
-            n_molecules=n_molecules,
-            schema_class=PreequilibratedSimulationSchema,
-            protocol_generator_function=generate_preequilibrated_simulation_protocols,
-        )
-        schema.number_of_molecules = n_molecules
-        return schema
-
-
-    @classmethod
-    def default_simulation_schema(
-        cls,
-        absolute_tolerance=UNDEFINED,
-        relative_tolerance=UNDEFINED,
-        n_molecules=1000,
-    ) -> SimulationSchema:
-        """Returns the default calculation schema to use when estimating
-        this class of property from direct simulations.
-
-        Parameters
-        ----------
-        absolute_tolerance: openff.evaluator.unit.Quantity, optional
-            The absolute tolerance to estimate the property to within.
-        relative_tolerance: float
-            The tolerance (as a fraction of the properties reported
-            uncertainty) to estimate the property to within.
-        n_molecules: int
-            The number of molecules to use in the simulation.
-
-        Returns
-        -------
         SimulationSchema
             The schema to follow when estimating this property.
         """
-        return cls._generate_default_simulation_protocols(
+
+        (
+            mixture_protocols,
+            mixture_value,
+            mixture_stored_data,
+            component_replicator,
+            component_protocols,
+            component_substance,
+            component_stored_data,
+            use_target_uncertainty
+        ) = cls._generate_default_simulation_protocols(
             absolute_tolerance=absolute_tolerance,
             relative_tolerance=relative_tolerance,
             n_molecules=n_molecules,
-            schema_class=SimulationSchema,
             protocol_generator_function=generate_simulation_protocols,
         )
+
+        (
+            component_protocols.analysis_protocol.divisor,
+            component_n_molar_molecules,
+        ) = cls._n_molecules_divisor(
+            ProtocolPath(
+                "full_number_of_molecules", "global"
+            ),
+            f"_component_{component_replicator.placeholder_id}",
+        )
+        (
+            mixture_protocols.analysis_protocol.divisor,
+            mixture_n_molar_molecules,
+        ) = cls._n_molecules_divisor(
+            ProtocolPath(
+                "full_number_of_molecules", "global"
+            ),
+            "_mixture",
+        )
+
+
+        # Weight the component value by the mole fraction.
+        weight_by_mole_fraction = miscellaneous.WeightByMoleFraction(
+            f"weight_by_mole_fraction_{component_replicator.placeholder_id}"
+        )
+        weight_by_mole_fraction.value = ProtocolPath(
+            "value", component_protocols.analysis_protocol.id
+        )
+        weight_by_mole_fraction.full_substance = ProtocolPath("full_substance", "global")
+        weight_by_mole_fraction.component = component_substance
+
+        component_protocols.converge_uncertainty.add_protocols(weight_by_mole_fraction)
+
+        # Make sure the convergence criteria is set to use the per component
+        # uncertainty target.
+        if use_target_uncertainty:
+            component_protocols.converge_uncertainty.conditions[0].right_hand_value = (
+                ProtocolPath("per_component_uncertainty", "global")
+            )
+
+        # Finally, set up the protocols which will be responsible for adding together
+        # the component observables, and subtracting these from the mixture system value.
+        add_component_observables = miscellaneous.AddValues("add_component_observables")
+        add_component_observables.values = ProtocolPath(
+            "weighted_value",
+            component_protocols.converge_uncertainty.id,
+            weight_by_mole_fraction.id,
+        )
+
+        calculate_excess_observable = miscellaneous.SubtractValues(
+            "calculate_excess_observable"
+        )
+        calculate_excess_observable.value_b = mixture_value
+        calculate_excess_observable.value_a = ProtocolPath(
+            "result", add_component_observables.id
+        )
+
+        # Build the final workflow schema
+        schema = WorkflowSchema()
+
+        schema.protocol_schemas = [
+            component_protocols.assign_parameters.schema,
+            component_protocols.energy_minimisation.schema,
+            component_protocols.equilibration_simulation.schema,
+            component_protocols.converge_uncertainty.schema,
+            component_protocols.decorrelate_trajectory.schema,
+            component_protocols.decorrelate_observables.schema,
+            mixture_protocols.assign_parameters.schema,
+            mixture_protocols.energy_minimisation.schema,
+            mixture_protocols.equilibration_simulation.schema,
+            mixture_protocols.converge_uncertainty.schema,
+            mixture_protocols.decorrelate_trajectory.schema,
+            mixture_protocols.decorrelate_observables.schema,
+            add_component_observables.schema,
+            calculate_excess_observable.schema,
+        ]
+
+        if component_n_molar_molecules is not None:
+            schema.protocol_schemas.append(component_n_molar_molecules.schema)
+        if mixture_n_molar_molecules is not None:
+            schema.protocol_schemas.append(mixture_n_molar_molecules.schema)
+
+        schema.protocol_replicators = [component_replicator]
+
+        schema.final_value_source = ProtocolPath(
+            "result", calculate_excess_observable.id
+        )
+
+        schema.outputs_to_store = {
+            "full_system": mixture_stored_data,
+            f"component_{component_replicator.placeholder_id}": component_stored_data,
+        }
+
+        calculation_schema = PreequilibratedSimulationSchema()
+        calculation_schema.absolute_tolerance = absolute_tolerance
+        calculation_schema.relative_tolerance = relative_tolerance
+
+        calculation_schema.workflow_schema = schema
+        return calculation_schema
+    
+
+    # @classmethod
+    # def default_preequilibrated_simulation_schema(
+    #     cls,
+    #     absolute_tolerance=UNDEFINED,
+    #     relative_tolerance=UNDEFINED,
+    #     n_molecules=1000,
+    # ) -> PreequilibratedSimulationSchema:
+    #     """Returns the default calculation schema to use when estimating
+    #     this class of property from direct simulations.
+
+    #     Parameters
+    #     ----------
+    #     absolute_tolerance: openff.evaluator.unit.Quantity, optional
+    #         The absolute tolerance to estimate the property to within.
+    #     relative_tolerance: float
+    #         The tolerance (as a fraction of the properties reported
+    #         uncertainty) to estimate the property to within.
+    #     n_molecules: int
+    #         The number of molecules to use in the simulation.
+
+    #     Returns
+    #     -------
+    #     PreequilibratedSimulationSchema
+    #         The schema to follow when estimating this property.
+    #     """
+    #     schema = cls._generate_default_simulation_protocols(
+    #         absolute_tolerance=absolute_tolerance,
+    #         relative_tolerance=relative_tolerance,
+    #         n_molecules=n_molecules,
+    #         schema_class=PreequilibratedSimulationSchema,
+    #         protocol_generator_function=generate_preequilibrated_simulation_protocols,
+    #     )
+    #     schema.number_of_molecules = n_molecules
+    #     return schema
+
+
+    # @classmethod
+    # def default_simulation_schema(
+    #     cls,
+    #     absolute_tolerance=UNDEFINED,
+    #     relative_tolerance=UNDEFINED,
+    #     n_molecules=1000,
+    # ) -> SimulationSchema:
+    #     """Returns the default calculation schema to use when estimating
+    #     this class of property from direct simulations.
+
+    #     Parameters
+    #     ----------
+    #     absolute_tolerance: openff.evaluator.unit.Quantity, optional
+    #         The absolute tolerance to estimate the property to within.
+    #     relative_tolerance: float
+    #         The tolerance (as a fraction of the properties reported
+    #         uncertainty) to estimate the property to within.
+    #     n_molecules: int
+    #         The number of molecules to use in the simulation.
+
+    #     Returns
+    #     -------
+    #     SimulationSchema
+    #         The schema to follow when estimating this property.
+    #     """
+    #     return cls._generate_default_simulation_protocols(
+    #         absolute_tolerance=absolute_tolerance,
+    #         relative_tolerance=relative_tolerance,
+    #         n_molecules=n_molecules,
+    #         schema_class=SimulationSchema,
+    #         protocol_generator_function=generate_simulation_protocols,
+    #     )
 
     @classmethod
     def _default_reweighting_storage_query(cls) -> Dict[str, SimulationDataQuery]:
