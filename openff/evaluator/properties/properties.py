@@ -483,7 +483,7 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
             absolute_tolerance=absolute_tolerance,
             relative_tolerance=relative_tolerance,
             n_molecules=n_molecules,
-            protocol_generator_function=generate_simulation_protocols,
+            protocol_generator_function=generate_preequilibrated_simulation_protocols,
         )
 
         (
