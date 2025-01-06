@@ -101,6 +101,11 @@ class Density(PhysicalProperty):
         n_molecules=1000,
     ) -> EquilibrationSchema:
         
+        if relative_tolerance != UNDEFINED:
+            raise NotImplementedError(
+                "Only absolute tolerance of the potential energy is supported for equilibration."
+            )
+        
         assert absolute_tolerance == UNDEFINED or relative_tolerance == UNDEFINED
 
         calculation_schema = EquilibrationSchema()
