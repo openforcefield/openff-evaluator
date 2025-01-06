@@ -53,6 +53,8 @@ such layers are currently supported (although new calculation layers can be read
 
 * evaluating physical properties directly from molecular simulation using the :doc:`SimulationLayer
   <layers/simulationlayer>`.
+* evaluating physical properties directly via a two-step approach using the :doc:`EquilibrationLayer <layers/
+  equilibrationlayer>` and the :doc:`PreequilibratedSimulationLayer <layers/preequilibratedsimulationlayer>`.
 * reprocessing cached simulation data with `MBAR reweighting <http://www.alchemistry.org/wiki/
   Multistate_Bennett_Acceptance_Ratio>`_ using the :doc:`ReweightingLayer <layers/reweightinglayer>`.
 
