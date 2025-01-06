@@ -22,6 +22,20 @@ from openff.evaluator.properties import Density, EnthalpyOfMixing
 from openff.evaluator.substances import Substance
 from openff.evaluator.thermodynamics import ThermodynamicState
 
+def _modify_schema_dummy(schema):
+    workflow_schema = schema.workflow_schema
+    workflow_schema.replace_protocol_types(
+        {"BaseBuildSystem": "BuildSmirnoffSystem"}
+    )
+    for schema in workflow_schema.protocol_schemas:
+        # shorten protocols
+        if "conditional" in schema.id:
+            for protocol_name, protocol in schema.protocol_schemas.items():
+                if "simulation" in protocol_name:
+                    protocol.inputs[".steps_per_iteration"] = 10
+                    protocol.inputs[".output_frequency"] = 10
+                    protocol.inputs[".checkpoint_frequency"] = 10
+
 class TestPreequilibratedLayer:
 
     @pytest.fixture
@@ -57,13 +71,14 @@ class TestPreequilibratedLayer:
         equilibration_options.calculation_layers = ["EquilibrationLayer"]
         density_equilibration_schema = Density.default_equilibration_schema(
             n_molecules=256,
-            relative_tolerance=0.01,
         )
+        _modify_schema_dummy(density_equilibration_schema)
 
         dhmix_equilibration_schema = EnthalpyOfMixing.default_equilibration_schema(
             n_molecules=256,
-            relative_tolerance=0.01,
         )
+        _modify_schema_dummy(dhmix_equilibration_schema)
+
         equilibration_options.add_schema(
             "EquilibrationLayer",
             "Density",
@@ -79,12 +94,12 @@ class TestPreequilibratedLayer:
         preequilibrated_simulation_options.calculation_layers = ["PreequilibratedSimulationLayer"]
         density_preequilibration_schema = Density.default_preequilibrated_simulation_schema(
             n_molecules=256,
-            relative_tolerance=0.01,
         )
+        _modify_schema_dummy(density_preequilibration_schema)
         dhmix_preequilibration_schema = EnthalpyOfMixing.default_preequilibrated_simulation_schema(
             n_molecules=256,
-            relative_tolerance=0.01,
         )
+        _modify_schema_dummy(dhmix_preequilibration_schema)
         preequilibrated_simulation_options.add_schema(
             "PreequilibratedSimulationLayer",
             "Density",
@@ -118,7 +133,19 @@ class TestPreequilibratedLayer:
                         force_field_source,
                         equilibration_options,
                     )   
-                    
                     assert error is None
-                    assert isinstance(request, Request)
+                    results, exception = request.results(synchronous=True, polling_interval=30)
+
+                    assert exception is None
+                    
+                    request, error = client.request_estimate(
+                        dataset,
+                        force_field_source,
+                        preequilibrated_simulation_options,
+                    )
+                    assert error is None
+                    results, exception = request.results(synchronous=True, polling_interval=30)
+                    assert exception is None
+        
+        assert len(results.estimated_properties) == 2
 
