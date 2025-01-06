@@ -41,3 +41,12 @@ Default Metadata
 ----------------
 The preequilibrated simulation layer makes available the default metadata provided by the :ref:`parent workflow layer
 <layers/workflowlayer:Default Metadata>` in addition to any cached data retrieved via the schemas |storage_queries|.
+
+This cached data includes:
+- the coordinate file path to the pre-equilibrated system
+- the substance of the pre-equilibrated system
+- the number of molecules in the pre-equilibrated system
+
+The workflow then uses this metadata as the starting point for parameter assignment
+and energy minimisation, so there should be no contamination of coordinates assigned
+to the wrong molecules.
