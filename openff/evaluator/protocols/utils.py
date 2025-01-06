@@ -27,6 +27,7 @@ from openff.evaluator.utils.observables import ObservableType
 from openff.evaluator.workflow import ProtocolGroup
 from openff.evaluator.workflow.schemas import ProtocolReplicator
 from openff.evaluator.workflow.utils import ProtocolPath, ReplicatorValue
+from openff.evaluator.attributes import UNDEFINED
 
 S = TypeVar("S", bound=analysis.BaseAverageObservable)
 T = TypeVar("T", bound=reweighting.BaseMBARProtocol)
@@ -533,9 +534,10 @@ def generate_equilibration_protocols(
     output_to_store.calculation_layer = "EquilibrationLayer"
 
     # Define where the final values come from.
-    final_value_source = ProtocolPath(
-        "value", conditional_group.id, analysis_protocol.id
-    )
+    # final_value_source = ProtocolPath(
+    #     "value", conditional_group.id, analysis_protocol.id
+    # )
+    final_value_source = UNDEFINED
 
     protocols = EquilibrationProtocols(
         build_coordinates,
