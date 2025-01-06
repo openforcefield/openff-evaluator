@@ -188,8 +188,6 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
 
             results.append(calculation_result)
 
-            print("-- calculatoin layer result --")
-
             if len(calculation_result.exceptions) > 0:
                 continue
 
@@ -198,8 +196,6 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
             physical_property.source = provenance[physical_property.id]
             physical_property.value = workflow_result.value.value
             physical_property.uncertainty = workflow_result.value.error
-
-            print("physical property", physical_property)
 
             if len(workflow_result.gradients) > 0:
                 physical_property.gradients = workflow_result.gradients
