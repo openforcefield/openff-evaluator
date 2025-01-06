@@ -5,16 +5,18 @@ from openff.units import unit
 
 from openff.evaluator.attributes import UNDEFINED, PlaceholderValue
 from openff.evaluator.datasets import PhysicalProperty, PropertyPhase
-from openff.evaluator.layers.reweighting import ReweightingSchema
-from openff.evaluator.layers.preequilibrated_simulation import PreequilibratedSimulationSchema
 from openff.evaluator.layers.equilibration import EquilibrationSchema
+from openff.evaluator.layers.preequilibrated_simulation import (
+    PreequilibratedSimulationSchema,
+)
+from openff.evaluator.layers.reweighting import ReweightingSchema
 from openff.evaluator.layers.simulation import SimulationSchema
 from openff.evaluator.protocols import analysis, miscellaneous
 from openff.evaluator.protocols.utils import (
+    generate_equilibration_protocols,
+    generate_preequilibrated_simulation_protocols,
     generate_reweighting_protocols,
     generate_simulation_protocols,
-    generate_equilibration_protocols,
-    generate_preequilibrated_simulation_protocols
 )
 from openff.evaluator.storage.query import SimulationDataQuery, SubstanceQuery
 from openff.evaluator.utils.observables import ObservableType
@@ -74,7 +76,7 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
             n_molecules = ProtocolPath("result", n_molar_molecules.id)
 
         return n_molecules, n_molar_molecules
-    
+
     @classmethod
     def default_equilibration_schema(
         cls,
@@ -118,10 +120,12 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
         component_replicator.template_values = ProtocolPath("components", "global")
         component_substance = ReplicatorValue(component_replicator.id)
 
-        component_protocols, _, component_stored_data = generate_equilibration_protocols(
-            use_target_uncertainty,
-            id_suffix=f"_component_{component_replicator.placeholder_id}",
-            n_molecules=n_molecules,
+        component_protocols, _, component_stored_data = (
+            generate_equilibration_protocols(
+                use_target_uncertainty,
+                id_suffix=f"_component_{component_replicator.placeholder_id}",
+                n_molecules=n_molecules,
+            )
         )
         # Make sure the protocols point to the correct substance.
         component_protocols.build_coordinates.substance = component_substance
@@ -238,9 +242,9 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
             component_protocols,
             component_substance,
             component_stored_data,
-            use_target_uncertainty
+            use_target_uncertainty,
         )
-    
+
     @classmethod
     def default_simulation_schema(
         cls,
@@ -275,7 +279,7 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
             component_protocols,
             component_substance,
             component_stored_data,
-            use_target_uncertainty
+            use_target_uncertainty,
         ) = cls._generate_default_simulation_protocols(
             absolute_tolerance=absolute_tolerance,
             relative_tolerance=relative_tolerance,
@@ -302,7 +306,6 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
             ),
             "_mixture",
         )
-
 
         # Weight the component value by the mole fraction.
         weight_by_mole_fraction = miscellaneous.WeightByMoleFraction(
@@ -386,7 +389,7 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
 
         calculation_schema.workflow_schema = schema
         return calculation_schema
-    
+
     @classmethod
     def default_preequilibrated_simulation_schema(
         cls,
@@ -421,7 +424,7 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
             component_protocols,
             component_substance,
             component_stored_data,
-            use_target_uncertainty
+            use_target_uncertainty,
         ) = cls._generate_default_simulation_protocols(
             absolute_tolerance=absolute_tolerance,
             relative_tolerance=relative_tolerance,
@@ -433,21 +436,16 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
             component_protocols.analysis_protocol.divisor,
             component_n_molar_molecules,
         ) = cls._n_molecules_divisor(
-            ProtocolPath(
-                "full_number_of_molecules", "global"
-            ),
+            ProtocolPath("full_number_of_molecules", "global"),
             f"_component_{component_replicator.placeholder_id}",
         )
         (
             mixture_protocols.analysis_protocol.divisor,
             mixture_n_molar_molecules,
         ) = cls._n_molecules_divisor(
-            ProtocolPath(
-                "full_number_of_molecules", "global"
-            ),
+            ProtocolPath("full_number_of_molecules", "global"),
             "_mixture",
         )
-
 
         # Weight the component value by the mole fraction.
         weight_by_mole_fraction = miscellaneous.WeightByMoleFraction(
@@ -456,7 +454,9 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
         weight_by_mole_fraction.value = ProtocolPath(
             "value", component_protocols.analysis_protocol.id
         )
-        weight_by_mole_fraction.full_substance = ProtocolPath("full_substance", "global")
+        weight_by_mole_fraction.full_substance = ProtocolPath(
+            "full_substance", "global"
+        )
         weight_by_mole_fraction.component = component_substance
 
         component_protocols.converge_uncertainty.add_protocols(weight_by_mole_fraction)
@@ -528,7 +528,6 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
 
         calculation_schema.workflow_schema = schema
         return calculation_schema
-    
 
     @classmethod
     def _default_reweighting_storage_query(cls) -> Dict[str, SimulationDataQuery]:

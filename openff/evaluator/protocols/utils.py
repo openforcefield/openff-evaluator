@@ -65,6 +65,7 @@ class PreequilibratedSimulationProtocols(Generic[S]):
     def __iter__(self):
         yield from astuple(self)
 
+
 @dataclass
 class SimulationProtocols(Generic[S]):
     """The common set of protocols which would be required to estimate an observable
@@ -513,17 +514,13 @@ def generate_equilibration_protocols(
 
     # Build the object which defines which pieces of simulation data to store.
     output_to_store = StoredSimulationData()
-    output_to_store.thermodynamic_state = ProtocolPath(
-        "thermodynamic_state", "global"
-    )
+    output_to_store.thermodynamic_state = ProtocolPath("thermodynamic_state", "global")
     output_to_store.property_phase = PropertyPhase.Liquid
     output_to_store.force_field_id = PlaceholderValue()
     output_to_store.number_of_molecules = ProtocolPath(
         "output_number_of_molecules", build_coordinates.id
     )
-    output_to_store.substance = ProtocolPath(
-        "output_substance", build_coordinates.id
-    )
+    output_to_store.substance = ProtocolPath("output_substance", build_coordinates.id)
     output_to_store.statistical_inefficiency = ProtocolPath(
         "time_series_statistics.statistical_inefficiency",
         conditional_group.id,
@@ -546,7 +543,7 @@ def generate_equilibration_protocols(
         energy_minimisation,
         # equilibration_simulation,
         analysis_protocol,
-        conditional_group
+        conditional_group,
     )
     return protocols, final_value_source, output_to_store
 
@@ -722,8 +719,6 @@ def generate_preequilibrated_simulation_protocols(
     )
 
     return base_protocols, final_value_source, output_to_store
-
-
 
 
 def generate_simulation_protocols(

@@ -1,28 +1,29 @@
 """A calculation layer which employs molecular simulation
 from pre-equilibrated systems to estimate sets of physical properties.
 """
+
 import collections
 import copy
 import logging
 import os
 
-from openff.evaluator.layers import calculation_layer
-from openff.evaluator.attributes import Attribute, PlaceholderValue
-from openff.evaluator.datasets import PropertyPhase
-from openff.evaluator.layers.layers import CalculationLayerResult
-from openff.evaluator.layers.workflow import (
-    WorkflowCalculationLayer,
-    WorkflowCalculationSchema,
-)
 from openff.evaluator.attributes import (
     UNDEFINED,
     Attribute,
     AttributeClass,
     PlaceholderValue,
 )
+from openff.evaluator.datasets import PropertyPhase
+from openff.evaluator.layers import calculation_layer
+from openff.evaluator.layers.layers import CalculationLayerResult
+from openff.evaluator.layers.workflow import (
+    WorkflowCalculationLayer,
+    WorkflowCalculationSchema,
+)
 from openff.evaluator.storage.query import SimulationDataQuery
 
 logger = logging.getLogger(__name__)
+
 
 def default_storage_query():
     """Return the default query to use when retrieving cached simulation
@@ -86,7 +87,7 @@ class PreequilibratedSimulationLayer(WorkflowCalculationLayer):
     @classmethod
     def required_schema_type(cls):
         return PreequilibratedSimulationSchema
-    
+
     @staticmethod
     def _get_workflow_metadata(
         working_directory,
@@ -142,10 +143,14 @@ class PreequilibratedSimulationLayer(WorkflowCalculationLayer):
             assert len(query_list) == 1
 
             storage_key, data_object, data_directory = query_list[0]
-            coordinate_file = os.path.join(data_directory, data_object.coordinate_file_name)
+            coordinate_file = os.path.join(
+                data_directory, data_object.coordinate_file_name
+            )
             assert os.path.exists(coordinate_file)
             global_metadata["equilibrated_file_path"] = os.path.abspath(coordinate_file)
             global_metadata["full_substance"] = data_object.substance
-            global_metadata["full_number_of_molecules"] = data_object.number_of_molecules
-        
+            global_metadata["full_number_of_molecules"] = (
+                data_object.number_of_molecules
+            )
+
         return global_metadata

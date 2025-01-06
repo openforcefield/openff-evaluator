@@ -1110,7 +1110,7 @@ class ProtocolGraph:
             if os.path.isfile(output_path) and enable_checkpointing:
                 with open(output_path) as file:
                     outputs = json.load(file, cls=TypedJSONDecoder)
-                
+
                 if not isinstance(outputs, WorkflowException):
                     for protocol_path, output in outputs.items():
                         protocol_path = ProtocolPath.from_string(protocol_path)

@@ -1,32 +1,29 @@
-
 import tempfile
 
 import pytest
 from openff.units import unit
+
 from openff.evaluator.backends.dask import DaskLocalCluster
+from openff.evaluator.client import EvaluatorClient, Request, RequestOptions
 from openff.evaluator.datasets import (
     MeasurementSource,
     PhysicalPropertyDataSet,
     PropertyPhase,
 )
-from openff.evaluator.client import EvaluatorClient, RequestOptions, Request
-from openff.evaluator.server.server import Batch, EvaluatorServer
-
 from openff.evaluator.forcefield import (
     LigParGenForceFieldSource,
     SmirnoffForceFieldSource,
     TLeapForceFieldSource,
 )
-
 from openff.evaluator.properties import Density, EnthalpyOfMixing
+from openff.evaluator.server.server import Batch, EvaluatorServer
 from openff.evaluator.substances import Substance
 from openff.evaluator.thermodynamics import ThermodynamicState
 
+
 def _modify_schema_dummy(schema):
     workflow_schema = schema.workflow_schema
-    workflow_schema.replace_protocol_types(
-        {"BaseBuildSystem": "BuildSmirnoffSystem"}
-    )
+    workflow_schema.replace_protocol_types({"BaseBuildSystem": "BuildSmirnoffSystem"})
     for schema in workflow_schema.protocol_schemas:
         # shorten protocols
         if "conditional" in schema.id:
@@ -35,6 +32,7 @@ def _modify_schema_dummy(schema):
                     protocol.inputs[".steps_per_iteration"] = 10
                     protocol.inputs[".output_frequency"] = 10
                     protocol.inputs[".checkpoint_frequency"] = 10
+
 
 class TestPreequilibratedLayer:
 
@@ -61,7 +59,7 @@ class TestPreequilibratedLayer:
                 uncertainty=1.0 * EnthalpyOfMixing.default_unit(),
                 source=MeasurementSource(doi=" "),
                 substance=Substance.from_components("CCCO", "O"),
-            )
+            ),
         )
 
         return dataset
@@ -91,13 +89,19 @@ class TestPreequilibratedLayer:
         )
 
         preequilibrated_simulation_options = RequestOptions()
-        preequilibrated_simulation_options.calculation_layers = ["PreequilibratedSimulationLayer"]
-        density_preequilibration_schema = Density.default_preequilibrated_simulation_schema(
-            n_molecules=256,
+        preequilibrated_simulation_options.calculation_layers = [
+            "PreequilibratedSimulationLayer"
+        ]
+        density_preequilibration_schema = (
+            Density.default_preequilibrated_simulation_schema(
+                n_molecules=256,
+            )
         )
         _modify_schema_dummy(density_preequilibration_schema)
-        dhmix_preequilibration_schema = EnthalpyOfMixing.default_preequilibrated_simulation_schema(
-            n_molecules=256,
+        dhmix_preequilibration_schema = (
+            EnthalpyOfMixing.default_preequilibrated_simulation_schema(
+                n_molecules=256,
+            )
         )
         _modify_schema_dummy(dhmix_preequilibration_schema)
         preequilibrated_simulation_options.add_schema(
@@ -132,20 +136,23 @@ class TestPreequilibratedLayer:
                         dataset,
                         force_field_source,
                         equilibration_options,
-                    )   
+                    )
                     assert error is None
-                    results, exception = request.results(synchronous=True, polling_interval=30)
+                    results, exception = request.results(
+                        synchronous=True, polling_interval=30
+                    )
 
                     assert exception is None
-                    
+
                     request, error = client.request_estimate(
                         dataset,
                         force_field_source,
                         preequilibrated_simulation_options,
                     )
                     assert error is None
-                    results, exception = request.results(synchronous=True, polling_interval=30)
+                    results, exception = request.results(
+                        synchronous=True, polling_interval=30
+                    )
                     assert exception is None
-        
-        assert len(results.estimated_properties) == 2
 
+        assert len(results.estimated_properties) == 2

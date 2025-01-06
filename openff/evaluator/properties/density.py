@@ -8,17 +8,19 @@ from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.datasets import PhysicalProperty, PropertyPhase
 from openff.evaluator.datasets.thermoml import thermoml_property
 from openff.evaluator.layers import register_calculation_schema
+from openff.evaluator.layers.equilibration import EquilibrationSchema
+from openff.evaluator.layers.preequilibrated_simulation import (
+    PreequilibratedSimulationSchema,
+)
 from openff.evaluator.layers.reweighting import ReweightingLayer, ReweightingSchema
 from openff.evaluator.layers.simulation import SimulationLayer, SimulationSchema
-from openff.evaluator.layers.equilibration import EquilibrationSchema
-from openff.evaluator.layers.preequilibrated_simulation import PreequilibratedSimulationSchema
 from openff.evaluator.properties.properties import EstimableExcessProperty
 from openff.evaluator.protocols import analysis
 from openff.evaluator.protocols.utils import (
+    generate_equilibration_protocols,
+    generate_preequilibrated_simulation_protocols,
     generate_reweighting_protocols,
     generate_simulation_protocols,
-    generate_equilibration_protocols,
-    generate_preequilibrated_simulation_protocols
 )
 from openff.evaluator.utils.observables import ObservableType
 from openff.evaluator.workflow.schemas import WorkflowSchema
@@ -32,7 +34,7 @@ class Density(PhysicalProperty):
     @classmethod
     def default_unit(cls):
         return unit.gram / unit.millilitre
-    
+
     @classmethod
     def _generate_default_simulation_protocols(
         cls,
@@ -92,7 +94,7 @@ class Density(PhysicalProperty):
 
         calculation_schema.workflow_schema = schema
         return calculation_schema
-    
+
     @classmethod
     def default_equilibration_schema(
         cls,
@@ -100,12 +102,12 @@ class Density(PhysicalProperty):
         relative_tolerance=UNDEFINED,
         n_molecules=1000,
     ) -> EquilibrationSchema:
-        
+
         if relative_tolerance != UNDEFINED:
             raise NotImplementedError(
                 "Only absolute tolerance of the potential energy is supported for equilibration."
             )
-        
+
         assert absolute_tolerance == UNDEFINED or relative_tolerance == UNDEFINED
 
         calculation_schema = EquilibrationSchema()
@@ -138,11 +140,13 @@ class Density(PhysicalProperty):
 
         calculation_schema.workflow_schema = schema
         return calculation_schema
-        
 
     @classmethod
     def default_simulation_schema(
-        cls, absolute_tolerance=UNDEFINED, relative_tolerance=UNDEFINED, n_molecules=1000
+        cls,
+        absolute_tolerance=UNDEFINED,
+        relative_tolerance=UNDEFINED,
+        n_molecules=1000,
     ) -> SimulationSchema:
         """Returns the default calculation schema to use when estimating
         this class of property from direct simulations.
@@ -167,7 +171,7 @@ class Density(PhysicalProperty):
             relative_tolerance=relative_tolerance,
             n_molecules=n_molecules,
             schema_class=SimulationSchema,
-            protocol_generator_function=generate_simulation_protocols
+            protocol_generator_function=generate_simulation_protocols,
         )
 
     @classmethod
@@ -182,7 +186,7 @@ class Density(PhysicalProperty):
             relative_tolerance=relative_tolerance,
             n_molecules=n_molecules,
             schema_class=PreequilibratedSimulationSchema,
-            protocol_generator_function=generate_preequilibrated_simulation_protocols
+            protocol_generator_function=generate_preequilibrated_simulation_protocols,
         )
         schema.number_of_molecules = n_molecules
         return schema

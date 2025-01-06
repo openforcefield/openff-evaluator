@@ -1,22 +1,24 @@
 """A calculation layer for equilibration.
 """
+
 import logging
 from math import sqrt
 
-from openff.evaluator.layers import calculation_layer
-from openff.evaluator.layers.workflow import (
-    WorkflowCalculationLayer,
-    WorkflowCalculationSchema,
-)
-from openff.evaluator.workflow import Workflow
 from openff.evaluator.attributes import (
     UNDEFINED,
     Attribute,
     AttributeClass,
     PlaceholderValue,
 )
+from openff.evaluator.layers import calculation_layer
+from openff.evaluator.layers.workflow import (
+    WorkflowCalculationLayer,
+    WorkflowCalculationSchema,
+)
+from openff.evaluator.workflow import Workflow
 
 logger = logging.getLogger(__name__)
+
 
 class EquilibrationSchema(WorkflowCalculationSchema):
     """A schema which encodes the options and the workflow schema
@@ -81,7 +83,7 @@ class EquilibrationLayer(WorkflowCalculationLayer):
             physical_property,
             force_field_path,
             parameter_gradient_keys,
-            None, # set target to None for now
+            None,  # set target to None for now
         )
         global_metadata["target_uncertainty"] = target_uncertainty
         per_component_uncertainty = target_uncertainty / sqrt(
@@ -89,13 +91,12 @@ class EquilibrationLayer(WorkflowCalculationLayer):
         )
         global_metadata["per_component_uncertainty"] = per_component_uncertainty
 
-
         return global_metadata
 
     @classmethod
     def required_schema_type(cls):
         return EquilibrationSchema
-    
+
     # @classmethod
     # def _move_property_from_queued_to_estimated(cls, returned_output, batch):
     #     logger.info("EquilibrationLayers do not estimate properties.")
