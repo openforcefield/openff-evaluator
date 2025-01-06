@@ -7,7 +7,7 @@ from typing import Generic, Optional, Tuple, TypeVar
 
 from openff.units import unit
 
-from openff.evaluator.attributes import PlaceholderValue
+from openff.evaluator.attributes import UNDEFINED, PlaceholderValue
 from openff.evaluator.datasets import PropertyPhase
 from openff.evaluator.protocols import (
     analysis,
@@ -27,7 +27,6 @@ from openff.evaluator.utils.observables import ObservableType
 from openff.evaluator.workflow import ProtocolGroup
 from openff.evaluator.workflow.schemas import ProtocolReplicator
 from openff.evaluator.workflow.utils import ProtocolPath, ReplicatorValue
-from openff.evaluator.attributes import UNDEFINED
 
 S = TypeVar("S", bound=analysis.BaseAverageObservable)
 T = TypeVar("T", bound=reweighting.BaseMBARProtocol)

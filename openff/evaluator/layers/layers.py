@@ -195,7 +195,7 @@ class CalculationLayer(abc.ABC):
                     data_object.source_calculation_id = batch.id
                 data_object.calculation_layer = layer_name
 
-            storage_backend.store_object(data_object, data_directory_path)  
+            storage_backend.store_object(data_object, data_directory_path)
 
     @staticmethod
     def _process_results(results_future, batch, layer_name, storage_backend, callback):
