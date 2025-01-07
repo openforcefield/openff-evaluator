@@ -536,7 +536,7 @@ def generate_equilibration_protocols(
     # final_value_source = ProtocolPath(
     #     "value", conditional_group.id, analysis_protocol.id
     # )
-    final_value_source = None
+    final_value_source = UNDEFINED
 
     protocols = EquilibrationProtocols(
         build_coordinates,
