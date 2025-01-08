@@ -152,13 +152,14 @@ class PreequilibratedSimulationLayer(WorkflowCalculationLayer):
             if not os.path.isfile(object_path):
                 data_object.json(object_path)
 
-            force_field_path = os.path.join(working_directory, data_object.force_field_id)
+            force_field_path = os.path.join(
+                working_directory, data_object.force_field_id
+            )
             if not os.path.isfile(force_field_path):
                 existing_force_field = storage_backend.retrieve_force_field(
                     data_object.force_field_id
                 )
                 existing_force_field.json(force_field_path)
-
 
             global_metadata[key] = (object_path, data_directory, force_field_path)
 
