@@ -558,7 +558,7 @@ def generate_preequilibrated_simulation_protocols(
     conditional_group: Optional[ConditionalGroup] = None,
     replicator_id: str = "data_replicator",
     n_molecules: int = 1000,
-) -> Tuple[PreequilibratedSimulationProtocols[S], ProtocolPath, StoredSimulationData]:
+) -> Tuple[PreequilibratedSimulationProtocols[S], ProtocolPath, StoredSimulationData, list]:
 
     # Create the replicator which will apply these protocol once for each piece of
     # cached simulation data.
@@ -742,7 +742,7 @@ def generate_preequilibrated_simulation_protocols(
         decorrelate_observables,
     )
 
-    return base_protocols, final_value_source, output_to_store
+    return base_protocols, final_value_source, output_to_store, [data_replicator]
 
 
 def generate_simulation_protocols(
@@ -751,7 +751,7 @@ def generate_simulation_protocols(
     id_suffix: str = "",
     conditional_group: Optional[ConditionalGroup] = None,
     n_molecules: int = 1000,
-) -> Tuple[SimulationProtocols[S], ProtocolPath, StoredSimulationData]:
+) -> Tuple[SimulationProtocols[S], ProtocolPath, StoredSimulationData, list]:
     """Constructs a set of protocols which, when combined in a workflow schema, may be
     executed to run a single simulation to estimate the average value of an observable.
 
@@ -981,4 +981,4 @@ def generate_simulation_protocols(
         decorrelate_observables,
     )
 
-    return base_protocols, final_value_source, output_to_store
+    return base_protocols, final_value_source, output_to_store, []

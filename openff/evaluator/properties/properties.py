@@ -416,34 +416,81 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
             The schema to follow when estimating this property.
         """
 
+        assert absolute_tolerance == UNDEFINED or relative_tolerance == UNDEFINED
+
+        use_target_uncertainty = (
+            absolute_tolerance != UNDEFINED or relative_tolerance != UNDEFINED
+        )
+
+        # Define the protocols to use for the fully mixed system.
         (
             mixture_protocols,
             mixture_value,
             mixture_stored_data,
-            component_replicator,
-            component_protocols,
-            component_substance,
-            component_stored_data,
+            mixture_data_replicators
+        ) = generate_preequilibrated_simulation_protocols(
+            analysis.AverageObservable("extract_observable_mixture"),
             use_target_uncertainty,
-        ) = cls._generate_default_simulation_protocols(
-            absolute_tolerance=absolute_tolerance,
-            relative_tolerance=relative_tolerance,
+            id_suffix="_mixture",
+            replicator_id="mixture_data_replicator",
             n_molecules=n_molecules,
-            protocol_generator_function=generate_preequilibrated_simulation_protocols,
         )
+        mixture_data_replicator = mixture_data_replicators[0]
+        
+        # Specify the average observable which should be estimated.
+        mixture_protocols.analysis_protocol.observable = ProtocolPath(
+            f"observables[{cls._observable_type().value}]",
+            mixture_protocols.production_simulation.id,
+        )
+
+        # Define the protocols to use for each component, creating a replicator that
+        # will copy these for each component in the mixture substance.
+        component_replicator = ProtocolReplicator("component_replicator")
+        component_replicator.template_values = ProtocolPath("components", "global")
+        component_substance = ReplicatorValue(component_replicator.id)
+
+        component_protocols, _, component_stored_data, component_data_replicators = generate_preequilibrated_simulation_protocols(
+            analysis.AverageObservable(
+                f"extract_observable_component_{component_replicator.placeholder_id}"
+            ),
+            use_target_uncertainty,
+            replicator_id=f"component_{component_replicator.placeholder_id}_data_replicator",
+            id_suffix=f"_component_{component_replicator.placeholder_id}",
+            n_molecules=n_molecules,
+        )
+        # Specify the average observable which should be estimated.
+        component_protocols.analysis_protocol.observable = ProtocolPath(
+            f"observables[{cls._observable_type().value}]",
+            component_protocols.production_simulation.id,
+        )
+        component_data_replicator = component_data_replicators[0]
+        component_data_replicator.template_values = ProtocolPath(
+            f"component_data[$({component_replicator.id})]", "global"
+        )
+
 
         (
             component_protocols.analysis_protocol.divisor,
             component_n_molar_molecules,
         ) = cls._n_molecules_divisor(
-            ProtocolPath("full_number_of_molecules", "global"),
+            ProtocolPath(
+                "total_number_of_molecules",
+                component_protocols.unpack_stored_data.id.replace(
+                    component_data_replicator.placeholder_id, "0"
+                ),
+            ),
             f"_component_{component_replicator.placeholder_id}",
         )
         (
             mixture_protocols.analysis_protocol.divisor,
             mixture_n_molar_molecules,
         ) = cls._n_molecules_divisor(
-            ProtocolPath("full_number_of_molecules", "global"),
+            ProtocolPath(
+                "total_number_of_molecules",
+                mixture_protocols.unpack_stored_data.id.replace(
+                    mixture_data_replicator.placeholder_id, "0"
+                ),
+            ),
             "_mixture",
         )
 
@@ -455,7 +502,10 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
             "value", component_protocols.analysis_protocol.id
         )
         weight_by_mole_fraction.full_substance = ProtocolPath(
-            "full_substance", "global"
+            "substance",
+            mixture_protocols.unpack_stored_data.id.replace(
+                mixture_data_replicator.placeholder_id, "0"
+            ),
         )
         weight_by_mole_fraction.component = component_substance
 
@@ -489,12 +539,14 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
         schema = WorkflowSchema()
 
         schema.protocol_schemas = [
+            component_protocols.unpack_stored_data.schema,
             component_protocols.assign_parameters.schema,
             component_protocols.energy_minimisation.schema,
             component_protocols.equilibration_simulation.schema,
             component_protocols.converge_uncertainty.schema,
             component_protocols.decorrelate_trajectory.schema,
             component_protocols.decorrelate_observables.schema,
+            mixture_protocols.unpack_stored_data.schema,
             mixture_protocols.assign_parameters.schema,
             mixture_protocols.energy_minimisation.schema,
             mixture_protocols.equilibration_simulation.schema,
@@ -510,7 +562,11 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
         if mixture_n_molar_molecules is not None:
             schema.protocol_schemas.append(mixture_n_molar_molecules.schema)
 
-        schema.protocol_replicators = [component_replicator]
+        schema.protocol_replicators = [
+            mixture_data_replicator,
+            component_replicator,
+            component_data_replicator,
+        ]
 
         schema.final_value_source = ProtocolPath(
             "result", calculate_excess_observable.id
@@ -525,9 +581,48 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
         calculation_schema.absolute_tolerance = absolute_tolerance
         calculation_schema.relative_tolerance = relative_tolerance
         calculation_schema.number_of_molecules = n_molecules
+        calculation_schema.storage_queries = cls._default_preequilibrated_simulation_storage_query()
 
         calculation_schema.workflow_schema = schema
         return calculation_schema
+    
+    @classmethod
+    def _default_preequilibrated_simulation_storage_query(cls) -> Dict[str, SimulationDataQuery]:
+        """Returns the default storage queries to use when retrieving cached simulation
+        data to reweight.
+
+        This will include one query (with the key `"full_system_data"`) to return data
+        for the full mixture system, and another query (with the key `"component_data"`)
+        which will include data for each pure component in the system.
+
+        Returns
+        -------
+            The dictionary of queries.
+        """
+        mixture_data_query = SimulationDataQuery()
+        mixture_data_query.substance = PlaceholderValue()
+        mixture_data_query.thermodynamic_state = PlaceholderValue()
+        mixture_data_query.max_number_of_molecules = PlaceholderValue()
+        mixture_data_query.calculation_layer = "EquilibrationLayer"
+        mixture_data_query.property_phase = PropertyPhase.Liquid
+
+        # Set up a query which will return the data of each
+        # individual component in the system.
+        component_query = SubstanceQuery()
+        component_query.components_only = True
+
+        component_data_query = SimulationDataQuery()
+        component_data_query.property_phase = PropertyPhase.Liquid
+        component_data_query.substance = PlaceholderValue()
+        component_data_query.substance_query = component_query
+        component_data_query.thermodynamic_state = PlaceholderValue()
+        component_data_query.max_number_of_molecules = PlaceholderValue()
+        component_data_query.calculation_layer = "EquilibrationLayer"
+
+        return {
+            "full_system_data": mixture_data_query,
+            "component_data": component_data_query,
+        }
 
     @classmethod
     def _default_reweighting_storage_query(cls) -> Dict[str, SimulationDataQuery]:
