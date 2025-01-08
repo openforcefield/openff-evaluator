@@ -287,7 +287,10 @@ class CalculationLayer(abc.ABC):
                         continue
 
                 if returned_output.physical_property == UNDEFINED:
-                    if len(returned_output.exceptions) == 0 and layer_name != "EquilibrationLayer":
+                    if (
+                        len(returned_output.exceptions) == 0
+                        and layer_name != "EquilibrationLayer"
+                    ):
                         logger.info(
                             "A calculation layer did not return an estimated property nor did it "
                             "raise an Exception. This sometimes and expectedly occurs when using "
