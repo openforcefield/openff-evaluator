@@ -427,7 +427,7 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
             mixture_protocols,
             mixture_value,
             mixture_stored_data,
-            mixture_data_replicators
+            mixture_data_replicators,
         ) = generate_preequilibrated_simulation_protocols(
             analysis.AverageObservable("extract_observable_mixture"),
             use_target_uncertainty,
@@ -436,7 +436,7 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
             n_molecules=n_molecules,
         )
         mixture_data_replicator = mixture_data_replicators[0]
-        
+
         # Specify the average observable which should be estimated.
         mixture_protocols.analysis_protocol.observable = ProtocolPath(
             f"observables[{cls._observable_type().value}]",
@@ -449,14 +449,16 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
         component_replicator.template_values = ProtocolPath("components", "global")
         component_substance = ReplicatorValue(component_replicator.id)
 
-        component_protocols, _, component_stored_data, component_data_replicators = generate_preequilibrated_simulation_protocols(
-            analysis.AverageObservable(
-                f"extract_observable_component_{component_replicator.placeholder_id}"
-            ),
-            use_target_uncertainty,
-            replicator_id=f"component_{component_replicator.placeholder_id}_data_replicator",
-            id_suffix=f"_component_{component_replicator.placeholder_id}",
-            n_molecules=n_molecules,
+        component_protocols, _, component_stored_data, component_data_replicators = (
+            generate_preequilibrated_simulation_protocols(
+                analysis.AverageObservable(
+                    f"extract_observable_component_{component_replicator.placeholder_id}"
+                ),
+                use_target_uncertainty,
+                replicator_id=f"component_{component_replicator.placeholder_id}_data_replicator",
+                id_suffix=f"_component_{component_replicator.placeholder_id}",
+                n_molecules=n_molecules,
+            )
         )
         # Specify the average observable which should be estimated.
         component_protocols.analysis_protocol.observable = ProtocolPath(
@@ -467,7 +469,6 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
         component_data_replicator.template_values = ProtocolPath(
             f"component_data[$({component_replicator.id})]", "global"
         )
-
 
         (
             component_protocols.analysis_protocol.divisor,
@@ -581,13 +582,17 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
         calculation_schema.absolute_tolerance = absolute_tolerance
         calculation_schema.relative_tolerance = relative_tolerance
         calculation_schema.number_of_molecules = n_molecules
-        calculation_schema.storage_queries = cls._default_preequilibrated_simulation_storage_query()
+        calculation_schema.storage_queries = (
+            cls._default_preequilibrated_simulation_storage_query()
+        )
 
         calculation_schema.workflow_schema = schema
         return calculation_schema
-    
+
     @classmethod
-    def _default_preequilibrated_simulation_storage_query(cls) -> Dict[str, SimulationDataQuery]:
+    def _default_preequilibrated_simulation_storage_query(
+        cls,
+    ) -> Dict[str, SimulationDataQuery]:
         """Returns the default storage queries to use when retrieving cached simulation
         data to reweight.
 

@@ -558,7 +558,9 @@ def generate_preequilibrated_simulation_protocols(
     conditional_group: Optional[ConditionalGroup] = None,
     replicator_id: str = "data_replicator",
     n_molecules: int = 1000,
-) -> Tuple[PreequilibratedSimulationProtocols[S], ProtocolPath, StoredSimulationData, list]:
+) -> Tuple[
+    PreequilibratedSimulationProtocols[S], ProtocolPath, StoredSimulationData, list
+]:
 
     # Create the replicator which will apply these protocol once for each piece of
     # cached simulation data.

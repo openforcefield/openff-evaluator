@@ -55,10 +55,12 @@ class Density(PhysicalProperty):
         )
 
         # Define the protocols which will run the simulation itself.
-        protocols, value_source, output_to_store, replicators = protocol_generator_function(
-            analysis.AverageObservable("average_density"),
-            use_target_uncertainty,
-            n_molecules=n_molecules,
+        protocols, value_source, output_to_store, replicators = (
+            protocol_generator_function(
+                analysis.AverageObservable("average_density"),
+                use_target_uncertainty,
+                n_molecules=n_molecules,
+            )
         )
         # Specify that the average density should be estimated.
         protocols.analysis_protocol.observable = ProtocolPath(
