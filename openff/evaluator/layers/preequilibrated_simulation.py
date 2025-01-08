@@ -35,7 +35,7 @@ def default_storage_query():
     Returns
     -------
     dict of str and SimulationDataQuery
-        A single query with a key of `"preequilibrated_box"`.
+        A single query with a key of `"full_system_data"`.
     """
 
     query = SimulationDataQuery()
@@ -46,7 +46,7 @@ def default_storage_query():
     query.property_phase = PropertyPhase.Liquid
     query.calculation_layer = "EquilibrationLayer"
 
-    return {"preequilibrated_box": query}
+    return {"full_system_data": query}
 
 
 class PreequilibratedSimulationSchema(WorkflowCalculationSchema):
@@ -143,9 +143,23 @@ class PreequilibratedSimulationLayer(WorkflowCalculationLayer):
             assert len(query_list) == 1
 
             storage_key, data_object, data_directory = query_list[0]
-            coordinate_file = os.path.join(
-                data_directory, data_object.coordinate_file_name
+
+            object_path = os.path.join(working_directory, f"{storage_key}")
+            force_field_path = os.path.join(
+                working_directory, f"{data_object.force_field_id}"
             )
-            assert os.path.exists(coordinate_file)
+            # Save a local copy of the data object file.
+            if not os.path.isfile(object_path):
+                data_object.json(object_path)
+
+            force_field_path = os.path.join(working_directory, data_object.force_field_id)
+            if not os.path.isfile(force_field_path):
+                existing_force_field = storage_backend.retrieve_force_field(
+                    data_object.force_field_id
+                )
+                existing_force_field.json(force_field_path)
+
+
+            global_metadata[key] = (object_path, data_directory, force_field_path)
 
         return global_metadata
