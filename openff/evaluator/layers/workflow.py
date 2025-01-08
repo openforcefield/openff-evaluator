@@ -193,12 +193,16 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
 
             physical_property = properties_by_id[workflow_result.workflow_id]
             physical_property = copy.deepcopy(physical_property)
-            physical_property.source = provenance[physical_property.id]
-            physical_property.value = workflow_result.value.value
-            physical_property.uncertainty = workflow_result.value.error
 
-            if len(workflow_result.gradients) > 0:
-                physical_property.gradients = workflow_result.gradients
+            if workflow_result.value != UNDEFINED:
+                physical_property.source = provenance[physical_property.id]
+                physical_property.value = workflow_result.value.value
+                physical_property.uncertainty = workflow_result.value.error
+
+                if len(workflow_result.gradients) > 0:
+                    physical_property.gradients = workflow_result.gradients
+            else:
+                physical_property = UNDEFINED
 
             calculation_result.physical_property = physical_property
             calculation_result.data_to_store.extend(workflow_result.data_to_store)
