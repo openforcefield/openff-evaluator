@@ -295,6 +295,12 @@ class SimulationDataQuery(BaseSimulationDataQuery):
         optional=True,
     )
 
+    max_number_of_molecules = QueryAttribute(
+        docstring="The max/input number of molecules in the system.",
+        type_hint=int,
+        optional=True,
+    )
+
     calculation_layer = QueryAttribute(
         docstring="Calculation layer type (e.g. 'SimulationLayer', 'ReweightingLayer')",
         type_hint=str,

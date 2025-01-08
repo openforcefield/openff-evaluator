@@ -41,7 +41,7 @@ def default_storage_query():
     query = SimulationDataQuery()
     query.substance = PlaceholderValue()
     query.thermodynamic_state = PlaceholderValue()
-    query.number_of_molecules = PlaceholderValue()
+    query.max_number_of_molecules = PlaceholderValue()
 
     query.property_phase = PropertyPhase.Liquid
     query.calculation_layer = "EquilibrationLayer"
@@ -126,8 +126,8 @@ class PreequilibratedSimulationLayer(WorkflowCalculationLayer):
                 query.substance = physical_property.substance
             if isinstance(query.thermodynamic_state, PlaceholderValue):
                 query.thermodynamic_state = physical_property.thermodynamic_state
-            if isinstance(query.number_of_molecules, PlaceholderValue):
-                query.number_of_molecules = calculation_schema.number_of_molecules
+            if isinstance(query.max_number_of_molecules, PlaceholderValue):
+                query.max_number_of_molecules = calculation_schema.number_of_molecules
 
             # Apply the query.
             query_results = storage_backend.query(query)
@@ -147,10 +147,5 @@ class PreequilibratedSimulationLayer(WorkflowCalculationLayer):
                 data_directory, data_object.coordinate_file_name
             )
             assert os.path.exists(coordinate_file)
-            global_metadata["equilibrated_file_path"] = os.path.abspath(coordinate_file)
-            global_metadata["full_substance"] = data_object.substance
-            global_metadata["full_number_of_molecules"] = (
-                data_object.number_of_molecules
-            )
 
         return global_metadata

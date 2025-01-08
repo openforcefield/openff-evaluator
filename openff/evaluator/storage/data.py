@@ -235,6 +235,11 @@ class StoredSimulationData(BaseSimulationData):
         type_hint=int,
     )
 
+    max_number_of_molecules = StorageAttribute(
+        docstring="The max number of molecules allowed in the system",
+        type_hint=int,
+    )
+
     calculation_layer = StorageAttribute(
         docstring="The CalculationLayer used to generate this data.",
         type_hint=str,

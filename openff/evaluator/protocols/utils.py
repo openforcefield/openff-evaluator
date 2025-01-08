@@ -53,6 +53,7 @@ class PreequilibratedSimulationProtocols(Generic[S]):
     """The common set of protocols which would be required to estimate an observable
     by running a new molecule simulation."""
 
+    unpack_stored_data: storage.UnpackStoredSimulationData
     assign_parameters: forcefield.BaseBuildSystem
     energy_minimisation: openmm.OpenMMEnergyMinimisation
     equilibration_simulation: openmm.OpenMMSimulation
@@ -520,6 +521,7 @@ def generate_equilibration_protocols(
     output_to_store.number_of_molecules = ProtocolPath(
         "output_number_of_molecules", build_coordinates.id
     )
+    output_to_store.max_number_of_molecules = n_molecules
     output_to_store.substance = ProtocolPath("output_substance", build_coordinates.id)
     output_to_store.statistical_inefficiency = ProtocolPath(
         "time_series_statistics.statistical_inefficiency",
@@ -554,22 +556,38 @@ def generate_preequilibrated_simulation_protocols(
     use_target_uncertainty: bool,
     id_suffix: str = "",
     conditional_group: Optional[ConditionalGroup] = None,
+    replicator_id: str = "data_replicator",
     n_molecules: int = 1000,
 ) -> Tuple[PreequilibratedSimulationProtocols[S], ProtocolPath, StoredSimulationData]:
 
-    assign_parameters = forcefield.BaseBuildSystem(f"assign_parameters{id_suffix}")
-    assign_parameters.force_field_path = ProtocolPath("force_field_path", "global")
-    assign_parameters.coordinate_file_path = ProtocolPath(
-        "equilibrated_file_path", "global"
+    # Create the replicator which will apply these protocol once for each piece of
+    # cached simulation data.
+    data_replicator = ProtocolReplicator(replicator_id=replicator_id)
+    data_replicator.template_values = ProtocolPath("full_system_data", "global")
+
+    replicator_suffix = f"_{data_replicator.placeholder_id}{id_suffix}"
+
+    # Unpack all the of the stored data.
+    unpack_stored_data = storage.UnpackStoredSimulationData(
+        "unpack_data{}".format(replicator_suffix)
     )
-    assign_parameters.substance = ProtocolPath("full_substance", "global")
+    unpack_stored_data.simulation_data_path = ReplicatorValue(replicator_id)
+
+    assign_parameters = forcefield.BaseBuildSystem(f"assign_parameters{id_suffix}")
+    assign_parameters.force_field_path = ProtocolPath(
+        "force_field_path", unpack_stored_data.id
+    )
+    assign_parameters.coordinate_file_path = ProtocolPath(
+        "coordinate_file_path", unpack_stored_data.id
+    )
+    assign_parameters.substance = ProtocolPath("substance", unpack_stored_data.id)
 
     # Equilibration
     energy_minimisation = openmm.OpenMMEnergyMinimisation(
         f"energy_minimisation{id_suffix}"
     )
     energy_minimisation.input_coordinate_file = ProtocolPath(
-        "equilibrated_file_path", "global"
+        "coordinate_file_path", unpack_stored_data.id
     )
     energy_minimisation.parameterized_system = ProtocolPath(
         "parameterized_system", assign_parameters.id
@@ -583,7 +601,7 @@ def generate_preequilibrated_simulation_protocols(
     equilibration_simulation.output_frequency = 5000
     equilibration_simulation.timestep = 2.0 * unit.femtosecond
     equilibration_simulation.thermodynamic_state = ProtocolPath(
-        "thermodynamic_state", "global"
+        "thermodynamic_state", unpack_stored_data.id
     )
     equilibration_simulation.input_coordinate_file = ProtocolPath(
         "output_coordinate_file", energy_minimisation.id
@@ -599,7 +617,7 @@ def generate_preequilibrated_simulation_protocols(
     production_simulation.output_frequency = 2000
     production_simulation.timestep = 2.0 * unit.femtosecond
     production_simulation.thermodynamic_state = ProtocolPath(
-        "thermodynamic_state", "global"
+        "thermodynamic_state", unpack_stored_data.id
     )
     production_simulation.input_coordinate_file = ProtocolPath(
         "output_coordinate_file", equilibration_simulation.id
@@ -642,7 +660,7 @@ def generate_preequilibrated_simulation_protocols(
         )
 
     analysis_protocol.thermodynamic_state = ProtocolPath(
-        "thermodynamic_state", "global"
+        "thermodynamic_state", unpack_stored_data.id
     )
     analysis_protocol.potential_energies = ProtocolPath(
         f"observables[{ObservableType.PotentialEnergy.value}]",
@@ -679,15 +697,19 @@ def generate_preequilibrated_simulation_protocols(
     # Build the object which defines which pieces of simulation data to store.
     output_to_store = StoredSimulationData()
 
-    output_to_store.thermodynamic_state = ProtocolPath("thermodynamic_state", "global")
+    output_to_store.thermodynamic_state = ProtocolPath(
+        "thermodynamic_state", unpack_stored_data.id
+    )
     output_to_store.property_phase = PropertyPhase.Liquid
 
     output_to_store.force_field_id = PlaceholderValue()
 
     output_to_store.number_of_molecules = ProtocolPath(
-        "full_number_of_molecules", "global"
+        "total_number_of_molecules", unpack_stored_data.id
     )
-    output_to_store.substance = ProtocolPath("full_substance", "global")
+    output_to_store.max_number_of_molecules = n_molecules
+    
+    output_to_store.substance = ProtocolPath("substance", unpack_stored_data.id)
     output_to_store.statistical_inefficiency = ProtocolPath(
         "time_series_statistics.statistical_inefficiency",
         conditional_group.id,
@@ -709,6 +731,7 @@ def generate_preequilibrated_simulation_protocols(
     )
 
     base_protocols = PreequilibratedSimulationProtocols(
+        unpack_stored_data,
         assign_parameters,
         energy_minimisation,
         equilibration_simulation,
@@ -924,6 +947,7 @@ def generate_simulation_protocols(
     output_to_store.number_of_molecules = ProtocolPath(
         "output_number_of_molecules", build_coordinates.id
     )
+    output_to_store.max_number_of_molecules = n_molecules
     output_to_store.substance = ProtocolPath("output_substance", build_coordinates.id)
     output_to_store.statistical_inefficiency = ProtocolPath(
         "time_series_statistics.statistical_inefficiency",
