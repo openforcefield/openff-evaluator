@@ -708,7 +708,7 @@ def generate_preequilibrated_simulation_protocols(
         "total_number_of_molecules", unpack_stored_data.id
     )
     output_to_store.max_number_of_molecules = n_molecules
-    
+
     output_to_store.substance = ProtocolPath("substance", unpack_stored_data.id)
     output_to_store.statistical_inefficiency = ProtocolPath(
         "time_series_statistics.statistical_inefficiency",
