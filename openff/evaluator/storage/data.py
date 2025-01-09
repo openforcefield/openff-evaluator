@@ -193,6 +193,31 @@ class BaseSimulationData(ReplaceableData, abc.ABC):
         return True
 
 
+class StoredEquilibrationData(BaseSimulationData):
+    coordinate_file_name = StorageAttribute(
+        docstring="The name of a coordinate file which encodes the "
+        "topology information of the system.",
+        type_hint=FilePath,
+    )
+
+    number_of_molecules = StorageAttribute(
+        docstring="The total number of molecules in the system.",
+        type_hint=int,
+    )
+
+
+    max_number_of_molecules = StorageAttribute(
+        docstring="The max number of molecules allowed in the system",
+        type_hint=int,
+    )
+
+    calculation_layer = StorageAttribute(
+        docstring="The CalculationLayer used to generate this data.",
+        type_hint=str,
+        optional=True,
+    )
+
+
 class StoredSimulationData(BaseSimulationData):
     """A representation of data which has been cached from a single previous simulation.
 
@@ -233,17 +258,6 @@ class StoredSimulationData(BaseSimulationData):
     number_of_molecules = StorageAttribute(
         docstring="The total number of molecules in the system.",
         type_hint=int,
-    )
-
-    max_number_of_molecules = StorageAttribute(
-        docstring="The max number of molecules allowed in the system",
-        type_hint=int,
-    )
-
-    calculation_layer = StorageAttribute(
-        docstring="The CalculationLayer used to generate this data.",
-        type_hint=str,
-        optional=True,
     )
 
     @classmethod
