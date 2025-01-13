@@ -8,10 +8,10 @@ import tempfile
 import pytest
 
 from openff.evaluator._tests.test_storage.data import HashableData, SimpleData
-from openff.evaluator._tests.utils import create_dummy_simulation_data
+from openff.evaluator._tests.utils import create_dummy_simulation_data, create_dummy_equilibration_data
 from openff.evaluator.forcefield import SmirnoffForceFieldSource
 from openff.evaluator.storage import LocalFileStorage
-from openff.evaluator.storage.data import StoredSimulationData
+from openff.evaluator.storage.data import StoredSimulationData, StoredEquilibrationData
 from openff.evaluator.storage.query import SimulationDataQuery, SubstanceQuery
 from openff.evaluator.substances import Substance
 
@@ -68,12 +68,16 @@ def test_force_field_storage():
         assert new_force_field_id == force_field_id
 
 
-def test_base_simulation_data_storage():
+@pytest.mark.parametrize("data_types", [
+    {"data_class": StoredSimulationData, "data_function": create_dummy_simulation_data},
+    {"data_class": StoredEquilibrationData, "data_function": create_dummy_equilibration_data},
+])
+def test_base_simulation_data_storage(data_types):
     substance = Substance.from_components("C")
 
     with tempfile.TemporaryDirectory() as base_directory:
         data_directory = os.path.join(base_directory, "data_directory")
-        data_object = create_dummy_simulation_data(data_directory, substance)
+        data_object = data_types["data_function"](data_directory, substance)
 
         backend_directory = os.path.join(base_directory, "storage_dir")
 
@@ -87,7 +91,7 @@ def test_base_simulation_data_storage():
         assert storage_key == storage.store_object(data_object, data_directory)
 
         retrieved_object, retrieved_directory = storage.retrieve_object(
-            storage_key, StoredSimulationData
+            storage_key, data_types["data_class"]
         )
 
         assert backend_directory in retrieved_directory

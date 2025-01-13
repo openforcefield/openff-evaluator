@@ -194,17 +194,34 @@ class BaseSimulationData(ReplaceableData, abc.ABC):
 
 
 class StoredEquilibrationData(BaseSimulationData):
+    """A representation of data which has been cached from a single previous equilibration simulation.
+    
+    Notes
+    -----
+    The ancillary directory which stores larger information should be of the form:
+
+    .. code-block::
+
+        |--- data_object.json
+        |--- data_directory
+             |--- coordinate_file_name.pdb
+    """
+
     coordinate_file_name = StorageAttribute(
         docstring="The name of a coordinate file which encodes the "
         "topology information of the system.",
         type_hint=FilePath,
     )
 
+    statistical_inefficiency = StorageAttribute(
+        docstring="The statistical inefficiency of the collected data.",
+        type_hint=float,
+    )
+
     number_of_molecules = StorageAttribute(
         docstring="The total number of molecules in the system.",
         type_hint=int,
     )
-
 
     max_number_of_molecules = StorageAttribute(
         docstring="The max number of molecules allowed in the system",
@@ -216,6 +233,52 @@ class StoredEquilibrationData(BaseSimulationData):
         type_hint=str,
         optional=True,
     )
+
+    def to_storage_query(self):
+        """
+        Returns
+        -------
+        EquilibrationDataQuery
+            The storage query which would match this
+            data object.
+        """
+        from .query import EquilibrationDataQuery
+
+        return EquilibrationDataQuery.from_data_object(self)
+    
+
+    @classmethod
+    def most_information(cls, stored_data_1, stored_data_2):
+        """Returns the data object with the lowest
+        `statistical_inefficiency`.
+
+        Parameters
+        ----------
+        stored_data_1: StoredSimulationData
+            The first piece of data to compare.
+        stored_data_2: StoredSimulationData
+            The second piece of data to compare.
+
+        Returns
+        -------
+        StoredSimulationData
+        """
+        if (
+            super(StoredEquilibrationData, cls).most_information(
+                stored_data_1, stored_data_2
+            )
+            is None
+        ):
+            return None
+        if (
+            stored_data_1.statistical_inefficiency
+            < stored_data_2.statistical_inefficiency
+        ):
+            return stored_data_1
+
+        return stored_data_2
+
+
 
 
 class StoredSimulationData(BaseSimulationData):

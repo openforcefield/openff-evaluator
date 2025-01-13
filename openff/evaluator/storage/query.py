@@ -12,6 +12,7 @@ from openff.evaluator.storage.attributes import QueryAttribute
 from openff.evaluator.storage.data import (
     ForceFieldData,
     StoredFreeEnergyData,
+    StoredEquilibrationData,
     StoredSimulationData,
 )
 from openff.evaluator.substances import ExactAmount, Substance
@@ -280,14 +281,14 @@ class BaseSimulationDataQuery(BaseDataQuery, abc.ABC):
             )
 
 
-class SimulationDataQuery(BaseSimulationDataQuery):
-    """A class used to query a ``StorageBackend`` for ``StoredSimulationData`` objects
+class EquilibrationDataQuery(BaseSimulationDataQuery):
+    """A class used to query a ``StorageBackend`` for ``StoredEquilibrationData`` objects
     which meet the specified set of criteria.
     """
 
     @classmethod
     def data_class(cls):
-        return StoredSimulationData
+        return StoredEquilibrationData
 
     number_of_molecules = QueryAttribute(
         docstring="The total number of molecules in the system.",
@@ -307,6 +308,22 @@ class SimulationDataQuery(BaseSimulationDataQuery):
         optional=True,
     )
 
+
+
+class SimulationDataQuery(BaseSimulationDataQuery):
+    """A class used to query a ``StorageBackend`` for ``StoredSimulationData`` objects
+    which meet the specified set of criteria.
+    """
+
+    @classmethod
+    def data_class(cls):
+        return StoredSimulationData
+
+    number_of_molecules = QueryAttribute(
+        docstring="The total number of molecules in the system.",
+        type_hint=int,
+        optional=True,
+    )
 
 class FreeEnergyDataQuery(BaseSimulationDataQuery):
     """A class used to query a ``StorageBackend`` for ``FreeEnergyData`` objects which
