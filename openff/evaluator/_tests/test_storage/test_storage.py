@@ -133,8 +133,12 @@ def test_base_simulation_data_query():
         assert results is not None and len(results) == 2
 
 
+@pytest.mark.parametrize(
+    "data_generation_function",
+    [create_dummy_simulation_data, create_dummy_equilibration_data]
+)
 @pytest.mark.parametrize("reverse_order", [True, False])
-def test_duplicate_simulation_data_storage(reverse_order):
+def test_duplicate_simulation_data_storage(data_generation_function, reverse_order):
     substance = Substance.from_components("CO")
 
     with tempfile.TemporaryDirectory() as base_directory_path:
@@ -149,7 +153,7 @@ def test_duplicate_simulation_data_storage(reverse_order):
             data_directory = os.path.join(base_directory_path, f"data_{index}")
             coordinate_name = f"data_{index}.pdb"
 
-            data_object = create_dummy_simulation_data(
+            data_object = data_generation_function(
                 directory_path=data_directory,
                 substance=substance,
                 force_field_id="ff_id_1",

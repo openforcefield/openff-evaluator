@@ -149,6 +149,7 @@ def create_dummy_equilibration_data(
         calculation_id = str(uuid.uuid4())
 
     data.source_calculation_id = calculation_id
+    StoredEquilibrationData.calculation_layer = "EquilibrationLayer"
 
     return data
 
