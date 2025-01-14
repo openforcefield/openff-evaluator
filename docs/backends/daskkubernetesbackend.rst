@@ -1,8 +1,11 @@
-.. |dask_kubernetes_backend|        replace:: :py:class:`~openff.evaluator.backends.dask_kubernetes.DaskKubernetesBackend`
-.. |evaluator_server|        replace:: :py:class:`~openff.evaluator.backends.dask_kubernetes.DaskKubernetesBackend`
-.. |evaluator_client|        replace:: :py:class:`~openff.evaluator.backends.dask_kubernetes.DaskKubernetesBackend`
-.. |pod_resources|        replace:: :py:class:`~openff.evaluator.backends.dask_kubernetes.DaskKubernetesBackend`
-.. |compute_resources|        replace:: :py:class:`~openff.evaluator.backends.dask_kubernetes.DaskKubernetesBackend`
+.. |dask_kubernetes_backend|            replace:: :py:class:`~openff.evaluator.backends.dask_kubernetes.DaskKubernetesBackend`
+.. |dask_kubernetes_existing_backend|   replace:: :py:class:`~openff.evaluator.backends.dask_kubernetes.DaskKubernetesExistingBackend`
+.. |evaluator_server|                   replace:: :py:class:`~openff.evaluator.server.EvaluatorServer`
+.. |evaluator_client|                   replace:: :py:class:`~openff.evaluator.client.EvaluatorClient`
+.. |pod_resources|                      replace:: :py:class:`~openff.evaluator.backends.PodResources`
+.. |compute_resources|                  replace:: :py:class:`~openff.evaluator.backends.ComputeResources`
+.. |kubernetes_persistent_volume_claim| replace:: :py:class:`~openff.evaluator.backends.dask_kubernetes.KubernetesPersistentVolumeClaim`
+.. |kubernetes_secret|                  replace:: :py:class:`~openff.evaluator.backends.dask_kubernetes.KubernetesSecret`
 
 
 Dask Kubernetes Backend
