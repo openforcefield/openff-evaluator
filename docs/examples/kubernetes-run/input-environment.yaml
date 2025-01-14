@@ -1,0 +1,40 @@
+name: evaluator-test-env
+channels:
+- conda-forge
+- openeye  # optional, for openeye
+dependencies:
+    # Base depends
+  - python
+  - pip
+
+    # Testing and development
+  - pytest
+  - pytest-cov
+  - pytest-xdist
+  - pytest-randomly
+  - nbval
+  - requests-mock # For testing http requests.
+  - foyer
+
+    # Shim
+  - pint >=0.21,<0.25
+  - click
+
+    # Standard dependencies
+  - openeye-toolkits # optional, for openeye
+  - openff-toolkit >=0.14.3
+  - openmm
+  - pymbar
+  - dask >=2.7.0
+  - distributed >=2.7.0
+  - dask-jobqueue >=0.8.0
+  - dask-kubernetes
+  - uncertainties
+  - openmmtools
+  - pyyaml
+  - requests
+  - python-dateutil
+  - pydantic >=1.10.17,<3
+  - taproom
+  - dataclasses
+  - pandas =1
