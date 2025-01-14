@@ -248,3 +248,5 @@ The |evaluator_server| can be deployed remotely on NRP with the following comman
         )
         evaluator_server.start(asynchronous=False)
 
+Ideally this should be done on a Kubernetes deployment to ensure the |evaluator_server| is always running.
+The |evaluator_server| should be port forwarded to allow ForceBalance to communicate with it on a ``server_port``.
