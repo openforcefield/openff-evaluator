@@ -463,7 +463,7 @@ def analyse_functional_groups(smiles):
             "checkmol",
             False,
             "Checkmol can be obtained for free from "
-            "http://merian.pch.univie.ac.at/~nhaider/cheminf/cmmm.html.",
+            "https://homepage.univie.ac.at/norbert.haider/cheminf/cmmm.html",
         )
 
     openff_molecule: Molecule = Molecule.from_smiles(
