@@ -12,7 +12,7 @@ from openff.evaluator._tests.utils import create_dummy_simulation_data, create_d
 from openff.evaluator.forcefield import SmirnoffForceFieldSource
 from openff.evaluator.storage import LocalFileStorage
 from openff.evaluator.storage.data import StoredSimulationData, StoredEquilibrationData
-from openff.evaluator.storage.query import SimulationDataQuery, SubstanceQuery
+from openff.evaluator.storage.query import SimulationDataQuery, SubstanceQuery, EquilibrationDataQuery
 from openff.evaluator.substances import Substance
 
 
