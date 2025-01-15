@@ -22,6 +22,7 @@ from openff.evaluator.workflow.attributes import (
     InputAttribute,
     MergeBehavior,
     OutputAttribute,
+    ConditionAggregationBehavior
 )
 from openff.evaluator.workflow.utils import ProtocolPath
 
@@ -86,6 +87,12 @@ class ConditionalGroup(ProtocolGroup):
         default_value=[],
         merge_behavior=MergeBehavior.Custom,
     )
+    condition_aggregation_behavior = InputAttribute(
+        docstring="The behavior to use when aggregating multiple conditions.",
+        type_hint=ConditionAggregationBehavior,
+        default_value=ConditionAggregationBehavior.All,
+        merge_behavior=MergeBehavior.ExactlyEqual,
+    )
 
     current_iteration = OutputAttribute(
         docstring="The current number of iterations this group has performed while "
@@ -99,6 +106,12 @@ class ConditionalGroup(ProtocolGroup):
         type_hint=int,
         default_value=100,
         merge_behavior=InequalityMergeBehavior.LargestValue,
+    )
+    error_on_failure = InputAttribute(
+        docstring="If True, an error will be raised if the group fails to converge.",
+        type_hint=bool,
+        default_value=True,
+        merge_behavior=MergeBehavior.Custom,
     )
 
     def __init__(self, protocol_id):
@@ -198,6 +211,27 @@ class ConditionalGroup(ProtocolGroup):
             current_iteration = checkpoint_dictionary["current_iteration"]
 
         return current_iteration
+    
+    def _evaluate_all(self) -> bool:
+        """Evaluates all the conditions in this group."""
+        conditions_met = True
+
+        for condition in self._conditions:
+            # Check to see if we have reached our goal.
+            if not self._evaluate_condition(condition):
+                conditions_met = False
+        return conditions_met
+    
+    def _evaluate_any(self) -> bool:
+        """Evaluates any of the conditions in this group."""
+        conditions_met = False
+
+        for condition in self._conditions:
+            # Check to see if we have reached our goal.
+            if self._evaluate_condition(condition):
+                conditions_met = True
+        return conditions_met
+
 
     def _execute(self, directory, available_resources):
         """Executes the protocols within this groups
@@ -221,6 +255,16 @@ class ConditionalGroup(ProtocolGroup):
         # Keep a track of the original protocol schemas
         original_schemas = [x.schema for x in self._protocols]
 
+        if self.condition_aggregation_behavior == ConditionAggregationBehavior.All:
+            aggregator = self._evaluate_all
+        elif self.condition_aggregation_behavior == ConditionAggregationBehavior.Any:
+            aggregator = self._evaluate_any
+        else:
+            raise NotImplementedError(
+                f"Condition aggregation behavior {self.condition_aggregation_behavior} "
+                f"not supported"
+            )
+
         while should_continue:
             # Create a checkpoint file so we can pick off where
             # we left off if this execution fails due to time
@@ -236,12 +280,7 @@ class ConditionalGroup(ProtocolGroup):
 
             super(ConditionalGroup, self)._execute(directory, available_resources)
 
-            conditions_met = True
-
-            for condition in self._conditions:
-                # Check to see if we have reached our goal.
-                if not self._evaluate_condition(condition):
-                    conditions_met = False
+            conditions_met = aggregator()
 
             if conditions_met:
                 logger.info(
@@ -249,7 +288,7 @@ class ConditionalGroup(ProtocolGroup):
                 )
                 return
 
-            if self.current_iteration >= self.max_iterations:
+            if self.current_iteration >= self.max_iterations and self.error_on_failure:
                 raise RuntimeError(f"{self.id} failed to converge.")
 
             logger.info(

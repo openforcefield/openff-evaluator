@@ -20,20 +20,23 @@ from openff.evaluator.protocols import (
     reweighting,
     storage,
 )
+from openff.evaluator.layers.equilibration import EquilibrationProperty
 from openff.evaluator.protocols.groups import ConditionalGroup
 from openff.evaluator.storage.data import StoredSimulationData
 from openff.evaluator.thermodynamics import Ensemble
 from openff.evaluator.utils.observables import ObservableType
 from openff.evaluator.workflow import ProtocolGroup
+from openff.evaluator.workflow.attributes import ConditionAggregationBehavior
 from openff.evaluator.workflow.schemas import ProtocolReplicator
 from openff.evaluator.workflow.utils import ProtocolPath, ReplicatorValue
+from openff.evaluator.protocols.miscellaneous import MultiplyValue
 
 S = TypeVar("S", bound=analysis.BaseAverageObservable)
 T = TypeVar("T", bound=reweighting.BaseMBARProtocol)
 
 
 @dataclass
-class EquilibrationProtocols(Generic[S]):
+class EquilibrationProtocols(Generic):
     """The common set of protocols which would be required to estimate an observable
     by running a new molecule simulation."""
 
@@ -392,9 +395,12 @@ def generate_reweighting_protocols(
 
 
 def generate_equilibration_protocols(
-    use_target_uncertainty: bool,
     id_suffix: str = "",
     n_molecules: int = 1000,
+    error_tolerances: list[EquilibrationProperty] = [],
+    condition_aggregation_behavior: ConditionAggregationBehavior = ConditionAggregationBehavior.All,
+    error_on_failure: bool = True,
+    max_iterations: int = 100,
 ) -> Tuple[EquilibrationProtocols[S], ProtocolPath, StoredSimulationData]:
     """
     Constructs a set of protocols which, when combined in a workflow schema, may be
@@ -460,30 +466,82 @@ def generate_equilibration_protocols(
         "parameterized_system", assign_parameters.id
     )
 
-    analysis_protocol = analysis.AverageObservable(
-        f"extract_potential_energy{id_suffix}"
-    )
-
-    analysis_protocol.thermodynamic_state = ProtocolPath(
-        "thermodynamic_state", "global"
-    )
-    analysis_protocol.potential_energies = ProtocolPath(
-        f"observables[{ObservableType.PotentialEnergy.value}]",
-        equilibration_simulation.id,
-    )
-    analysis_protocol.observable = ProtocolPath(
-        f"observables[{ObservableType.PotentialEnergy.value}]",
-        equilibration_simulation.id,
-    )
-
     # Set up a conditional group to ensure convergence of uncertainty
     conditional_group = groups.ConditionalGroup(f"conditional_group{id_suffix}")
     conditional_group.max_iterations = 100
 
-    if use_target_uncertainty:
+    for i, equilibration_property in enumerate(error_tolerances):
+        observable_type = equilibration_property.observable_type.value
+        
+        # construct analysis protocol
+        analysis_protocol = analysis.AverageObservable(
+            f"extract_{i}_{observable_type}{id_suffix}"
+        )
+
+        analysis_protocol.thermodynamic_state = ProtocolPath(
+            "thermodynamic_state", "global"
+        )
+        analysis_protocol.potential_energies = ProtocolPath(
+            f"observables[{ObservableType.PotentialEnergy.value}]",
+            equilibration_simulation.id,
+        )
+        analysis_protocol.observable = ProtocolPath(
+            f"observables[{observable_type}]",
+            equilibration_simulation.id,
+        )
+
+        if equilibration_property.n_uncorrelated_samples != UNDEFINED:
+            condition = groups.ConditionalGroup.Condition()
+            condition.right_hand_value = equilibration_property.n_uncorrelated_samples
+            condition.type = groups.ConditionalGroup.Condition.Type.GreaterThan
+            condition.left_hand_value = ProtocolPath(
+                "time_series_statistics.n_uncorrelated_points",
+                conditional_group.id,
+                analysis_protocol.id,
+            )
+
+        if equilibration_property.tolerance != UNDEFINED:
+            condition = groups.ConditionalGroup.Condition()
+            # add checking of absolute error tolerance
+            if equilibration_property.absolute_tolerance != UNDEFINED:
+                tolerance = equilibration_property.absolute_tolerance.to(
+                    equilibration_property.observable_unit
+                )
+            elif equilibration_property.relative_tolerance != UNDEFINED:
+                # add error tolerance
+                multiplication_protocol = MultiplyValue(f"multiply_{i}_{observable_type}{id_suffix}")
+                multiplication_protocol.value = ProtocolPath(
+                    "value.value", conditional_group.id, analysis_protocol.id
+                )
+                multiplication_protocol.multiplier = equilibration_property.relative_tolerance
+                tolerance = ProtocolPath(
+                    "result", multiplication_protocol.id
+                )
+            else:
+                # should never get here
+                continue
+            condition.right_hand_value = tolerance
+            condition.type = groups.ConditionalGroup.Condition.Type.LessThan
+            condition.left_hand_value = ProtocolPath(
+                "value.error", conditional_group.id, analysis_protocol.id
+            )
+            conditional_group.add_condition(condition)
+        
+
+        
+        # add checking of relative error tolerance
+        if equilibration_property.relative_tolerance != UNDEFINED:
+            condition = groups.ConditionalGroup.Condition()
+            tolerance = equilibration_property.relative_tolerance
+            condition.right_hand_value = tolerance
+            condition.type = groups.ConditionalGroup.Condition.Type.LessThan
+            condition.left_hand_value = ProtocolPath(
+                "value.error", conditional_group.id, analysis_protocol.id
+            )
+            conditional_group.add_condition(condition)
+
 
         condition = groups.ConditionalGroup.Condition()
-        # set to n_frames
         condition.right_hand_value = ProtocolPath("target_uncertainty", "global")
         condition.type = groups.ConditionalGroup.Condition.Type.LessThan
         condition.left_hand_value = ProtocolPath(

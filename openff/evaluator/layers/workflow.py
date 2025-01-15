@@ -8,7 +8,7 @@ import copy
 import logging
 import os
 
-from openff.evaluator.attributes import UNDEFINED, Attribute
+from openff.evaluator.attributes import UNDEFINED, Attribute, AttributeClass
 from openff.evaluator.datasets import CalculationSource
 from openff.evaluator.layers import (
     CalculationLayer,
@@ -128,7 +128,7 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
             schema = options.calculation_schemas[property_type][cls.__name__]
 
             # Make sure the calculation schema is the correct type for this layer.
-            assert isinstance(schema, WorkflowCalculationSchema)
+            assert isinstance(schema, BaseWorkflowCalculationSchema)
             assert isinstance(schema, cls.required_schema_type())
 
             global_metadata = cls._get_workflow_metadata(
@@ -243,14 +243,9 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
         )
 
         return [future]
+    
 
-
-class WorkflowCalculationSchema(CalculationLayerSchema):
-    """A schema which encodes the options and the workflow schema
-    that a `CalculationLayer` should use when estimating a given class
-    of physical properties using the built-in workflow framework.
-    """
-
+class BaseWorkflowCalculationSchema(AttributeClass):
     workflow_schema = Attribute(
         docstring="The workflow schema to use when estimating properties.",
         type_hint=WorkflowSchema,
@@ -258,5 +253,15 @@ class WorkflowCalculationSchema(CalculationLayerSchema):
     )
 
     def validate(self, attribute_type=None):
-        super(WorkflowCalculationSchema, self).validate(attribute_type)
+        super(BaseWorkflowCalculationSchema, self).validate(attribute_type)
         self.workflow_schema.validate()
+
+
+
+class WorkflowCalculationSchema(CalculationLayerSchema, BaseWorkflowCalculationSchema):
+    """A schema which encodes the options and the workflow schema
+    that a `CalculationLayer` should use when estimating a given class
+    of physical properties using the built-in workflow framework.
+    """
+
+    
