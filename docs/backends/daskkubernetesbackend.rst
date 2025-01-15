@@ -2,7 +2,7 @@
 .. |dask_kubernetes_existing_backend|   replace:: :py:class:`~openff.evaluator.backends.dask_kubernetes.DaskKubernetesExistingBackend`
 .. |evaluator_server|                   replace:: :py:class:`~openff.evaluator.server.EvaluatorServer`
 .. |evaluator_client|                   replace:: :py:class:`~openff.evaluator.client.EvaluatorClient`
-.. |pod_resources|                      replace:: :py:class:`~openff.evaluator.backends.PodResources`
+.. |pod_resources|                      replace:: :py:class:`~openff.evaluator.backends.backends.PodResources`
 .. |compute_resources|                  replace:: :py:class:`~openff.evaluator.backends.ComputeResources`
 .. |kubernetes_persistent_volume_claim| replace:: :py:class:`~openff.evaluator.backends.dask_kubernetes.KubernetesPersistentVolumeClaim`
 .. |kubernetes_secret|                  replace:: :py:class:`~openff.evaluator.backends.dask_kubernetes.KubernetesSecret`
@@ -28,7 +28,7 @@ Several separate components are required for executing Evaluator on NRP due to t
   This needs to connect to the |dask_kubernetes_backend| to submit tasks to the Kubernetes cluster.
   If permissions are limited as they are on NRP, you may not be able to create the |dask_kubernetes_backend| remotely.
   In that case, you will need a |dask_kubernetes_existing_backend| to connect to an existing KubeCluster.
-* the |evaluator_server| port forwarded so ForceBalance can communicate with the |evaluator_server|.
+* the |evaluator_server| port forwarded so a local |evaluator_client| can communicate with the |evaluator_server|.
 
 
 PersistentVolumeClaims in Python
