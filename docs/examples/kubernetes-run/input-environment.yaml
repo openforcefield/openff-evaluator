@@ -1,6 +1,7 @@
 name: evaluator-test-env
 channels:
-  - conda-forge
+- conda-forge
+- openeye  # optional, for openeye
 dependencies:
     # Base depends
   - python
@@ -17,8 +18,10 @@ dependencies:
 
     # Shim
   - pint >=0.21,<0.25
+  - click
 
     # Standard dependencies
+  - openeye-toolkits # optional, for openeye
   - openff-toolkit >=0.14.3
   - openmm
   - pymbar
