@@ -6,6 +6,7 @@
 .. |compute_resources|                  replace:: :py:class:`~openff.evaluator.backends.ComputeResources`
 .. |kubernetes_persistent_volume_claim| replace:: :py:class:`~openff.evaluator.backends.dask_kubernetes.KubernetesPersistentVolumeClaim`
 .. |kubernetes_secret|                  replace:: :py:class:`~openff.evaluator.backends.dask_kubernetes.KubernetesSecret`
+.. |openmm_simulation|                  replace:: :py:class:`~openff.evaluator.protocols.openmm.OpenMMSimulation`
 
 
 Dask Kubernetes Backend
@@ -193,6 +194,10 @@ to execute them. Setting ``annotate_resources=True`` will split tasks into those
 executed on GPU workers, and those that can only be executed on CPU workers.
 Simulation protocols such as |openmm_simulation| are executed on GPUs, whereas tasks such as packing boxes
 are executed on CPUs. Splitting tasks this way will increase the GPU utilization of GPU workers.
+
+The resources specified are 'GPU' (set to 0.5 per protocol to encourage multiple protocols to run on the same worker),
+and 'notGPU' (set to 1 per protocol). Workers are run with either the 'GPU' or 'notGPU' resource, and tasks are
+allocated to workers based on the resources they require.
 
 Setting ``annotate_resources=False`` will allow tasks to be executed on any worker.
 
