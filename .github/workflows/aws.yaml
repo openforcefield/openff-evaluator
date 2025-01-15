@@ -25,7 +25,7 @@ jobs:
           aws-region: us-east-1
       - name: Create cloud runner
         id: aws-start
-        uses: omsf-eco-infra/gha-runner@v0.3.0
+        uses: omsf-eco-infra/gha-runner@v0.4.0
         with:
           provider: "aws"
           action: "start"
@@ -49,9 +49,8 @@ jobs:
         run: "docker version || true"
 
       - name: Setup Conda Environment
-        uses: mamba-org/setup-micromamba@v1
+        uses: mamba-org/setup-micromamba@v2
         with:
-          micromamba-version: '1.5.10-0'
           environment-file: devtools/conda-envs/test_env.yaml
 
       - name: Install Package and test plugins
@@ -79,7 +78,7 @@ jobs:
           role-to-assume: arn:aws:iam::649715411074:role/gh-actions-runner-role
           aws-region: us-east-1
       - name: Stop instances
-        uses: omsf-eco-infra/gha-runner@v0.3.0
+        uses: omsf-eco-infra/gha-runner@v0.4.0
         with:
           provider: "aws"
           action: "stop"
