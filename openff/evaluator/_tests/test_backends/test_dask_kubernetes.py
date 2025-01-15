@@ -1,9 +1,7 @@
-import json
 import pathlib
 
 import pytest
 import yaml
-from openff.units import unit
 from openff.utilities.utilities import get_data_dir_path
 
 from openff.evaluator.backends.backends import PodResources

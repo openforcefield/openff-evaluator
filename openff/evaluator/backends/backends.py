@@ -314,7 +314,7 @@ class PodResources(ComputeResources):
             setattr(self, f"_{attr}", state[attr])
 
     def __eq__(self, other):
-        equals = (type(other) == type(self)) and super().__eq__(other)
+        equals = (type(other) is type(self)) and super().__eq__(other)
         for attr in type(self)._additional_attrs:
             equals &= getattr(self, f"_{attr}") == getattr(other, f"_{attr}")
         return equals
