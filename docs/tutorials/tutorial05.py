@@ -104,26 +104,26 @@ equilibration_options.add_schema(
     dhmix_equilibration_schema,
 )
 
-preequilibrated_simulation_options = RequestOptions()
-preequilibrated_simulation_options.calculation_layers = ["PreequilibratedSimulationLayer"]
-density_preequilibration_schema = Density.default_preequilibrated_simulation_schema(
-    n_molecules=256,
-    absolute_tolerance=0.5 * Density.default_unit(),
-)
-dhmix_preequilibration_schema = EnthalpyOfMixing.default_preequilibrated_simulation_schema(
-    n_molecules=256,
-    absolute_tolerance=0.5 * EnthalpyOfMixing.default_unit(),
-)
-preequilibrated_simulation_options.add_schema(
-    "PreequilibratedSimulationLayer",
-    "Density",
-    density_preequilibration_schema,
-)
-preequilibrated_simulation_options.add_schema(
-    "PreequilibratedSimulationLayer",
-    "EnthalpyOfMixing",
-    dhmix_preequilibration_schema,
-)
+# preequilibrated_simulation_options = RequestOptions()
+# preequilibrated_simulation_options.calculation_layers = ["PreequilibratedSimulationLayer"]
+# density_preequilibration_schema = Density.default_preequilibrated_simulation_schema(
+#     n_molecules=256,
+#     absolute_tolerance=0.5 * Density.default_unit(),
+# )
+# dhmix_preequilibration_schema = EnthalpyOfMixing.default_preequilibrated_simulation_schema(
+#     n_molecules=256,
+#     absolute_tolerance=0.5 * EnthalpyOfMixing.default_unit(),
+# )
+# preequilibrated_simulation_options.add_schema(
+#     "PreequilibratedSimulationLayer",
+#     "Density",
+#     density_preequilibration_schema,
+# )
+# preequilibrated_simulation_options.add_schema(
+#     "PreequilibratedSimulationLayer",
+#     "EnthalpyOfMixing",
+#     dhmix_preequilibration_schema,
+# )
 
 
 # We load a force field from SMIRNOFF.
