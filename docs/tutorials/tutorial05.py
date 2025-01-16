@@ -66,31 +66,24 @@ for i, prop in enumerate(dataset.properties):
 
 # In[3]:
 
+potential_energy = EquilibrationProperty()
+potential_energy.absolute_tolerance = 200 * unit.kilojoules_per_mole
+potential_energy.observable_type = ObservableType.PotentialEnergy
+
+density = EquilibrationProperty()
+density.absolute_tolerance = 1 * unit.grams / unit.milliliters
+density.observable_type = ObservableType.Density
 
 equilibration_options = RequestOptions()
 equilibration_options.calculation_layers = ["EquilibrationLayer"]
 density_equilibration_schema = Density.default_equilibration_schema(
     n_molecules=256,
-    error_tolerances=[
-        EquilibrationProperty(
-            absolute_tolerance=200 * unit.kilojoules_per_mole,
-            observable_type=ObservableType.PotentialEnergy,
-        ),
-        EquilibrationProperty(
-            absolute_tolerance=1 * unit.grams / unit.milliliters,
-            observable_type=ObservableType.Density,
-        )
-    ]
+    error_tolerances=[potential_energy, density]
 )
 
 dhmix_equilibration_schema = EnthalpyOfMixing.default_equilibration_schema(
     n_molecules=256,
-    error_tolerances=[
-        EquilibrationProperty(
-            absolute_tolerance=200 * unit.kilojoules_per_mole,
-            observable_type=ObservableType.PotentialEnergy,
-        ),
-    ]
+    error_tolerances=[potential_energy]
 
 )
 equilibration_options.add_schema(
