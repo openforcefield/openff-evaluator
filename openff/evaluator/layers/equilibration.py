@@ -24,7 +24,7 @@ from openff.evaluator.workflow import Workflow
 logger = logging.getLogger(__name__)
 
 
-class EquilibrationProperty(BaseCalculationLayerSchema):
+class EquilibrationProperty(AttributeClass):
     """A schema which encodes the options that a `CalculationLayer`
     should use when estimating a given class of physical properties.
     """

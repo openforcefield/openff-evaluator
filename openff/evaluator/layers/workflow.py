@@ -15,6 +15,7 @@ from openff.evaluator.layers import (
     CalculationLayerResult,
     CalculationLayerSchema,
 )
+from openff.evaluator.layers.layers import BaseCalculationLayerSchema
 from openff.evaluator.workflow import Workflow, WorkflowGraph, WorkflowSchema
 
 logger = logging.getLogger(__name__)
@@ -245,7 +246,7 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
         return [future]
     
 
-class BaseWorkflowCalculationSchema(AttributeClass):
+class BaseWorkflowCalculationSchema(BaseCalculationLayerSchema):
     workflow_schema = Attribute(
         docstring="The workflow schema to use when estimating properties.",
         type_hint=WorkflowSchema,
