@@ -22,7 +22,7 @@ from openff.evaluator.protocols import (
 )
 from openff.evaluator.layers.equilibration import EquilibrationProperty
 from openff.evaluator.protocols.groups import ConditionalGroup
-from openff.evaluator.storage.data import StoredSimulationData
+from openff.evaluator.storage.data import StoredSimulationData, StoredEquilibrationData
 from openff.evaluator.thermodynamics import Ensemble
 from openff.evaluator.utils.observables import ObservableType
 from openff.evaluator.workflow import ProtocolGroup
@@ -36,7 +36,7 @@ T = TypeVar("T", bound=reweighting.BaseMBARProtocol)
 
 
 @dataclass
-class EquilibrationProtocols(Generic):
+class EquilibrationProtocols:
     """The common set of protocols which would be required to estimate an observable
     by running a new molecule simulation."""
 
@@ -44,7 +44,7 @@ class EquilibrationProtocols(Generic):
     assign_parameters: forcefield.BaseBuildSystem
     energy_minimisation: openmm.OpenMMEnergyMinimisation
     # equilibration_simulation: openmm.OpenMMEquilibration
-    analysis_protocol: S
+    # analysis_protocol: S
     converge_uncertainty: ProtocolGroup
 
     def __iter__(self):
@@ -468,7 +468,12 @@ def generate_equilibration_protocols(
 
     # Set up a conditional group to ensure convergence of uncertainty
     conditional_group = groups.ConditionalGroup(f"conditional_group{id_suffix}")
-    conditional_group.max_iterations = 100
+    conditional_group.max_iterations = max_iterations
+    conditional_group.condition_aggregation_behavior = condition_aggregation_behavior
+    conditional_group.error_on_failure = error_on_failure
+
+    analysis_protocols = []
+    multiplication_protocols = []
 
     for i, equilibration_property in enumerate(error_tolerances):
         observable_type = equilibration_property.observable_type.value
@@ -489,6 +494,7 @@ def generate_equilibration_protocols(
             f"observables[{observable_type}]",
             equilibration_simulation.id,
         )
+        analysis_protocols.append(analysis_protocol)
 
         if equilibration_property.n_uncorrelated_samples != UNDEFINED:
             condition = groups.ConditionalGroup.Condition()
@@ -499,6 +505,7 @@ def generate_equilibration_protocols(
                 conditional_group.id,
                 analysis_protocol.id,
             )
+            conditional_group.add_condition(condition)
 
         if equilibration_property.tolerance != UNDEFINED:
             condition = groups.ConditionalGroup.Condition()
@@ -517,6 +524,7 @@ def generate_equilibration_protocols(
                 tolerance = ProtocolPath(
                     "result", multiplication_protocol.id
                 )
+                multiplication_protocols.append(multiplication_protocol)
             else:
                 # should never get here
                 continue
@@ -526,36 +534,18 @@ def generate_equilibration_protocols(
                 "value.error", conditional_group.id, analysis_protocol.id
             )
             conditional_group.add_condition(condition)
-        
 
-        
-        # add checking of relative error tolerance
-        if equilibration_property.relative_tolerance != UNDEFINED:
-            condition = groups.ConditionalGroup.Condition()
-            tolerance = equilibration_property.relative_tolerance
-            condition.right_hand_value = tolerance
-            condition.type = groups.ConditionalGroup.Condition.Type.LessThan
-            condition.left_hand_value = ProtocolPath(
-                "value.error", conditional_group.id, analysis_protocol.id
-            )
-            conditional_group.add_condition(condition)
-
-
-        condition = groups.ConditionalGroup.Condition()
-        condition.right_hand_value = ProtocolPath("target_uncertainty", "global")
-        condition.type = groups.ConditionalGroup.Condition.Type.LessThan
-        condition.left_hand_value = ProtocolPath(
-            "value.error", conditional_group.id, analysis_protocol.id
-        )
-
-        conditional_group.add_condition(condition)
 
         # Make sure the simulation gets extended after each iteration.
         equilibration_simulation.total_number_of_iterations = ProtocolPath(
             "current_iteration", conditional_group.id
         )
 
-    conditional_group.add_protocols(equilibration_simulation, analysis_protocol)
+    conditional_group.add_protocols(
+        equilibration_simulation,
+        *analysis_protocols,
+        *multiplication_protocols
+    )
 
     # Finally, extract uncorrelated data
     # time_series_statistics = ProtocolPath(
@@ -564,15 +554,15 @@ def generate_equilibration_protocols(
     coordinate_file = ProtocolPath(
         "output_coordinate_file", conditional_group.id, equilibration_simulation.id
     )
-    trajectory_path = ProtocolPath(
-        "trajectory_file_path", conditional_group.id, equilibration_simulation.id
-    )
+    # trajectory_path = ProtocolPath(
+    #     "trajectory_file_path", conditional_group.id, equilibration_simulation.id
+    # )
     observables = ProtocolPath(
         "observables", conditional_group.id, equilibration_simulation.id
     )
 
     # Build the object which defines which pieces of simulation data to store.
-    output_to_store = StoredSimulationData()
+    output_to_store = StoredEquilibrationData()
     output_to_store.thermodynamic_state = ProtocolPath("thermodynamic_state", "global")
     output_to_store.property_phase = PropertyPhase.Liquid
     output_to_store.force_field_id = PlaceholderValue()
@@ -581,13 +571,13 @@ def generate_equilibration_protocols(
     )
     output_to_store.max_number_of_molecules = n_molecules
     output_to_store.substance = ProtocolPath("output_substance", build_coordinates.id)
-    output_to_store.statistical_inefficiency = ProtocolPath(
-        "time_series_statistics.statistical_inefficiency",
-        conditional_group.id,
-        analysis_protocol.id,
-    )
+    # output_to_store.statistical_inefficiency = ProtocolPath(
+    #     "time_series_statistics.statistical_inefficiency",
+    #     conditional_group.id,
+    #     analysis_protocol.id,
+    # )
     output_to_store.observables = observables
-    output_to_store.trajectory_file_name = trajectory_path
+    # output_to_store.trajectory_file_name = trajectory_path
     output_to_store.coordinate_file_name = coordinate_file
     output_to_store.source_calculation_id = PlaceholderValue()
     output_to_store.calculation_layer = "EquilibrationLayer"
@@ -603,7 +593,7 @@ def generate_equilibration_protocols(
         assign_parameters,
         energy_minimisation,
         # equilibration_simulation,
-        analysis_protocol,
+        # analysis_protocol,
         conditional_group,
     )
     return protocols, final_value_source, output_to_store

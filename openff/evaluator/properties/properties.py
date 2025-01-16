@@ -1,4 +1,5 @@
 import abc
+import copy
 from typing import Dict, Optional, Tuple
 
 from openff.units import unit
@@ -22,6 +23,8 @@ from openff.evaluator.storage.query import SimulationDataQuery, SubstanceQuery
 from openff.evaluator.utils.observables import ObservableType
 from openff.evaluator.workflow.schemas import ProtocolReplicator, WorkflowSchema
 from openff.evaluator.workflow.utils import ProtocolPath, ReplicatorValue
+from openff.evaluator.layers.equilibration import EquilibrationProperty
+from openff.evaluator.workflow.attributes import ConditionAggregationBehavior
 
 
 class EstimableExcessProperty(PhysicalProperty, abc.ABC):
@@ -80,28 +83,18 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
     @classmethod
     def default_equilibration_schema(
         cls,
-        absolute_tolerance=UNDEFINED,
-        relative_tolerance=UNDEFINED,
-        n_molecules=1000,
+        n_molecules: int = 1000,
+        error_tolerances: list[EquilibrationProperty] = [],
+        condition_aggregation_behavior: ConditionAggregationBehavior = ConditionAggregationBehavior.All,
+        error_on_failure: bool = True,
+        max_iterations: int = 100,
     ) -> EquilibrationSchema:
-        """
-        Returns the default calculation schema to use when equilibrating boxes
-        """
-
-        if relative_tolerance != UNDEFINED:
-            raise NotImplementedError(
-                "Only absolute tolerance of the potential energy is supported for equilibration."
-            )
-
-        assert absolute_tolerance == UNDEFINED or relative_tolerance == UNDEFINED
 
         calculation_schema = EquilibrationSchema()
-        calculation_schema.absolute_tolerance = absolute_tolerance
-        calculation_schema.relative_tolerance = relative_tolerance
-
-        use_target_uncertainty = (
-            absolute_tolerance != UNDEFINED or relative_tolerance != UNDEFINED
-        )
+        calculation_schema.error_tolerances = copy.deepcopy(error_tolerances)
+        calculation_schema.error_aggregration = copy.deepcopy(condition_aggregation_behavior)
+        calculation_schema.error_on_failure = error_on_failure
+        calculation_schema.max_iterations = max_iterations
 
         # Define the protocols to use for the fully mixed system.
         (
@@ -109,9 +102,12 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
             mixture_value,
             mixture_stored_data,
         ) = generate_equilibration_protocols(
-            use_target_uncertainty,
             id_suffix="_mixture",
             n_molecules=n_molecules,
+            error_tolerances=calculation_schema.error_tolerances,
+            condition_aggregation_behavior=calculation_schema.error_aggregration,
+            error_on_failure=calculation_schema.error_on_failure,
+            max_iterations=calculation_schema.max_iterations,
         )
 
         # Define the protocols to use for each component, creating a replicator that
@@ -122,20 +118,16 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
 
         component_protocols, _, component_stored_data = (
             generate_equilibration_protocols(
-                use_target_uncertainty,
                 id_suffix=f"_component_{component_replicator.placeholder_id}",
                 n_molecules=n_molecules,
+            error_tolerances=calculation_schema.error_tolerances,
+            condition_aggregation_behavior=calculation_schema.error_aggregration,
+            error_on_failure=calculation_schema.error_on_failure,
+            max_iterations=calculation_schema.max_iterations,
             )
         )
         # Make sure the protocols point to the correct substance.
         component_protocols.build_coordinates.substance = component_substance
-
-        # Make sure the convergence criteria is set to use the per component
-        # uncertainty target.
-        if use_target_uncertainty:
-            component_protocols.converge_uncertainty.conditions[0].right_hand_value = (
-                ProtocolPath("per_component_uncertainty", "global")
-            )
 
         # Build the final workflow schema
         schema = WorkflowSchema()

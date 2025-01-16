@@ -102,6 +102,16 @@ class EquilibrationSchema(BaseWorkflowCalculationSchema):
         type_hint=ConditionAggregationBehavior,
         default_value=ConditionAggregationBehavior.All,
     )
+    error_on_failure = Attribute(
+        docstring="Whether to raise an error if the convergence conditions are not met.",
+        type_hint=bool,
+        default_value=True,
+    )
+    max_iterations = Attribute(
+        docstring="The maximum number of iterations to run the equilibration for.",
+        type_hint=int,
+        default_value=100,
+    )
 
     def validate(self, attribute_type=None):
         if self.error_tolerances:

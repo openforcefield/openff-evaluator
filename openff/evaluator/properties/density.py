@@ -1,6 +1,7 @@
 """
 A collection of density physical property definitions.
 """
+import copy
 
 from openff.units import unit
 
@@ -23,6 +24,8 @@ from openff.evaluator.protocols.utils import (
     generate_simulation_protocols,
 )
 from openff.evaluator.utils.observables import ObservableType
+from openff.evaluator.layers.equilibration import EquilibrationProperty
+from openff.evaluator.workflow.attributes import ConditionAggregationBehavior
 from openff.evaluator.workflow.schemas import WorkflowSchema
 from openff.evaluator.workflow.utils import ProtocolPath
 
@@ -104,30 +107,26 @@ class Density(PhysicalProperty):
     @classmethod
     def default_equilibration_schema(
         cls,
-        absolute_tolerance=UNDEFINED,
-        relative_tolerance=UNDEFINED,
-        n_molecules=1000,
+        n_molecules: int = 1000,
+        error_tolerances: list[EquilibrationProperty] = [],
+        condition_aggregation_behavior: ConditionAggregationBehavior = ConditionAggregationBehavior.All,
+        error_on_failure: bool = True,
+        max_iterations: int = 100,
     ) -> EquilibrationSchema:
 
-        if relative_tolerance != UNDEFINED:
-            raise NotImplementedError(
-                "Only absolute tolerance of the potential energy is supported for equilibration."
-            )
-
-        assert absolute_tolerance == UNDEFINED or relative_tolerance == UNDEFINED
-
         calculation_schema = EquilibrationSchema()
-        calculation_schema.absolute_tolerance = absolute_tolerance
-        calculation_schema.relative_tolerance = relative_tolerance
-
-        use_target_uncertainty = (
-            absolute_tolerance != UNDEFINED or relative_tolerance != UNDEFINED
-        )
+        calculation_schema.error_tolerances = copy.deepcopy(error_tolerances)
+        calculation_schema.error_aggregration = copy.deepcopy(condition_aggregation_behavior)
+        calculation_schema.error_on_failure = error_on_failure
+        calculation_schema.max_iterations = max_iterations
 
         # Define the protocols which will run the simulation itself.
         protocols, value_source, output_to_store = generate_equilibration_protocols(
-            use_target_uncertainty,
             n_molecules=n_molecules,
+            error_tolerances=calculation_schema.error_tolerances,
+            condition_aggregation_behavior=calculation_schema.error_aggregration,
+            error_on_failure=calculation_schema.error_on_failure,
+            max_iterations=calculation_schema.max_iterations,
         )
 
         # Build the workflow schema.
