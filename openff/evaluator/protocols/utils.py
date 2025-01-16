@@ -401,7 +401,7 @@ def generate_equilibration_protocols(
     condition_aggregation_behavior: ConditionAggregationBehavior = ConditionAggregationBehavior.All,
     error_on_failure: bool = True,
     max_iterations: int = 100,
-) -> Tuple[EquilibrationProtocols[S], ProtocolPath, StoredSimulationData]:
+) -> Tuple[EquilibrationProtocols, ProtocolPath, StoredSimulationData]:
     """
     Constructs a set of protocols which, when combined in a workflow schema, may be
     executed to equilibrate a system for further simulation to collect production data.
