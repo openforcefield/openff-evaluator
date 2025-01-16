@@ -12,6 +12,7 @@ from openff.evaluator.attributes import (
     AttributeClass,
 )
 from openff.evaluator.layers import calculation_layer
+from openff.evaluator.layers.layers import BaseCalculationLayerSchema
 from openff.evaluator.layers.workflow import (
     WorkflowCalculationLayer,
     BaseWorkflowCalculationSchema,
@@ -23,7 +24,7 @@ from openff.evaluator.workflow import Workflow
 logger = logging.getLogger(__name__)
 
 
-class EquilibrationProperty(AttributeClass):
+class EquilibrationProperty(BaseCalculationLayerSchema):
     """A schema which encodes the options that a `CalculationLayer`
     should use when estimating a given class of physical properties.
     """

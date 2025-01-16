@@ -59,7 +59,10 @@ class CalculationLayerResult(AttributeClass):
         assert all(isinstance(x, EvaluatorException) for x in self.exceptions)
 
 
-class CalculationLayerSchema(AttributeClass):
+class BaseCalculationLayerSchema(AttributeClass):
+    pass
+
+class CalculationLayerSchema(BaseCalculationLayerSchema):
     """A schema which encodes the options that a `CalculationLayer`
     should use when estimating a given class of physical properties.
     """
