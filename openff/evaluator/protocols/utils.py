@@ -29,7 +29,7 @@ from openff.evaluator.workflow import ProtocolGroup
 from openff.evaluator.workflow.attributes import ConditionAggregationBehavior
 from openff.evaluator.workflow.schemas import ProtocolReplicator
 from openff.evaluator.workflow.utils import ProtocolPath, ReplicatorValue
-from openff.evaluator.protocols.miscellaneous import MultiplyValue, MaximumValue
+from openff.evaluator.protocols.miscellaneous import MultiplyValue, MaximumValue, AbsoluteValue
 
 S = TypeVar("S", bound=analysis.BaseAverageObservable)
 T = TypeVar("T", bound=reweighting.BaseMBARProtocol)
@@ -521,10 +521,22 @@ def generate_equilibration_protocols(
                     "value.value", conditional_group.id, analysis_protocol.id
                 )
                 multiplication_protocol.multiplier = equilibration_property.relative_tolerance
-                tolerance = ProtocolPath(
-                    "result", multiplication_protocol.id
+
+                absolute_protocol = AbsoluteValue(f"absolute_{i}_{observable_type}{id_suffix}")
+                absolute_protocol.value = ProtocolPath(
+                    "result",
+                    conditional_group.id,
+                    multiplication_protocol.id
                 )
-                multiplication_protocols.append(multiplication_protocol)
+                tolerance = ProtocolPath(
+                    "result",
+                    conditional_group.id,
+                    absolute_protocol.id
+                )
+                multiplication_protocols.extend([
+                    multiplication_protocol,
+                    absolute_protocol
+                ])
             else:
                 # should never get here
                 continue

@@ -185,6 +185,45 @@ class DivideValue(Protocol):
         self.result = self.value / self.divisor
 
 
+@workflow_protocol
+class AbsoluteValue(Protocol):
+    """
+    A protocol which calculates the absolute value of a given value.
+    """
+
+    value = InputAttribute(
+        docstring="The value to absolute.",
+        type_hint=typing.Union[
+            int,
+            float,
+            unit.Measurement,
+            unit.Quantity,
+            ParameterGradient,
+            Observable,
+            ObservableArray,
+        ],
+        default_value=UNDEFINED,
+    )
+
+    result = OutputAttribute(
+        docstring="The result of the absolute.",
+        type_hint=typing.Union[
+            int,
+            float,
+            unit.Measurement,
+            unit.Quantity,
+            ParameterGradient,
+            Observable,
+            ObservableArray,
+        ],
+    )
+
+    def _execute(self, directory, available_resources):
+        self.result = abs(self.value)
+
+
+
+
 @workflow_protocol()
 class WeightByMoleFraction(Protocol):
     """Multiplies a value by the mole fraction of a component
