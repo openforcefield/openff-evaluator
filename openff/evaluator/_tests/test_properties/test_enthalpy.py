@@ -20,6 +20,7 @@ from openff.evaluator.utils.observables import Observable
 from openff.evaluator.utils.serialization import TypedJSONEncoder
 from openff.evaluator.workflow import Workflow
 
+from openff.evaluator._tests.utils import _write_force_field
 
 def _write_dummy_trajectory_file(directory):
     """Write a dummy trajectory file to disk.
@@ -45,15 +46,6 @@ def _get_dummy_enthalpy_of_mixing(substance):
         value=10.0 * unit.kilojoules_per_mole,
         uncertainty=1.0 * unit.kilojoules_per_mole,
     )
-
-
-def _write_force_field(force_field: str = "openff-2.0.0.offxml"):
-    """
-    Write a force field file to disk.
-    """
-    ff = ForceField(force_field)
-    with open("force-field.json", "w") as file:
-        file.write(SmirnoffForceFieldSource.from_object(ff).json())
 
 
 def _generate_dummy_observable(name):

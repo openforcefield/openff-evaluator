@@ -1,8 +1,12 @@
 import os
+import pathlib
+import shutil
 import uuid
 from contextlib import contextmanager
 
 from openff.units import unit
+from openff.utilities.utilities import get_data_dir_path
+from openff.toolkit import ForceField
 
 from openff.evaluator.datasets import (
     CalculationSource,
@@ -299,3 +303,49 @@ def build_tip3p_smirnoff_force_field():
     )
 
     return SmirnoffForceFieldSource.from_object(smirnoff_force_field_with_tip3p)
+
+
+def _write_force_field(force_field: str = "openff-2.0.0.offxml"):
+    """
+    Write a force field file to disk.
+    """
+    ff = ForceField(force_field)
+    with open("force-field.json", "w") as file:
+        file.write(SmirnoffForceFieldSource.from_object(ff).json())
+
+
+def _copy_property_working_data(
+    source_directory: str,
+    uuid_prefix: str,
+    destination_directory: str = ".",
+):
+    """
+    Copy test data from one directory to another.
+
+    Parameters
+    ----------
+    source_directory : str
+        The directory to copy data from.
+        This should be relative to to the data directory.
+        For tests, the path will typically start with `test`.
+    uuid_prefix : str
+        The prefix of the UUID to copy.
+    destination_directory : str
+        The directory to copy data to.
+        This should be relative to the current working directory.
+        Default is the current working directory.
+    """
+    # locate our saved test data
+    data_directory = pathlib.Path(
+        get_data_dir_path(
+            source_directory, "openff.evaluator"
+        )
+    )
+    abs_path = data_directory.resolve()
+    dest_dir = pathlib.Path(destination_directory)
+
+    # copy data files over from data_directory
+    for path in abs_path.iterdir():
+        if path.name.startswith(uuid_prefix):
+            dest_dir = dest_dir / path.name
+            shutil.copytree(path, dest_dir)

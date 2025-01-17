@@ -436,6 +436,11 @@ class TypedBaseModel(ABC):
     output.
     """
 
+    def __init__(self, **kwargs):
+        super().__init__()
+        for k, v in kwargs.items():
+            setattr(self, k, v)
+
     def json(self, file_path=None, format=False):
         """Creates a JSON representation of this class.
 

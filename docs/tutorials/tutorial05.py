@@ -75,7 +75,7 @@ for i, prop in enumerate(dataset.properties):
 # density.observable_type = ObservableType.Density
 
 potential_energy = EquilibrationProperty()
-potential_energy.relative_tolerance = 0.1
+potential_energy.absolute_tolerance = 200 * unit.kilojoules_per_mole
 potential_energy.observable_type = ObservableType.PotentialEnergy
 
 density = EquilibrationProperty()
