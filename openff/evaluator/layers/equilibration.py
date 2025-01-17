@@ -15,6 +15,7 @@ from openff.evaluator.layers import calculation_layer
 from openff.evaluator.layers.layers import BaseCalculationLayerSchema
 from openff.evaluator.layers.workflow import (
     WorkflowCalculationLayer,
+    WorkflowCalculationSchema,
     BaseWorkflowCalculationSchema,
 )
 from openff.evaluator.workflow.attributes import ConditionAggregationBehavior
@@ -70,7 +71,7 @@ class EquilibrationProperty(AttributeClass):
 
         # check units
         if self.absolute_tolerance != UNDEFINED:
-            assert self.absolute_tolerance.unit.is_compatible_with(self.observable_unit)
+            assert self.absolute_tolerance.units.is_compatible_with(self.observable_unit)
         super(EquilibrationProperty, self).validate(attribute_type)
 
     @property
@@ -85,7 +86,7 @@ class EquilibrationProperty(AttributeClass):
 
 
 
-class EquilibrationSchema(BaseWorkflowCalculationSchema):
+class EquilibrationSchema(WorkflowCalculationSchema):
     """
     A schema which encodes the options that a `EquilibrationLayer`
     should use when equilibrating a given box.

@@ -29,7 +29,7 @@ from openff.evaluator.workflow import ProtocolGroup
 from openff.evaluator.workflow.attributes import ConditionAggregationBehavior
 from openff.evaluator.workflow.schemas import ProtocolReplicator
 from openff.evaluator.workflow.utils import ProtocolPath, ReplicatorValue
-from openff.evaluator.protocols.miscellaneous import MultiplyValue
+from openff.evaluator.protocols.miscellaneous import MultiplyValue, MaximumValue
 
 S = TypeVar("S", bound=analysis.BaseAverageObservable)
 T = TypeVar("T", bound=reweighting.BaseMBARProtocol)
@@ -540,11 +540,22 @@ def generate_equilibration_protocols(
         equilibration_simulation.total_number_of_iterations = ProtocolPath(
             "current_iteration", conditional_group.id
         )
+    
+    # get the highest? statistical inefficiency for each protocol
+    statistical_inefficiency_protocol = MaximumValue(f"get_maximum_statistical_inefficiency{id_suffix}")
+    statistical_inefficiency_protocol.values = [
+        ProtocolPath(
+            "time_series_statistics.statistical_inefficiency",
+            conditional_group.id, analysis_protocol.id
+        )
+        for analysis_protocol in analysis_protocols
+    ]
 
     conditional_group.add_protocols(
         equilibration_simulation,
         *analysis_protocols,
-        *multiplication_protocols
+        *multiplication_protocols,
+        statistical_inefficiency_protocol
     )
 
     # Finally, extract uncorrelated data
@@ -571,11 +582,11 @@ def generate_equilibration_protocols(
     )
     output_to_store.max_number_of_molecules = n_molecules
     output_to_store.substance = ProtocolPath("output_substance", build_coordinates.id)
-    # output_to_store.statistical_inefficiency = ProtocolPath(
-    #     "time_series_statistics.statistical_inefficiency",
-    #     conditional_group.id,
-    #     analysis_protocol.id,
-    # )
+    output_to_store.statistical_inefficiency = ProtocolPath(
+        "result",
+        conditional_group.id,
+        statistical_inefficiency_protocol.id,
+    )
     output_to_store.observables = observables
     # output_to_store.trajectory_file_name = trajectory_path
     output_to_store.coordinate_file_name = coordinate_file
