@@ -185,7 +185,7 @@ class DivideValue(Protocol):
         self.result = self.value / self.divisor
 
 
-@workflow_protocol
+@workflow_protocol()
 class AbsoluteValue(Protocol):
     """
     A protocol which calculates the absolute value of a given value.
