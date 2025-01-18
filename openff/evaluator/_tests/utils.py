@@ -342,10 +342,10 @@ def _copy_property_working_data(
         )
     )
     abs_path = data_directory.resolve()
-    dest_dir = pathlib.Path(destination_directory)
+    destination_directory = pathlib.Path(destination_directory)
 
     # copy data files over from data_directory
     for path in abs_path.iterdir():
-        if path.name.startswith(uuid_prefix):
-            dest_dir = dest_dir / path.name
+        if path.name.startswith(uuid_prefix) and path.is_dir():
+            dest_dir = destination_directory / path.name
             shutil.copytree(path, dest_dir)

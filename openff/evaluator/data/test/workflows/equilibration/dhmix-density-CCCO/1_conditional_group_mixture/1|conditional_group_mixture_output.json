@@ -1,0 +1,653 @@
+{
+    ".current_iteration": 1,
+    "1|conditional_group_mixture/1|equilibration_simulation_mixture.output_coordinate_file": "1_conditional_group_mixture/1_equilibration_simulation_mixture/output.pdb",
+    "1|conditional_group_mixture/1|equilibration_simulation_mixture.trajectory_file_path": "1_conditional_group_mixture/1_equilibration_simulation_mixture/trajectory.dcd",
+    "1|conditional_group_mixture/1|equilibration_simulation_mixture.observables": {
+        "observables": {
+            "PotentialEnergy": {
+                "value": {
+                    "value": {
+                        "value": [
+                            [
+                                -5445.976059601439
+                            ],
+                            [
+                                -5789.397084159362
+                            ],
+                            [
+                                -5774.110446414263
+                            ],
+                            [
+                                -6029.746438900627
+                            ],
+                            [
+                                -5938.498781794333
+                            ],
+                            [
+                                -6074.634922859732
+                            ],
+                            [
+                                -6020.814775826191
+                            ],
+                            [
+                                -5916.304012148685
+                            ],
+                            [
+                                -6011.28958206877
+                            ],
+                            [
+                                -5978.585188778794
+                            ],
+                            [
+                                -6013.212090578054
+                            ],
+                            [
+                                -6219.62191858032
+                            ],
+                            [
+                                -5828.637742883322
+                            ],
+                            [
+                                -6077.389362225076
+                            ],
+                            [
+                                -6234.224713871641
+                            ],
+                            [
+                                -6191.556623793455
+                            ],
+                            [
+                                -6075.202221496998
+                            ],
+                            [
+                                -6034.192553632194
+                            ],
+                            [
+                                -6102.005412958722
+                            ],
+                            [
+                                -6023.713898588889
+                            ]
+                        ],
+                        "@type": "numpy.ndarray"
+                    },
+                    "unit": "kilojoule / mole",
+                    "@type": "openff.evaluator.unit.Quantity"
+                },
+                "gradients": [],
+                "@type": "openff.evaluator.utils.observables.ObservableArray"
+            },
+            "KineticEnergy": {
+                "value": {
+                    "value": {
+                        "value": [
+                            [
+                                5254.760172360223
+                            ],
+                            [
+                                5189.407005970206
+                            ],
+                            [
+                                5221.40345716553
+                            ],
+                            [
+                                5207.352438269389
+                            ],
+                            [
+                                5159.539487947795
+                            ],
+                            [
+                                5278.895600029018
+                            ],
+                            [
+                                5026.019782444325
+                            ],
+                            [
+                                5071.163212349161
+                            ],
+                            [
+                                5278.186636957831
+                            ],
+                            [
+                                5187.227329611094
+                            ],
+                            [
+                                5068.053503533132
+                            ],
+                            [
+                                5290.856895617046
+                            ],
+                            [
+                                5204.664771215363
+                            ],
+                            [
+                                5294.140809800878
+                            ],
+                            [
+                                5455.0363856212825
+                            ],
+                            [
+                                5344.775340067881
+                            ],
+                            [
+                                5183.267517330183
+                            ],
+                            [
+                                5158.581110321155
+                            ],
+                            [
+                                5319.110623509214
+                            ],
+                            [
+                                5179.853895411959
+                            ]
+                        ],
+                        "@type": "numpy.ndarray"
+                    },
+                    "unit": "kilojoule / mole",
+                    "@type": "openff.evaluator.unit.Quantity"
+                },
+                "gradients": [],
+                "@type": "openff.evaluator.utils.observables.ObservableArray"
+            },
+            "TotalEnergy": {
+                "value": {
+                    "value": {
+                        "value": [
+                            [
+                                -191.2158872412156
+                            ],
+                            [
+                                -599.9900781891556
+                            ],
+                            [
+                                -552.7069892487325
+                            ],
+                            [
+                                -822.3940006312387
+                            ],
+                            [
+                                -778.9592938465375
+                            ],
+                            [
+                                -795.7393228307137
+                            ],
+                            [
+                                -994.7949933818664
+                            ],
+                            [
+                                -845.1407997995238
+                            ],
+                            [
+                                -733.1029451109389
+                            ],
+                            [
+                                -791.3578591676996
+                            ],
+                            [
+                                -945.1585870449215
+                            ],
+                            [
+                                -928.7650229632744
+                            ],
+                            [
+                                -623.9729716679594
+                            ],
+                            [
+                                -783.2485524241984
+                            ],
+                            [
+                                -779.1883282503586
+                            ],
+                            [
+                                -846.7812837255733
+                            ],
+                            [
+                                -891.9347041668152
+                            ],
+                            [
+                                -875.6114433110388
+                            ],
+                            [
+                                -782.8947894495086
+                            ],
+                            [
+                                -843.8600031769301
+                            ]
+                        ],
+                        "@type": "numpy.ndarray"
+                    },
+                    "unit": "kilojoule / mole",
+                    "@type": "openff.evaluator.unit.Quantity"
+                },
+                "gradients": [],
+                "@type": "openff.evaluator.utils.observables.ObservableArray"
+            },
+            "Temperature": {
+                "value": {
+                    "value": {
+                        "value": [
+                            [
+                                290.4422707327597
+                            ],
+                            [
+                                286.83005601252694
+                            ],
+                            [
+                                288.5985709657766
+                            ],
+                            [
+                                287.8219399302119
+                            ],
+                            [
+                                285.179211926205
+                            ],
+                            [
+                                291.77628944860953
+                            ],
+                            [
+                                277.7992811240388
+                            ],
+                            [
+                                280.2944588029731
+                            ],
+                            [
+                                291.73710348435867
+                            ],
+                            [
+                                286.70958045694726
+                            ],
+                            [
+                                280.12257828698
+                            ],
+                            [
+                                292.4374168335977
+                            ],
+                            [
+                                287.67338660017583
+                            ],
+                            [
+                                292.6189260673513
+                            ],
+                            [
+                                301.51198205075
+                            ],
+                            [
+                                295.41760906445364
+                            ],
+                            [
+                                286.49071283353175
+                            ],
+                            [
+                                285.12624026527845
+                            ],
+                            [
+                                293.9990631536011
+                            ],
+                            [
+                                286.30203436508947
+                            ]
+                        ],
+                        "@type": "numpy.ndarray"
+                    },
+                    "unit": "kelvin",
+                    "@type": "openff.evaluator.unit.Quantity"
+                },
+                "gradients": [],
+                "@type": "openff.evaluator.utils.observables.ObservableArray"
+            },
+            "Volume": {
+                "value": {
+                    "value": {
+                        "value": [
+                            [
+                                23.398774035347877
+                            ],
+                            [
+                                20.29956437413493
+                            ],
+                            [
+                                20.232826757268164
+                            ],
+                            [
+                                19.91048510044049
+                            ],
+                            [
+                                20.0407274338899
+                            ],
+                            [
+                                19.822999616010705
+                            ],
+                            [
+                                20.17770243896905
+                            ],
+                            [
+                                19.70540388651952
+                            ],
+                            [
+                                19.61958054442788
+                            ],
+                            [
+                                20.334927232998144
+                            ],
+                            [
+                                20.2720496136912
+                            ],
+                            [
+                                19.89908717573024
+                            ],
+                            [
+                                19.968273759057663
+                            ],
+                            [
+                                19.95660822119951
+                            ],
+                            [
+                                20.363768457195107
+                            ],
+                            [
+                                20.063292465350195
+                            ],
+                            [
+                                20.040681533729728
+                            ],
+                            [
+                                19.638156781761342
+                            ],
+                            [
+                                20.084607767303755
+                            ],
+                            [
+                                19.930562469508796
+                            ]
+                        ],
+                        "@type": "numpy.ndarray"
+                    },
+                    "unit": "nanometer ** 3",
+                    "@type": "openff.evaluator.unit.Quantity"
+                },
+                "gradients": [],
+                "@type": "openff.evaluator.utils.observables.ObservableArray"
+            },
+            "Density": {
+                "value": {
+                    "value": {
+                        "value": [
+                            [
+                                0.7095390903591422
+                            ],
+                            [
+                                0.8178670506700148
+                            ],
+                            [
+                                0.8205647704958402
+                            ],
+                            [
+                                0.8338493392203962
+                            ],
+                            [
+                                0.8284302503153865
+                            ],
+                            [
+                                0.8375293934400527
+                            ],
+                            [
+                                0.8228065060814783
+                            ],
+                            [
+                                0.8425275087062548
+                            ],
+                            [
+                                0.8462130373768387
+                            ],
+                            [
+                                0.8164447629602865
+                            ],
+                            [
+                                0.818977121748314
+                            ],
+                            [
+                                0.8343269567062735
+                            ],
+                            [
+                                0.8314361594240952
+                            ],
+                            [
+                                0.8319221713699576
+                            ],
+                            [
+                                0.8152884314835035
+                            ],
+                            [
+                                0.827498521154118
+                            ],
+                            [
+                                0.8284321477099994
+                            ],
+                            [
+                                0.8454125827113791
+                            ],
+                            [
+                                0.8266203172554469
+                            ],
+                            [
+                                0.8330093478274536
+                            ]
+                        ],
+                        "@type": "numpy.ndarray"
+                    },
+                    "unit": "gram / milliliter",
+                    "@type": "openff.evaluator.unit.Quantity"
+                },
+                "gradients": [],
+                "@type": "openff.evaluator.utils.observables.ObservableArray"
+            },
+            "Enthalpy": {
+                "value": {
+                    "value": {
+                        "value": [
+                            [
+                                -189.7881094635047
+                            ],
+                            [
+                                -598.7514121433697
+                            ],
+                            [
+                                -551.4723954883644
+                            ],
+                            [
+                                -821.1790759464279
+                            ],
+                            [
+                                -777.7364218603368
+                            ],
+                            [
+                                -794.5297364525319
+                            ],
+                            [
+                                -993.563763271088
+                            ],
+                            [
+                                -843.9383890352894
+                            ],
+                            [
+                                -731.9057712305029
+                            ],
+                            [
+                                -790.1170353035611
+                            ],
+                            [
+                                -943.9215999316926
+                            ],
+                            [
+                                -927.5507937723211
+                            ],
+                            [
+                                -622.7545207572681
+                            ],
+                            [
+                                -782.0308133369424
+                            ],
+                            [
+                                -777.9457445137188
+                            ],
+                            [
+                                -845.5570348360175
+                            ],
+                            [
+                                -890.7118349814119
+                            ],
+                            [
+                                -874.4131359208377
+                            ],
+                            [
+                                -781.669239914269
+                            ],
+                            [
+                                -842.6438533842849
+                            ]
+                        ],
+                        "@type": "numpy.ndarray"
+                    },
+                    "unit": "kilojoule / mole",
+                    "@type": "openff.evaluator.unit.Quantity"
+                },
+                "gradients": [],
+                "@type": "openff.evaluator.utils.observables.ObservableArray"
+            },
+            "ReducedPotential": {
+                "value": {
+                    "value": {
+                        "value": [
+                            [
+                                -2196.306033871432
+                            ],
+                            [
+                                -2334.9168012976675
+                            ],
+                            [
+                                -2328.7518838435994
+                            ],
+                            [
+                                -2431.882215878006
+                            ],
+                            [
+                                -2395.070119775509
+                            ],
+                            [
+                                -2449.9921797578295
+                            ],
+                            [
+                                -2428.272646049424
+                            ],
+                            [
+                                -2386.125104529626
+                            ],
+                            [
+                                -2424.44396430394
+                            ],
+                            [
+                                -2411.2335524724244
+                            ],
+                            [
+                                -2425.203435022476
+                            ],
+                            [
+                                -2508.477402041441
+                            ],
+                            [
+                                -2350.7544593894468
+                            ],
+                            [
+                                -2451.1000193143345
+                            ],
+                            [
+                                -2514.3566652039704
+                            ],
+                            [
+                                -2497.151947767645
+                            ],
+                            [
+                                -2450.2156672259175
+                            ],
+                            [
+                                -2433.6824616962617
+                            ],
+                            [
+                                -2461.0268716122187
+                            ],
+                            [
+                                -2429.4482223284926
+                            ]
+                        ],
+                        "@type": "numpy.ndarray"
+                    },
+                    "unit": "dimensionless",
+                    "@type": "openff.evaluator.unit.Quantity"
+                },
+                "gradients": [],
+                "@type": "openff.evaluator.utils.observables.ObservableArray"
+            }
+        },
+        "@type": "openff.evaluator.utils.observables.ObservableFrame"
+    },
+    "1|conditional_group_mixture/1|extract_0_PotentialEnergy_mixture.value": {
+        "value": {
+            "value": {
+                "value": -6053.42566801939,
+                "unit": "kilojoule / mole",
+                "@type": "openff.evaluator.unit.Quantity"
+            },
+            "error": {
+                "value": 26.43856215427406,
+                "unit": "kilojoule / mole",
+                "@type": "openff.evaluator.unit.Quantity"
+            },
+            "@type": "openff.evaluator.unit.Measurement"
+        },
+        "gradients": [],
+        "@type": "openff.evaluator.utils.observables.Observable"
+    },
+    "1|conditional_group_mixture/1|extract_0_PotentialEnergy_mixture.time_series_statistics": {
+        "n_total_points": 20,
+        "n_uncorrelated_points": 15,
+        "statistical_inefficiency": 1.0,
+        "equilibration_index": 5,
+        "@type": "openff.evaluator.utils.timeseries.TimeSeriesStatistics"
+    },
+    "1|conditional_group_mixture/1|extract_1_Density_mixture.value": {
+        "value": {
+            "value": {
+                "value": 0.8294292829819521,
+                "unit": "gram / milliliter",
+                "@type": "openff.evaluator.unit.Quantity"
+            },
+            "error": {
+                "value": 0.002100510661334073,
+                "unit": "gram / milliliter",
+                "@type": "openff.evaluator.unit.Quantity"
+            },
+            "@type": "openff.evaluator.unit.Measurement"
+        },
+        "gradients": [],
+        "@type": "openff.evaluator.utils.observables.Observable"
+    },
+    "1|conditional_group_mixture/1|extract_1_Density_mixture.time_series_statistics": {
+        "n_total_points": 20,
+        "n_uncorrelated_points": 19,
+        "statistical_inefficiency": 1.0,
+        "equilibration_index": 1,
+        "@type": "openff.evaluator.utils.timeseries.TimeSeriesStatistics"
+    },
+    "1|conditional_group_mixture/1|multiply_1_Density_mixture.result": {
+        "value": 0.16588585659639044,
+        "unit": "gram / milliliter",
+        "@type": "openff.evaluator.unit.Quantity"
+    },
+    "1|conditional_group_mixture/1|absolute_1_Density_mixture.result": {
+        "value": 0.16588585659639044,
+        "unit": "gram / milliliter",
+        "@type": "openff.evaluator.unit.Quantity"
+    },
+    "1|conditional_group_mixture/1|get_maximum_statistical_inefficiency_mixture.result": 1.0
+}
