@@ -161,6 +161,6 @@ class PreequilibratedSimulationLayer(WorkflowCalculationLayer):
                 )
                 existing_force_field.json(force_field_path)
 
-            global_metadata[key] = (object_path, data_directory, force_field_path)
+            global_metadata[key] = [(object_path, data_directory, force_field_path)]
 
         return global_metadata
