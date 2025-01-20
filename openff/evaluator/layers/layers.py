@@ -16,7 +16,7 @@ from openff.evaluator.attributes import (
     PlaceholderValue,
 )
 from openff.evaluator.datasets import PhysicalProperty
-from openff.evaluator.storage.data import BaseStoredData, StoredSimulationData
+from openff.evaluator.storage.data import BaseStoredData, StoredSimulationData, StoredEquilibrationData
 from openff.evaluator.utils.exceptions import EvaluatorException
 
 logger = logging.getLogger(__name__)
@@ -191,7 +191,7 @@ class CalculationLayer(abc.ABC):
             # Attach any extra metadata which is missing.
             data_object = BaseStoredData.from_json(data_object_path)
 
-            if isinstance(data_object, StoredSimulationData):
+            if isinstance(data_object, (StoredSimulationData, StoredEquilibrationData)):
                 if isinstance(data_object.force_field_id, PlaceholderValue):
                     data_object.force_field_id = batch.force_field_id
                 if isinstance(data_object.source_calculation_id, PlaceholderValue):

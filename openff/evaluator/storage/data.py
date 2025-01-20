@@ -234,6 +234,9 @@ class StoredEquilibrationData(BaseSimulationData):
         optional=True,
     )
 
+    # def __hash__(self):
+    #     return hash(self._to_hashable_tuple())
+
     def to_storage_query(self):
         """
         Returns
