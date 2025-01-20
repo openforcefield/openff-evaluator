@@ -321,7 +321,7 @@ class Attribute:
         ):
             raise ValueError(
                 f"The {self._private_attribute_name[1:]} attribute can only accept "
-                f"values of type {self.type_hint}"
+                f"values of type {self.type_hint}, not {type(value)}."
             )
 
         setattr(instance, self._private_attribute_name, value)
