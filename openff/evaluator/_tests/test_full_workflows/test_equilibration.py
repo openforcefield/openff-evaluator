@@ -120,7 +120,6 @@ def _create_equilibration_data_query(
     
 
 
-
 class TestEquilibrationLayer:
 
     @pytest.fixture
@@ -169,7 +168,6 @@ class TestEquilibrationLayer:
         error_on_nonconvergence,
         success,
         dummy_enthalpy_of_mixing,
-        # tmp_path,
         dhmix_density_CCCO,
     ):
         """
@@ -182,6 +180,8 @@ class TestEquilibrationLayer:
         We test two aggregation behaviors:
             - any
             - all
+
+        We test allowing the workflow to fail and continue on nonconvergence.
         """
         errors = [
             EquilibrationProperty(
@@ -222,7 +222,6 @@ class TestEquilibrationLayer:
         previous_output_paths = []
         for name, protocol in workflow_graph.protocols.items():
             path = name.replace("|", "_")
-            # path = "EquilibrationLayer/batch_0000/" + name.replace("|", "_")
             if "conditional" not in name:
                 output = protocol_graph._execute_protocol(
                     path,
@@ -265,6 +264,9 @@ class TestEquilibrationLayer:
 
         
     def test_data_storage_and_retrieval(self, dummy_dataset, dhmix_density_CCCO):
+        """
+        Test the storage and retrieval of equilibration data.
+        """
 
         force_field_path = "openff-2.1.0.offxml"
         force_field_source = SmirnoffForceFieldSource.from_path(
