@@ -58,7 +58,7 @@ class Density(PhysicalProperty):
         )
 
         # Define the protocols which will run the simulation itself.
-        protocols, value_source, output_to_store, replicators = (
+        protocols, value_source, output_to_store = (
             protocol_generator_function(
                 analysis.AverageObservable("average_density"),
                 use_target_uncertainty,
@@ -73,9 +73,6 @@ class Density(PhysicalProperty):
 
         # Build the workflow schema.
         schema = WorkflowSchema()
-
-        if replicators:
-            schema.protocol_replicators = replicators
 
         if hasattr(protocols, "build_coordinates"):
             schema.protocol_schemas = [

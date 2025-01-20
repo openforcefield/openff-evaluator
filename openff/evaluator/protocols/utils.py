@@ -630,29 +630,23 @@ def generate_preequilibrated_simulation_protocols(
     replicator_id: str = "data_replicator",
     n_molecules: int = 1000,
 ) -> Tuple[
-    PreequilibratedSimulationProtocols[S], ProtocolPath, StoredSimulationData, list
+    PreequilibratedSimulationProtocols[S], ProtocolPath, StoredSimulationData
 ]:
 
-    # Create the replicator which will apply these protocol once for each piece of
-    # cached simulation data.
-    data_replicator = ProtocolReplicator(replicator_id=replicator_id)
-    data_replicator.template_values = ProtocolPath("full_system_data", "global")
-
-    replicator_suffix = f"_{data_replicator.placeholder_id}{id_suffix}"
-
     # Unpack all the of the stored data.
-    unpack_stored_data = storage.UnpackStoredSimulationData(
-        "unpack_data{}".format(replicator_suffix)
+    unpack_stored_data = storage.UnpackStoredEquilibrationData(
+        f"unpack_data{id_suffix}"
     )
-    unpack_stored_data.simulation_data_path = ReplicatorValue(replicator_id)
+    unpack_stored_data.simulation_data_path = ProtocolPath("full_system_data", "global")
 
     assign_parameters = forcefield.BaseBuildSystem(f"assign_parameters{id_suffix}")
     assign_parameters.force_field_path = ProtocolPath(
-        "force_field_path", unpack_stored_data.id
+        "force_field_path", "global"
     )
     assign_parameters.coordinate_file_path = ProtocolPath(
         "coordinate_file_path", unpack_stored_data.id
     )
+    # this needs to be unpacked to ensure correct numbers of the substance
     assign_parameters.substance = ProtocolPath("substance", unpack_stored_data.id)
 
     # Equilibration
@@ -674,7 +668,7 @@ def generate_preequilibrated_simulation_protocols(
     equilibration_simulation.output_frequency = 5000
     equilibration_simulation.timestep = 2.0 * unit.femtosecond
     equilibration_simulation.thermodynamic_state = ProtocolPath(
-        "thermodynamic_state", unpack_stored_data.id
+        "thermodynamic_state", "global"
     )
     equilibration_simulation.input_coordinate_file = ProtocolPath(
         "output_coordinate_file", energy_minimisation.id
@@ -690,7 +684,7 @@ def generate_preequilibrated_simulation_protocols(
     production_simulation.output_frequency = 2000
     production_simulation.timestep = 2.0 * unit.femtosecond
     production_simulation.thermodynamic_state = ProtocolPath(
-        "thermodynamic_state", unpack_stored_data.id
+        "thermodynamic_state", "global"
     )
     production_simulation.input_coordinate_file = ProtocolPath(
         "output_coordinate_file", equilibration_simulation.id
@@ -733,7 +727,7 @@ def generate_preequilibrated_simulation_protocols(
         )
 
     analysis_protocol.thermodynamic_state = ProtocolPath(
-        "thermodynamic_state", unpack_stored_data.id
+        "thermodynamic_state", "global"
     )
     analysis_protocol.potential_energies = ProtocolPath(
         f"observables[{ObservableType.PotentialEnergy.value}]",
@@ -771,7 +765,7 @@ def generate_preequilibrated_simulation_protocols(
     output_to_store = StoredSimulationData()
 
     output_to_store.thermodynamic_state = ProtocolPath(
-        "thermodynamic_state", unpack_stored_data.id
+        "thermodynamic_state", "global"
     )
     output_to_store.property_phase = PropertyPhase.Liquid
 
@@ -815,7 +809,7 @@ def generate_preequilibrated_simulation_protocols(
         decorrelate_observables,
     )
 
-    return base_protocols, final_value_source, output_to_store, [data_replicator]
+    return base_protocols, final_value_source, output_to_store
 
 
 def generate_simulation_protocols(
@@ -824,7 +818,7 @@ def generate_simulation_protocols(
     id_suffix: str = "",
     conditional_group: Optional[ConditionalGroup] = None,
     n_molecules: int = 1000,
-) -> Tuple[SimulationProtocols[S], ProtocolPath, StoredSimulationData, list]:
+) -> Tuple[SimulationProtocols[S], ProtocolPath, StoredSimulationData]:
     """Constructs a set of protocols which, when combined in a workflow schema, may be
     executed to run a single simulation to estimate the average value of an observable.
 
@@ -1054,4 +1048,4 @@ def generate_simulation_protocols(
         decorrelate_observables,
     )
 
-    return base_protocols, final_value_source, output_to_store, []
+    return base_protocols, final_value_source, output_to_store

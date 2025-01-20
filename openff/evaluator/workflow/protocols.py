@@ -1172,6 +1172,10 @@ class ProtocolGraph:
                         )
 
                     target_protocol_ids = target_path.protocol_ids
+                    print("====")
+                    print("protocol id", protocol.id)
+                    print("previous_outputs")
+                    print(previous_outputs)
                     target_value = previous_outputs[
                         ProtocolPath(property_name, *target_protocol_ids)
                     ]

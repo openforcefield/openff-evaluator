@@ -419,7 +419,7 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
             mixture_protocols,
             mixture_value,
             mixture_stored_data,
-            mixture_data_replicators,
+            # mixture_data_replicators,
         ) = generate_preequilibrated_simulation_protocols(
             analysis.AverageObservable("extract_observable_mixture"),
             use_target_uncertainty,
@@ -427,7 +427,7 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
             replicator_id="mixture_data_replicator",
             n_molecules=n_molecules,
         )
-        mixture_data_replicator = mixture_data_replicators[0]
+        # mixture_data_replicator = mixture_data_replicators[0]
 
         # Specify the average observable which should be estimated.
         mixture_protocols.analysis_protocol.observable = ProtocolPath(
@@ -441,7 +441,8 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
         component_replicator.template_values = ProtocolPath("components", "global")
         component_substance = ReplicatorValue(component_replicator.id)
 
-        component_protocols, _, component_stored_data, component_data_replicators = (
+        # component_protocols, _, component_stored_data, component_data_replicators = (
+        component_protocols, _, component_stored_data = (
             generate_preequilibrated_simulation_protocols(
                 analysis.AverageObservable(
                     f"extract_observable_component_{component_replicator.placeholder_id}"
@@ -452,15 +453,21 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
                 n_molecules=n_molecules,
             )
         )
+        # specify simulation data path
+        component_protocols.unpack_stored_data.simulation_data_path = ProtocolPath(
+            f"component_data[{component_replicator.placeholder_id}]",
+            "global",
+        )
+
         # Specify the average observable which should be estimated.
         component_protocols.analysis_protocol.observable = ProtocolPath(
             f"observables[{cls._observable_type().value}]",
             component_protocols.production_simulation.id,
         )
-        component_data_replicator = component_data_replicators[0]
-        component_data_replicator.template_values = ProtocolPath(
-            f"component_data[$({component_replicator.id})]", "global"
-        )
+        # component_data_replicator = component_data_replicators[0]
+        # component_data_replicator.template_values = ProtocolPath(
+        #     f"component_data[$({component_replicator.id})]", "global"
+        # )
 
         (
             component_protocols.analysis_protocol.divisor,
@@ -468,9 +475,7 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
         ) = cls._n_molecules_divisor(
             ProtocolPath(
                 "total_number_of_molecules",
-                component_protocols.unpack_stored_data.id.replace(
-                    component_data_replicator.placeholder_id, "0"
-                ),
+                component_protocols.unpack_stored_data.id
             ),
             f"_component_{component_replicator.placeholder_id}",
         )
@@ -480,12 +485,36 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
         ) = cls._n_molecules_divisor(
             ProtocolPath(
                 "total_number_of_molecules",
-                mixture_protocols.unpack_stored_data.id.replace(
-                    mixture_data_replicator.placeholder_id, "0"
-                ),
+                mixture_protocols.unpack_stored_data.id
             ),
             "_mixture",
         )
+
+
+        # (
+        #     component_protocols.analysis_protocol.divisor,
+        #     component_n_molar_molecules,
+        # ) = cls._n_molecules_divisor(
+        #     ProtocolPath(
+        #         "total_number_of_molecules",
+        #         component_protocols.unpack_stored_data.id.replace(
+        #             component_data_replicator.placeholder_id, "0"
+        #         ),
+        #     ),
+        #     f"_component_{component_replicator.placeholder_id}",
+        # )
+        # (
+        #     mixture_protocols.analysis_protocol.divisor,
+        #     mixture_n_molar_molecules,
+        # ) = cls._n_molecules_divisor(
+        #     ProtocolPath(
+        #         "total_number_of_molecules",
+        #         mixture_protocols.unpack_stored_data.id.replace(
+        #             mixture_data_replicator.placeholder_id, "0"
+        #         ),
+        #     ),
+        #     "_mixture",
+        # )
 
         # Weight the component value by the mole fraction.
         weight_by_mole_fraction = miscellaneous.WeightByMoleFraction(
@@ -496,9 +525,7 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
         )
         weight_by_mole_fraction.full_substance = ProtocolPath(
             "substance",
-            mixture_protocols.unpack_stored_data.id.replace(
-                mixture_data_replicator.placeholder_id, "0"
-            ),
+            mixture_protocols.unpack_stored_data.id
         )
         weight_by_mole_fraction.component = component_substance
 
@@ -556,9 +583,9 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
             schema.protocol_schemas.append(mixture_n_molar_molecules.schema)
 
         schema.protocol_replicators = [
-            mixture_data_replicator,
+            # mixture_data_replicator,
             component_replicator,
-            component_data_replicator,
+            # component_data_replicator,
         ]
 
         schema.final_value_source = ProtocolPath(
