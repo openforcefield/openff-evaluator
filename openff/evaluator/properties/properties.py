@@ -19,7 +19,7 @@ from openff.evaluator.protocols.utils import (
     generate_reweighting_protocols,
     generate_simulation_protocols,
 )
-from openff.evaluator.storage.query import SimulationDataQuery, SubstanceQuery
+from openff.evaluator.storage.query import SimulationDataQuery, SubstanceQuery, EquilibrationDataQuery
 from openff.evaluator.utils.observables import ObservableType
 from openff.evaluator.workflow.schemas import ProtocolReplicator, WorkflowSchema
 from openff.evaluator.workflow.utils import ProtocolPath, ReplicatorValue
@@ -596,7 +596,7 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
         -------
             The dictionary of queries.
         """
-        mixture_data_query = SimulationDataQuery()
+        mixture_data_query = EquilibrationDataQuery()
         mixture_data_query.substance = PlaceholderValue()
         mixture_data_query.thermodynamic_state = PlaceholderValue()
         mixture_data_query.max_number_of_molecules = PlaceholderValue()
@@ -608,7 +608,7 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
         component_query = SubstanceQuery()
         component_query.components_only = True
 
-        component_data_query = SimulationDataQuery()
+        component_data_query = EquilibrationDataQuery()
         component_data_query.property_phase = PropertyPhase.Liquid
         component_data_query.substance = PlaceholderValue()
         component_data_query.substance_query = component_query
