@@ -1507,7 +1507,6 @@ class ProtocolGroup(Protocol):
         target_protocol_id = reference_path_clone.pop_next_in_path()
 
         if target_protocol_id not in self.protocols:
-            print(self.protocols)
             raise ValueError(
                 "The reference path does not target this protocol "
                 "or any of its children."

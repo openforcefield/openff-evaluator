@@ -318,6 +318,7 @@ def _copy_property_working_data(
     source_directory: str,
     uuid_prefix: str,
     destination_directory: str = ".",
+    include_data_files: bool = False,
 ):
     """
     Copy test data from one directory to another.
@@ -349,3 +350,7 @@ def _copy_property_working_data(
         if path.name.startswith(uuid_prefix) and path.is_dir():
             dest_dir = destination_directory / path.name
             shutil.copytree(path, dest_dir)
+
+    if include_data_files:
+        for path in abs_path.glob("data*.json"):
+            shutil.copy(path, destination_directory)

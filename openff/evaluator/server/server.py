@@ -266,6 +266,27 @@ class EvaluatorServer:
             request_results.exceptions.extend(batch.exceptions)
 
         return request_results, None
+    
+    def _no_batch(self, submission, force_field_id):
+        """Returns a single Batch."""
+
+        reserved_batch_ids = {
+            *self._queued_batches.keys(),
+            *self._finished_batches.keys(),
+        }
+        batch = Batch()
+        batch.force_field_id = force_field_id
+        batch.enable_data_caching = self._enable_data_caching
+        batch.queued_properties = list(submission.dataset.properties)
+        batch.options = RequestOptions.parse_json(submission.options.json())
+        batch.parameter_gradient_keys = copy.deepcopy(submission.parameter_gradient_keys)
+
+        n_batchs = len(reserved_batch_ids)
+        batch.id = f"batch_{n_batchs:04d}"
+        while batch.id in reserved_batch_ids:
+            n_batchs += 1
+            batch.id = f"batch_{n_batchs:04d}"
+        return [batch]
 
     def _batch_by_same_component(self, submission, force_field_id):
         """Batches a set of requested properties based on which substance they were
@@ -434,6 +455,8 @@ class EvaluatorServer:
             batches = self._batch_by_same_component(submission, force_field_id)
         elif batch_mode == BatchMode.SharedComponents:
             batches = self._batch_by_shared_component(submission, force_field_id)
+        elif batch_mode == BatchMode.NoBatch:
+            batches = self._no_batch(submission, force_field_id)
         else:
             raise NotImplementedError()
 

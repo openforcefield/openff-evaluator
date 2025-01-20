@@ -288,8 +288,14 @@ class ConditionalGroup(ProtocolGroup):
                 )
                 return
 
-            if self.current_iteration >= self.max_iterations and self.error_on_failure:
-                raise RuntimeError(f"{self.id} failed to converge.")
+            if (self.current_iteration >= self.max_iterations):
+                message = f"{self.id} failed to converge after {self.current_iteration} iterations."
+
+                if self.error_on_failure:
+                    raise RuntimeError(message)
+                
+                logger.info(message)
+                return
 
             logger.info(
                 f"{self.id} criteria not yet met after {self.current_iteration} "
