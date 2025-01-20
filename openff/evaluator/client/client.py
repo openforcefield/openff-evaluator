@@ -83,6 +83,8 @@ class BatchMode(Enum):
       common component will be batched together. E.g.The densities of 80:20 and 20:80
       mixtures of ethanol and water, and the pure densities of ethanol and water would
       be batched together.
+    * NoBatch: No batching will be performed. Each property will be estimated in a
+      single, sequentially-increasing batch.
 
     Properties will only be marked as estimated by the server when all properties in a
     single batch are completed.
@@ -90,6 +92,7 @@ class BatchMode(Enum):
 
     SameComponents = "SameComponents"
     SharedComponents = "SharedComponents"
+    NoBatch = "NoBatch"
 
 
 class Request(AttributeClass):
