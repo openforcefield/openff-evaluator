@@ -20,7 +20,7 @@ from openff.evaluator.layers.workflow import (
     WorkflowCalculationLayer,
     WorkflowCalculationSchema,
 )
-from openff.evaluator.storage.query import SimulationDataQuery
+from openff.evaluator.storage.query import EquilibrationDataQuery
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ def default_storage_query():
         A single query with a key of `"full_system_data"`.
     """
 
-    query = SimulationDataQuery()
+    query = EquilibrationDataQuery()
     query.substance = PlaceholderValue()
     query.thermodynamic_state = PlaceholderValue()
     query.max_number_of_molecules = PlaceholderValue()
@@ -74,7 +74,7 @@ class PreequilibratedSimulationSchema(WorkflowCalculationSchema):
 
         assert len(self.storage_queries) > 0
         assert all(
-            isinstance(x, SimulationDataQuery) for x in self.storage_queries.values()
+            isinstance(x, EquilibrationDataQuery) for x in self.storage_queries.values()
         )
 
 
