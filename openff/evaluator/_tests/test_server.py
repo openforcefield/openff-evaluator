@@ -2,11 +2,11 @@
 Units tests for the openff.evaluator.server module.
 """
 
-import tempfile
 import os
-import pytest
+import tempfile
 from time import sleep
 
+import pytest
 from openff.units import unit
 
 from openff.evaluator._tests.utils import create_dummy_property

@@ -266,7 +266,7 @@ class EvaluatorServer:
             request_results.exceptions.extend(batch.exceptions)
 
         return request_results, None
-    
+
     def _no_batch(self, submission, force_field_id):
         """Returns a single Batch."""
 
@@ -279,7 +279,9 @@ class EvaluatorServer:
         batch.enable_data_caching = self._enable_data_caching
         batch.queued_properties = list(submission.dataset.properties)
         batch.options = RequestOptions.parse_json(submission.options.json())
-        batch.parameter_gradient_keys = copy.deepcopy(submission.parameter_gradient_keys)
+        batch.parameter_gradient_keys = copy.deepcopy(
+            submission.parameter_gradient_keys
+        )
 
         n_batchs = len(reserved_batch_ids)
         batch.id = f"batch_{n_batchs:04d}"
