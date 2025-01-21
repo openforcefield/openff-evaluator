@@ -1052,6 +1052,7 @@ class ProtocolGraph:
                     available_resources=compute_resources,
                     safe_exceptions=safe_exceptions,
                 )
+
         return protocol_outputs
 
     @staticmethod
@@ -1172,6 +1173,7 @@ class ProtocolGraph:
                         )
 
                     target_protocol_ids = target_path.protocol_ids
+
                     target_value = previous_outputs[
                         ProtocolPath(property_name, *target_protocol_ids)
                     ]
