@@ -137,12 +137,6 @@ class PreequilibratedSimulationLayer(WorkflowCalculationLayer):
                 # with this property.
                 return None
 
-            # TODO: would there be more than one box returned?
-            # # assert len(query_results) == 1
-            # query_list = list(query_results.values())[0]
-            # assert len(query_list) == 1
-
-            # storage_key, data_object, data_directory = query_list[0]
             stored_data_tuples = []
             for query_list in query_results.values():
                 assert len(query_list) == 1
@@ -163,7 +157,6 @@ class PreequilibratedSimulationLayer(WorkflowCalculationLayer):
 
                     stored_data_tuples.append((object_path, data_directory, force_field_path))
                     
-                # stored_data_tuples.extend(query_list)
             
             if len(stored_data_tuples) == 1:
                 stored_data_tuples = stored_data_tuples[0]
@@ -171,15 +164,4 @@ class PreequilibratedSimulationLayer(WorkflowCalculationLayer):
             global_metadata[key] = stored_data_tuples
 
             
-            # Save a local copy of the data object file.
-            # if not os.path.isfile(object_path):
-            #     data_object.json(object_path)
-
-            # force_field_path = os.path.join(
-            #     working_directory, data_object.force_field_id
-            # )
-            
-
-            # global_metadata[key] = [(object_path, data_directory, force_field_path)]
-
         return global_metadata
