@@ -37,14 +37,11 @@ T = TypeVar("T", bound=reweighting.BaseMBARProtocol)
 
 @dataclass
 class EquilibrationProtocols:
-    """The common set of protocols which would be required to estimate an observable
-    by running a new molecule simulation."""
+    """The common set of protocols for equilibration"""
 
     build_coordinates: coordinates.BuildCoordinatesPackmol
     assign_parameters: forcefield.BaseBuildSystem
     energy_minimisation: openmm.OpenMMEnergyMinimisation
-    # equilibration_simulation: openmm.OpenMMEquilibration
-    # analysis_protocol: S
     converge_uncertainty: ProtocolGroup
 
     def __iter__(self):

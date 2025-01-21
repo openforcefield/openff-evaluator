@@ -43,6 +43,28 @@ class Density(PhysicalProperty):
         error_on_failure: bool = True,
         max_iterations: int = 100,
     ) -> EquilibrationSchema:
+        """Returns the default equilibration schema to use when equilibrating
+        liquid boxes.
+
+        Parameters
+        ----------
+        n_molecules: int
+            The number of molecules to use in the simulation.
+        error_tolerances: list[EquilibrationProperty]
+            The error tolerances to estimate the property to within.
+        condition_aggregation_behavior: ConditionAggregationBehavior
+            How to aggregate errors -- any vs all.
+        error_on_failure: bool
+            Whether to raise an error if the convergence conditions are not met.
+        max_iterations: int
+            The maximum number of iterations to run the equilibration for.
+            Each iteration is 200 ps long by default.
+
+        Returns
+        -------
+        EquilibrationSchema
+            The schema to follow when equilibrating boxes for this property.
+        """
 
         calculation_schema = EquilibrationSchema()
         calculation_schema.error_tolerances = copy.deepcopy(error_tolerances)

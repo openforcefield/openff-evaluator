@@ -126,8 +126,7 @@ class EquilibrationSchema(WorkflowCalculationSchema):
 
 @calculation_layer()
 class EquilibrationLayer(WorkflowCalculationLayer):
-    """A calculation layer which employs molecular simulation
-    to estimate sets of physical properties.
+    """A calculation layer for box equilibration.
     """
 
     @staticmethod
