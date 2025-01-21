@@ -53,6 +53,11 @@ class AttributeClass(TypedBaseModel):
     attributes with additional metadata.
     """
 
+    def __init__(self, **kwargs):
+        super().__init__()
+        for k, v in kwargs.items():
+            setattr(self, k, v)
+
     def validate(self, attribute_type=None):
         """Validate the values of the attributes. If `attribute_type`
         is set, only attributes of that type will be validated.
