@@ -6,12 +6,13 @@ from os import path
 from typing import Union
 
 from openff.evaluator.attributes import UNDEFINED
-from openff.evaluator.storage.data import StoredSimulationData, StoredEquilibrationData
+from openff.evaluator.storage.data import StoredEquilibrationData, StoredSimulationData
 from openff.evaluator.substances import Substance
 from openff.evaluator.thermodynamics import ThermodynamicState
 from openff.evaluator.utils.observables import ObservableFrame
 from openff.evaluator.workflow import Protocol, workflow_protocol
 from openff.evaluator.workflow.attributes import InputAttribute, OutputAttribute
+
 
 @workflow_protocol()
 class UnpackStoredEquilibrationData(Protocol):
@@ -89,7 +90,6 @@ class UnpackStoredEquilibrationData(Protocol):
         )
 
         self.force_field_path = force_field_path
-
 
 
 @workflow_protocol()

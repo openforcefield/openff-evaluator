@@ -1,6 +1,7 @@
 """
 A collection of density physical property definitions.
 """
+
 import copy
 
 from openff.units import unit
@@ -9,7 +10,10 @@ from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.datasets import PhysicalProperty, PropertyPhase
 from openff.evaluator.datasets.thermoml import thermoml_property
 from openff.evaluator.layers import register_calculation_schema
-from openff.evaluator.layers.equilibration import EquilibrationSchema
+from openff.evaluator.layers.equilibration import (
+    EquilibrationProperty,
+    EquilibrationSchema,
+)
 from openff.evaluator.layers.reweighting import ReweightingLayer, ReweightingSchema
 from openff.evaluator.layers.simulation import SimulationLayer, SimulationSchema
 from openff.evaluator.properties.properties import EstimableExcessProperty
@@ -20,7 +24,6 @@ from openff.evaluator.protocols.utils import (
     generate_simulation_protocols,
 )
 from openff.evaluator.utils.observables import ObservableType
-from openff.evaluator.layers.equilibration import EquilibrationProperty
 from openff.evaluator.workflow.attributes import ConditionAggregationBehavior
 from openff.evaluator.workflow.schemas import WorkflowSchema
 from openff.evaluator.workflow.utils import ProtocolPath
@@ -33,7 +36,7 @@ class Density(PhysicalProperty):
     @classmethod
     def default_unit(cls):
         return unit.gram / unit.millilitre
-    
+
     @classmethod
     def default_equilibration_schema(
         cls,
@@ -68,7 +71,9 @@ class Density(PhysicalProperty):
 
         calculation_schema = EquilibrationSchema()
         calculation_schema.error_tolerances = copy.deepcopy(error_tolerances)
-        calculation_schema.error_aggregration = copy.deepcopy(condition_aggregation_behavior)
+        calculation_schema.error_aggregration = copy.deepcopy(
+            condition_aggregation_behavior
+        )
         calculation_schema.error_on_failure = error_on_failure
         calculation_schema.max_iterations = max_iterations
 

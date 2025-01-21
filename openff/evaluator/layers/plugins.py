@@ -17,7 +17,7 @@ from collections import defaultdict
 from typing import Dict, Type
 
 from openff.evaluator.datasets import PhysicalProperty
-from openff.evaluator.layers.layers import CalculationLayer, BaseCalculationLayerSchema
+from openff.evaluator.layers.layers import BaseCalculationLayerSchema, CalculationLayer
 
 registered_calculation_layers: Dict[str, Type[CalculationLayer]] = {}
 registered_calculation_schemas: Dict[str, Dict[str, BaseCalculationLayerSchema]] = (

@@ -5,31 +5,29 @@
 
 
 from openff.units import unit
-from openff.evaluator.utils.observables import ObservableType
+
 from openff.evaluator.backends import ComputeResources
 from openff.evaluator.backends.dask import DaskLocalCluster
+from openff.evaluator.client import EvaluatorClient, Request, RequestOptions
 from openff.evaluator.datasets import (
     MeasurementSource,
     PhysicalPropertyDataSet,
     PropertyPhase,
 )
-from openff.evaluator.client import EvaluatorClient, RequestOptions, Request
-from openff.evaluator.server.server import Batch, EvaluatorServer
-
 from openff.evaluator.forcefield import (
     LigParGenForceFieldSource,
     SmirnoffForceFieldSource,
     TLeapForceFieldSource,
 )
-
+from openff.evaluator.layers.equilibration import EquilibrationProperty
 from openff.evaluator.properties import Density, EnthalpyOfMixing
+from openff.evaluator.server.server import Batch, EvaluatorServer
 from openff.evaluator.substances import Substance
 from openff.evaluator.thermodynamics import ThermodynamicState
-from openff.evaluator.layers.equilibration import EquilibrationProperty
-
+from openff.evaluator.utils.observables import ObservableType
 
 # ## Create a toy dataset
-# 
+#
 # Properties can be downloaded from the internet, loaded from a file, or created dynamically. Here we quickly create a small dataset.
 
 # In[2]:
@@ -56,7 +54,7 @@ dataset.add_properties(
         uncertainty=1.0 * EnthalpyOfMixing.default_unit(),
         source=MeasurementSource(doi=" "),
         substance=Substance.from_components("CCCO", "O"),
-    )
+    ),
 )
 
 for i, prop in enumerate(dataset.properties):
@@ -78,14 +76,11 @@ density.observable_type = ObservableType.Density
 equilibration_options = RequestOptions()
 equilibration_options.calculation_layers = ["EquilibrationLayer"]
 density_equilibration_schema = Density.default_equilibration_schema(
-    n_molecules=256,
-    error_tolerances=[potential_energy, density]
+    n_molecules=256, error_tolerances=[potential_energy, density]
 )
 
 dhmix_equilibration_schema = EnthalpyOfMixing.default_equilibration_schema(
-    n_molecules=256,
-    error_tolerances=[potential_energy, density]
-
+    n_molecules=256, error_tolerances=[potential_energy, density]
 )
 equilibration_options.add_schema(
     "EquilibrationLayer",
@@ -105,9 +100,7 @@ equilibration_options.add_schema(
 
 
 force_field_path = "openff-2.1.0.offxml"
-force_field_source = SmirnoffForceFieldSource.from_path(
-    force_field_path
-)
+force_field_source = SmirnoffForceFieldSource.from_path(force_field_path)
 
 
 # In[ ]:
@@ -124,11 +117,11 @@ with DaskLocalCluster(
     server = EvaluatorServer(
         calculation_backend=calculation_backend,
         working_directory=".",
-        delete_working_files=False
+        delete_working_files=False,
     )
     with server:
         client = EvaluatorClient()
-    
+
         # test equilibration
         request, error = client.request_estimate(
             dataset,
@@ -137,8 +130,3 @@ with DaskLocalCluster(
         )
 
         results, exception = request.results(synchronous=True, polling_interval=30)
-
-
-
-
-

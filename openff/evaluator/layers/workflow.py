@@ -244,7 +244,7 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
         )
 
         return [future]
-    
+
 
 class BaseWorkflowCalculationSchema(BaseCalculationLayerSchema):
     workflow_schema = Attribute(
@@ -258,11 +258,8 @@ class BaseWorkflowCalculationSchema(BaseCalculationLayerSchema):
         self.workflow_schema.validate()
 
 
-
 class WorkflowCalculationSchema(CalculationLayerSchema, BaseWorkflowCalculationSchema):
     """A schema which encodes the options and the workflow schema
     that a `CalculationLayer` should use when estimating a given class
     of physical properties using the built-in workflow framework.
     """
-
-    

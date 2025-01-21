@@ -6,21 +6,17 @@ import logging
 
 from openff.units import unit
 
-from openff.evaluator.attributes import (
-    UNDEFINED,
-    Attribute,
-    AttributeClass,
-)
+from openff.evaluator.attributes import UNDEFINED, Attribute, AttributeClass
 from openff.evaluator.layers import calculation_layer
 from openff.evaluator.layers.layers import BaseCalculationLayerSchema
 from openff.evaluator.layers.workflow import (
+    BaseWorkflowCalculationSchema,
     WorkflowCalculationLayer,
     WorkflowCalculationSchema,
-    BaseWorkflowCalculationSchema,
 )
-from openff.evaluator.workflow.attributes import ConditionAggregationBehavior
-from openff.evaluator.utils.observables import ObservableType, ObservableFrame
+from openff.evaluator.utils.observables import ObservableFrame, ObservableType
 from openff.evaluator.workflow import Workflow
+from openff.evaluator.workflow.attributes import ConditionAggregationBehavior
 
 logger = logging.getLogger(__name__)
 
@@ -50,13 +46,13 @@ class EquilibrationProperty(AttributeClass):
     observable_type = Attribute(
         docstring="The type of observable to use in evaluating equilibration.",
         type_hint=ObservableType,
-        optional=False
+        optional=False,
     )
     n_uncorrelated_samples = Attribute(
         docstring="The number of uncorrelated samples to use in evaluating equilibration.",
         type_hint=int,
         default_value=UNDEFINED,
-        optional=True
+        optional=True,
     )
 
     def validate(self, attribute_type=None):
@@ -71,7 +67,9 @@ class EquilibrationProperty(AttributeClass):
 
         # check units
         if self.absolute_tolerance != UNDEFINED:
-            assert self.absolute_tolerance.units.is_compatible_with(self.observable_unit)
+            assert self.absolute_tolerance.units.is_compatible_with(
+                self.observable_unit
+            )
         super(EquilibrationProperty, self).validate(attribute_type)
 
     @property
@@ -83,7 +81,6 @@ class EquilibrationProperty(AttributeClass):
         if self.absolute_tolerance != UNDEFINED:
             return self.absolute_tolerance
         return self.relative_tolerance
-
 
 
 class EquilibrationSchema(WorkflowCalculationSchema):
@@ -123,11 +120,9 @@ class EquilibrationSchema(WorkflowCalculationSchema):
         super(EquilibrationSchema, self).validate(attribute_type)
 
 
-
 @calculation_layer()
 class EquilibrationLayer(WorkflowCalculationLayer):
-    """A calculation layer for box equilibration.
-    """
+    """A calculation layer for box equilibration."""
 
     @staticmethod
     def _get_workflow_metadata(
@@ -171,7 +166,9 @@ class EquilibrationLayer(WorkflowCalculationLayer):
             parameter_gradient_keys,
             None,  # set target to None for now
         )
-        global_metadata["error_tolerances"] = copy.deepcopy(calculation_schema.error_tolerances)
+        global_metadata["error_tolerances"] = copy.deepcopy(
+            calculation_schema.error_tolerances
+        )
         global_metadata["error_aggregation"] = calculation_schema.error_aggregration
         return global_metadata
 

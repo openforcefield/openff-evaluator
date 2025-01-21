@@ -16,7 +16,11 @@ from openff.evaluator.attributes import (
     PlaceholderValue,
 )
 from openff.evaluator.datasets import PhysicalProperty
-from openff.evaluator.storage.data import BaseStoredData, StoredSimulationData, StoredEquilibrationData
+from openff.evaluator.storage.data import (
+    BaseStoredData,
+    StoredEquilibrationData,
+    StoredSimulationData,
+)
 from openff.evaluator.utils.exceptions import EvaluatorException
 
 logger = logging.getLogger(__name__)
@@ -61,6 +65,7 @@ class CalculationLayerResult(AttributeClass):
 
 class BaseCalculationLayerSchema(AttributeClass):
     pass
+
 
 class CalculationLayerSchema(BaseCalculationLayerSchema):
     """A schema which encodes the options that a `CalculationLayer`

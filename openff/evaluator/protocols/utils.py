@@ -9,6 +9,7 @@ from openff.units import unit
 
 from openff.evaluator.attributes import UNDEFINED, PlaceholderValue
 from openff.evaluator.datasets import PropertyPhase
+from openff.evaluator.layers.equilibration import EquilibrationProperty
 from openff.evaluator.protocols import (
     analysis,
     coordinates,
@@ -20,16 +21,19 @@ from openff.evaluator.protocols import (
     reweighting,
     storage,
 )
-from openff.evaluator.layers.equilibration import EquilibrationProperty
 from openff.evaluator.protocols.groups import ConditionalGroup
-from openff.evaluator.storage.data import StoredSimulationData, StoredEquilibrationData
+from openff.evaluator.protocols.miscellaneous import (
+    AbsoluteValue,
+    MaximumValue,
+    MultiplyValue,
+)
+from openff.evaluator.storage.data import StoredEquilibrationData, StoredSimulationData
 from openff.evaluator.thermodynamics import Ensemble
 from openff.evaluator.utils.observables import ObservableType
 from openff.evaluator.workflow import ProtocolGroup
 from openff.evaluator.workflow.attributes import ConditionAggregationBehavior
 from openff.evaluator.workflow.schemas import ProtocolReplicator
 from openff.evaluator.workflow.utils import ProtocolPath, ReplicatorValue
-from openff.evaluator.protocols.miscellaneous import MultiplyValue, MaximumValue, AbsoluteValue
 
 S = TypeVar("S", bound=analysis.BaseAverageObservable)
 T = TypeVar("T", bound=reweighting.BaseMBARProtocol)
@@ -455,7 +459,7 @@ def generate_equilibration_protocols(
 
     for i, equilibration_property in enumerate(error_tolerances):
         observable_type = equilibration_property.observable_type.value
-        
+
         # construct analysis protocol
         analysis_protocol = analysis.AverageObservable(
             f"extract_{i}_{observable_type}{id_suffix}"
@@ -494,27 +498,28 @@ def generate_equilibration_protocols(
                 )
             elif equilibration_property.relative_tolerance != UNDEFINED:
                 # add error tolerance
-                multiplication_protocol = MultiplyValue(f"multiply_{i}_{observable_type}{id_suffix}")
+                multiplication_protocol = MultiplyValue(
+                    f"multiply_{i}_{observable_type}{id_suffix}"
+                )
                 multiplication_protocol.value = ProtocolPath(
                     "value.value", conditional_group.id, analysis_protocol.id
                 )
-                multiplication_protocol.multiplier = equilibration_property.relative_tolerance
+                multiplication_protocol.multiplier = (
+                    equilibration_property.relative_tolerance
+                )
 
-                absolute_protocol = AbsoluteValue(f"absolute_{i}_{observable_type}{id_suffix}")
+                absolute_protocol = AbsoluteValue(
+                    f"absolute_{i}_{observable_type}{id_suffix}"
+                )
                 absolute_protocol.value = ProtocolPath(
-                    "result",
-                    conditional_group.id,
-                    multiplication_protocol.id
+                    "result", conditional_group.id, multiplication_protocol.id
                 )
                 tolerance = ProtocolPath(
-                    "result",
-                    conditional_group.id,
-                    absolute_protocol.id
+                    "result", conditional_group.id, absolute_protocol.id
                 )
-                multiplication_protocols.extend([
-                    multiplication_protocol,
-                    absolute_protocol
-                ])
+                multiplication_protocols.extend(
+                    [multiplication_protocol, absolute_protocol]
+                )
             else:
                 # should never get here
                 continue
@@ -525,18 +530,20 @@ def generate_equilibration_protocols(
             )
             conditional_group.add_condition(condition)
 
-
         # Make sure the simulation gets extended after each iteration.
         equilibration_simulation.total_number_of_iterations = ProtocolPath(
             "current_iteration", conditional_group.id
         )
-    
+
     # get the highest? statistical inefficiency for each protocol
-    statistical_inefficiency_protocol = MaximumValue(f"get_maximum_statistical_inefficiency{id_suffix}")
+    statistical_inefficiency_protocol = MaximumValue(
+        f"get_maximum_statistical_inefficiency{id_suffix}"
+    )
     statistical_inefficiency_protocol.values = [
         ProtocolPath(
             "time_series_statistics.statistical_inefficiency",
-            conditional_group.id, analysis_protocol.id
+            conditional_group.id,
+            analysis_protocol.id,
         )
         for analysis_protocol in analysis_protocols
     ]
@@ -545,7 +552,7 @@ def generate_equilibration_protocols(
         equilibration_simulation,
         *analysis_protocols,
         *multiplication_protocols,
-        statistical_inefficiency_protocol
+        statistical_inefficiency_protocol,
     )
 
     # Finally, extract uncorrelated data

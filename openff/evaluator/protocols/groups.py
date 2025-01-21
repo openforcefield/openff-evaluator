@@ -18,11 +18,11 @@ from openff.units import unit
 from openff.evaluator.attributes import UNDEFINED, Attribute, AttributeClass
 from openff.evaluator.workflow import ProtocolGroup, workflow_protocol
 from openff.evaluator.workflow.attributes import (
+    ConditionAggregationBehavior,
     InequalityMergeBehavior,
     InputAttribute,
     MergeBehavior,
     OutputAttribute,
-    ConditionAggregationBehavior
 )
 from openff.evaluator.workflow.utils import ProtocolPath
 
@@ -211,7 +211,7 @@ class ConditionalGroup(ProtocolGroup):
             current_iteration = checkpoint_dictionary["current_iteration"]
 
         return current_iteration
-    
+
     def _evaluate_all(self) -> bool:
         """Evaluates all the conditions in this group."""
         conditions_met = True
@@ -221,7 +221,7 @@ class ConditionalGroup(ProtocolGroup):
             if not self._evaluate_condition(condition):
                 conditions_met = False
         return conditions_met
-    
+
     def _evaluate_any(self) -> bool:
         """Evaluates any of the conditions in this group."""
         conditions_met = False
@@ -231,7 +231,6 @@ class ConditionalGroup(ProtocolGroup):
             if self._evaluate_condition(condition):
                 conditions_met = True
         return conditions_met
-
 
     def _execute(self, directory, available_resources):
         """Executes the protocols within this groups
@@ -288,12 +287,12 @@ class ConditionalGroup(ProtocolGroup):
                 )
                 return
 
-            if (self.current_iteration >= self.max_iterations):
+            if self.current_iteration >= self.max_iterations:
                 message = f"{self.id} failed to converge after {self.current_iteration} iterations."
 
                 if self.error_on_failure:
                     raise RuntimeError(message)
-                
+
                 logger.info(message)
                 return
 

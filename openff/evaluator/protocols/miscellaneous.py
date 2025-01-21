@@ -222,8 +222,6 @@ class AbsoluteValue(Protocol):
         self.result = abs(self.value)
 
 
-
-
 @workflow_protocol()
 class WeightByMoleFraction(Protocol):
     """Multiplies a value by the mole fraction of a component

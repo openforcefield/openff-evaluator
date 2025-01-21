@@ -11,8 +11,8 @@ from openff.evaluator.forcefield import ForceFieldSource
 from openff.evaluator.storage.attributes import QueryAttribute
 from openff.evaluator.storage.data import (
     ForceFieldData,
-    StoredFreeEnergyData,
     StoredEquilibrationData,
+    StoredFreeEnergyData,
     StoredSimulationData,
 )
 from openff.evaluator.substances import ExactAmount, Substance

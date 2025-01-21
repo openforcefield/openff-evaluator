@@ -195,7 +195,7 @@ class BaseSimulationData(ReplaceableData, abc.ABC):
 
 class StoredEquilibrationData(BaseSimulationData):
     """A representation of data which has been cached from a single previous equilibration simulation.
-    
+
     Notes
     -----
     The ancillary directory which stores larger information should be of the form:
@@ -245,7 +245,6 @@ class StoredEquilibrationData(BaseSimulationData):
         from .query import EquilibrationDataQuery
 
         return EquilibrationDataQuery.from_data_object(self)
-    
 
     @classmethod
     def most_information(cls, stored_data_1, stored_data_2):

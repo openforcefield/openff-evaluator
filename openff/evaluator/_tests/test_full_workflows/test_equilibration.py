@@ -1,51 +1,51 @@
 import os
 import pathlib
-import pytest
 
+import pytest
 from openff.units import unit
 from openff.utilities.utilities import get_data_dir_path
 
+from openff.evaluator._tests.utils import (
+    _copy_property_working_data,
+    _write_force_field,
+)
+from openff.evaluator.backends import ComputeResources
+from openff.evaluator.backends.dask import DaskLocalCluster
+from openff.evaluator.client import BatchMode, EvaluatorClient, RequestOptions
 from openff.evaluator.datasets import (
     MeasurementSource,
     PhysicalPropertyDataSet,
     PropertyPhase,
 )
-from openff.evaluator.utils.observables import ObservableType
-from openff.evaluator.backends import ComputeResources
-from openff.evaluator.backends.dask import DaskLocalCluster
+from openff.evaluator.forcefield import SmirnoffForceFieldSource
+from openff.evaluator.layers.equilibration import EquilibrationProperty
 from openff.evaluator.properties import Density, EnthalpyOfMixing
 from openff.evaluator.server.server import Batch, EvaluatorServer
+from openff.evaluator.storage.query import EquilibrationDataQuery
 from openff.evaluator.substances import Substance
 from openff.evaluator.thermodynamics import ThermodynamicState
-from openff.evaluator.layers.equilibration import EquilibrationProperty
-from openff.evaluator.client import EvaluatorClient, RequestOptions, BatchMode
-from openff.evaluator.forcefield import SmirnoffForceFieldSource
-from openff.evaluator.workflow.attributes import ConditionAggregationBehavior
-from openff.evaluator.storage.query import EquilibrationDataQuery
-from openff.evaluator._tests.utils import _write_force_field, _copy_property_working_data
-
+from openff.evaluator.utils.observables import ObservableType
 from openff.evaluator.workflow import Workflow
-
+from openff.evaluator.workflow.attributes import ConditionAggregationBehavior
 
 
 def _get_equilibration_request_options(
     n_molecules: int = 256,
     error_tolerances: list = [],
-    condition_aggregation_behavior = ConditionAggregationBehavior.All,
+    condition_aggregation_behavior=ConditionAggregationBehavior.All,
     n_iterations: int = 0,
-
 ):
     dhmix_equilibration_schema = EnthalpyOfMixing.default_equilibration_schema(
         n_molecules=n_molecules,
         error_tolerances=error_tolerances,
         condition_aggregation_behavior=condition_aggregation_behavior,
-        max_iterations=n_iterations
+        max_iterations=n_iterations,
     )
     density_equilibration_schema = Density.default_equilibration_schema(
         n_molecules=n_molecules,
         error_tolerances=error_tolerances,
         condition_aggregation_behavior=condition_aggregation_behavior,
-        max_iterations=n_iterations
+        max_iterations=n_iterations,
     )
 
     equilibration_options = RequestOptions()
@@ -74,7 +74,6 @@ def _create_equilibration_data_query(
     query.calculation_layer = "EquilibrationLayer"
     query.substance = substance
     return query
-    
 
 
 class TestEquilibrationLayer:
@@ -89,34 +88,35 @@ class TestEquilibrationLayer:
         )
         return path
 
-
-    @pytest.mark.parametrize("potential_error, density_error, aggregation_behavior, error_on_nonconvergence, success", [
-        # passes because both conditions are met
-        (200, 0.2, ConditionAggregationBehavior.All, True, True),
-        # passes because at least one condition is met
-        (200, 0.2, ConditionAggregationBehavior.Any, True, True),
-        # fails because density error is too high
-        (200, 0.00002, ConditionAggregationBehavior.All, True, False),
-        # passes because at least one condition is met
-        (200, 0.00002, ConditionAggregationBehavior.Any, True, True),
-        # fails because one condition is not met
-        (0.0001, 0.2, ConditionAggregationBehavior.All, True, False),
-        # passes because at least one condition is met
-        (0.0001, 0.2, ConditionAggregationBehavior.Any, True, True),
-        # fails because both conditions are not met
-        (0.0001, 0.00001, ConditionAggregationBehavior.All, True, False),
-        (0.0001, 0.00001, ConditionAggregationBehavior.Any, True, False),
-
-        # all the above but they all pass because there is no error on nonconvergence
-        (200, 0.2, ConditionAggregationBehavior.All, False, True),
-        (200, 0.2, ConditionAggregationBehavior.Any, False, True),
-        (200, 0.00002, ConditionAggregationBehavior.All, False, True),
-        (200, 0.00002, ConditionAggregationBehavior.Any, False, True),
-        (0.0001, 0.2, ConditionAggregationBehavior.All, False, True),
-        (0.0001, 0.2, ConditionAggregationBehavior.Any, False, True),
-        (0.0001, 0.00001, ConditionAggregationBehavior.All, False, True),
-        (0.0001, 0.00001, ConditionAggregationBehavior.Any, False, True),
-    ])
+    @pytest.mark.parametrize(
+        "potential_error, density_error, aggregation_behavior, error_on_nonconvergence, success",
+        [
+            # passes because both conditions are met
+            (200, 0.2, ConditionAggregationBehavior.All, True, True),
+            # passes because at least one condition is met
+            (200, 0.2, ConditionAggregationBehavior.Any, True, True),
+            # fails because density error is too high
+            (200, 0.00002, ConditionAggregationBehavior.All, True, False),
+            # passes because at least one condition is met
+            (200, 0.00002, ConditionAggregationBehavior.Any, True, True),
+            # fails because one condition is not met
+            (0.0001, 0.2, ConditionAggregationBehavior.All, True, False),
+            # passes because at least one condition is met
+            (0.0001, 0.2, ConditionAggregationBehavior.Any, True, True),
+            # fails because both conditions are not met
+            (0.0001, 0.00001, ConditionAggregationBehavior.All, True, False),
+            (0.0001, 0.00001, ConditionAggregationBehavior.Any, True, False),
+            # all the above but they all pass because there is no error on nonconvergence
+            (200, 0.2, ConditionAggregationBehavior.All, False, True),
+            (200, 0.2, ConditionAggregationBehavior.Any, False, True),
+            (200, 0.00002, ConditionAggregationBehavior.All, False, True),
+            (200, 0.00002, ConditionAggregationBehavior.Any, False, True),
+            (0.0001, 0.2, ConditionAggregationBehavior.All, False, True),
+            (0.0001, 0.2, ConditionAggregationBehavior.Any, False, True),
+            (0.0001, 0.00001, ConditionAggregationBehavior.All, False, True),
+            (0.0001, 0.00001, ConditionAggregationBehavior.Any, False, True),
+        ],
+    )
     def test_execute_conditions(
         self,
         potential_error,
@@ -153,7 +153,6 @@ class TestEquilibrationLayer:
         os.chdir(dhmix_density_CCCO)
         _write_force_field()
 
-
         metadata = Workflow.generate_default_metadata(
             dummy_enthalpy_of_mixing, "force-field.json"
         )
@@ -164,7 +163,7 @@ class TestEquilibrationLayer:
             error_tolerances=errors,
             condition_aggregation_behavior=aggregation_behavior,
             error_on_failure=error_on_nonconvergence,
-            max_iterations=0
+            max_iterations=0,
         )
         workflow_schema = schema.workflow_schema
         workflow_schema.replace_protocol_types(
@@ -195,7 +194,6 @@ class TestEquilibrationLayer:
         for file in pathlib.Path(".").rglob(pattern):
             file.unlink()
 
-
         for name, protocol in workflow_graph.protocols.items():
             if "conditional" in name:
                 path = name.replace("|", "_")
@@ -217,18 +215,14 @@ class TestEquilibrationLayer:
                         raise e
                 if not success:
                     raise AssertionError("Equilibration should have failed")
-        
 
-        
     def test_data_storage_and_retrieval(self, dummy_dataset, dhmix_density_CCCO):
         """
         Test the storage and retrieval of equilibration data.
         """
 
         force_field_path = "openff-2.1.0.offxml"
-        force_field_source = SmirnoffForceFieldSource.from_path(
-            force_field_path
-        )
+        force_field_source = SmirnoffForceFieldSource.from_path(force_field_path)
 
         error_tolerances = [
             EquilibrationProperty(
@@ -251,7 +245,7 @@ class TestEquilibrationLayer:
             server = EvaluatorServer(
                 calculation_backend=calculation_backend,
                 working_directory=".",
-                delete_working_files=False
+                delete_working_files=False,
             )
             with server:
                 client = EvaluatorClient()
@@ -270,7 +264,7 @@ class TestEquilibrationLayer:
                 storage_path = "stored_data"
                 storage_path = pathlib.Path(storage_path)
                 assert len(list(storage_path.rglob("*/output.pdb"))) == 0
-                
+
                 # test equilibration
                 request, error = client.request_estimate(
                     dummy_dataset,
@@ -278,7 +272,9 @@ class TestEquilibrationLayer:
                     equilibration_options,
                 )
                 assert error is None
-                results, exception = request.results(synchronous=True, polling_interval=30)
+                results, exception = request.results(
+                    synchronous=True, polling_interval=30
+                )
 
                 # check execution finished
                 assert exception is None
@@ -311,4 +307,3 @@ class TestEquilibrationLayer:
                 ccco_o_boxes = server._storage_backend.query(ccco_o_query)
                 key = next(iter(ccco_o_boxes.keys()))
                 assert len(ccco_o_boxes[key]) == 1
-            
