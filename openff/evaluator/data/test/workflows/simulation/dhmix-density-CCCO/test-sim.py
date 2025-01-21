@@ -5,31 +5,34 @@
 
 
 from openff.units import unit
-from openff.evaluator.utils.observables import ObservableType
+
 from openff.evaluator.backends import ComputeResources
 from openff.evaluator.backends.dask import DaskLocalCluster
+from openff.evaluator.client import (
+    ConnectionOptions,
+    EvaluatorClient,
+    Request,
+    RequestOptions,
+)
 from openff.evaluator.datasets import (
     MeasurementSource,
     PhysicalPropertyDataSet,
     PropertyPhase,
 )
-from openff.evaluator.client import EvaluatorClient, RequestOptions, Request, ConnectionOptions
-from openff.evaluator.server.server import Batch, EvaluatorServer
-
 from openff.evaluator.forcefield import (
     LigParGenForceFieldSource,
     SmirnoffForceFieldSource,
     TLeapForceFieldSource,
 )
-
+from openff.evaluator.layers.equilibration import EquilibrationProperty
 from openff.evaluator.properties import Density, EnthalpyOfMixing
+from openff.evaluator.server.server import Batch, EvaluatorServer
 from openff.evaluator.substances import Substance
 from openff.evaluator.thermodynamics import ThermodynamicState
-from openff.evaluator.layers.equilibration import EquilibrationProperty
-
+from openff.evaluator.utils.observables import ObservableType
 
 # ## Create a toy dataset
-# 
+#
 # Properties can be downloaded from the internet, loaded from a file, or created dynamically. Here we quickly create a small dataset.
 
 # In[2]:
@@ -55,7 +58,7 @@ dataset.add_properties(
         value=1.0 * EnthalpyOfMixing.default_unit(),
         source=MeasurementSource(doi=" "),
         substance=Substance.from_components("CCCO", "O"),
-    )
+    ),
 )
 
 for i, prop in enumerate(dataset.properties):
@@ -88,9 +91,7 @@ options.add_schema(
 
 
 force_field_path = "openff-2.1.0.offxml"
-force_field_source = SmirnoffForceFieldSource.from_path(
-    force_field_path
-)
+force_field_source = SmirnoffForceFieldSource.from_path(force_field_path)
 
 
 # In[ ]:
@@ -108,11 +109,10 @@ with DaskLocalCluster(
         calculation_backend=calculation_backend,
         working_directory=".",
         delete_working_files=False,
-        port=8998
+        port=8998,
     )
     with server:
         client = EvaluatorClient(connection_options=ConnectionOptions(server_port=8998))
-
 
         request, error = client.request_estimate(
             dataset,
@@ -127,9 +127,5 @@ print(len(results.estimated_properties))
 
 print(len(results.unsuccessful_properties))
 print(len(results.exceptions))
-results.estimated_properties.json("estimated_data_set.json", format=True);
+results.estimated_properties.json("estimated_data_set.json", format=True)
 # In[ ]:
-
-
-
-

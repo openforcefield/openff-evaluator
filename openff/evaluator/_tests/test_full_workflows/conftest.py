@@ -1,5 +1,4 @@
 import pytest
-
 from openff.units import unit
 
 from openff.evaluator.datasets import (
@@ -10,6 +9,7 @@ from openff.evaluator.datasets import (
 from openff.evaluator.properties import Density, EnthalpyOfMixing
 from openff.evaluator.substances import Substance
 from openff.evaluator.thermodynamics import ThermodynamicState
+
 
 @pytest.fixture
 def dummy_enthalpy_of_mixing():
@@ -27,6 +27,7 @@ def dummy_enthalpy_of_mixing():
         substance=Substance.from_components("CCCO", "O"),
     )
 
+
 @pytest.fixture
 def dummy_density():
     thermodynamic_state = ThermodynamicState(
@@ -43,13 +44,11 @@ def dummy_density():
         substance=Substance.from_components("CCCO"),
     )
 
+
 @pytest.fixture
 def dummy_dataset(dummy_density, dummy_enthalpy_of_mixing):
     dataset = PhysicalPropertyDataSet()
-    dataset.add_properties(
-        dummy_density,
-        dummy_enthalpy_of_mixing
-    )
+    dataset.add_properties(dummy_density, dummy_enthalpy_of_mixing)
 
     for i, prop in enumerate(dataset.properties):
         prop.id = f"{i}"

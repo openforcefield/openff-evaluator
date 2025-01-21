@@ -4,10 +4,10 @@ import shutil
 import uuid
 from contextlib import contextmanager
 
-from openff.units import unit
-
-from openff.utilities.utilities import get_data_dir_path
 from openff.toolkit import ForceField
+from openff.units import unit
+from openff.utilities.utilities import get_data_dir_path
+
 from openff.evaluator.datasets import (
     CalculationSource,
     PhysicalPropertyDataSet,
@@ -281,9 +281,7 @@ def _copy_property_working_data(
 
     # locate our saved test data
     data_directory = pathlib.Path(
-        get_data_dir_path(
-            source_directory, "openff.evaluator"
-        )
+        get_data_dir_path(source_directory, "openff.evaluator")
     )
     abs_path = data_directory.resolve()
     destination_directory = pathlib.Path(destination_directory)
