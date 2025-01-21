@@ -1,21 +1,26 @@
 import abc
+import copy
 from typing import Dict, Optional, Tuple
 
 from openff.units import unit
 
 from openff.evaluator.attributes import UNDEFINED, PlaceholderValue
 from openff.evaluator.datasets import PhysicalProperty, PropertyPhase
+from openff.evaluator.layers.equilibration import EquilibrationSchema
 from openff.evaluator.layers.reweighting import ReweightingSchema
 from openff.evaluator.layers.simulation import SimulationSchema
 from openff.evaluator.protocols import analysis, miscellaneous
 from openff.evaluator.protocols.utils import (
+    generate_equilibration_protocols,
     generate_reweighting_protocols,
     generate_simulation_protocols,
 )
-from openff.evaluator.storage.query import SimulationDataQuery, SubstanceQuery
+from openff.evaluator.storage.query import SimulationDataQuery, SubstanceQuery, EquilibrationDataQuery
 from openff.evaluator.utils.observables import ObservableType
 from openff.evaluator.workflow.schemas import ProtocolReplicator, WorkflowSchema
 from openff.evaluator.workflow.utils import ProtocolPath, ReplicatorValue
+from openff.evaluator.layers.equilibration import EquilibrationProperty
+from openff.evaluator.workflow.attributes import ConditionAggregationBehavior
 
 
 class EstimableExcessProperty(PhysicalProperty, abc.ABC):
@@ -70,6 +75,81 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
             n_molecules = ProtocolPath("result", n_molar_molecules.id)
 
         return n_molecules, n_molar_molecules
+
+    @classmethod
+    def default_equilibration_schema(
+        cls,
+        n_molecules: int = 1000,
+        error_tolerances: list[EquilibrationProperty] = [],
+        condition_aggregation_behavior: ConditionAggregationBehavior = ConditionAggregationBehavior.All,
+        error_on_failure: bool = True,
+        max_iterations: int = 100,
+    ) -> EquilibrationSchema:
+
+        calculation_schema = EquilibrationSchema()
+        calculation_schema.error_tolerances = copy.deepcopy(error_tolerances)
+        calculation_schema.error_aggregration = copy.deepcopy(condition_aggregation_behavior)
+        calculation_schema.error_on_failure = error_on_failure
+        calculation_schema.max_iterations = max_iterations
+
+        # Define the protocols to use for the fully mixed system.
+        (
+            mixture_protocols,
+            mixture_value,
+            mixture_stored_data,
+        ) = generate_equilibration_protocols(
+            id_suffix="_mixture",
+            n_molecules=n_molecules,
+            error_tolerances=calculation_schema.error_tolerances,
+            condition_aggregation_behavior=calculation_schema.error_aggregration,
+            error_on_failure=calculation_schema.error_on_failure,
+            max_iterations=calculation_schema.max_iterations,
+        )
+
+        # Define the protocols to use for each component, creating a replicator that
+        # will copy these for each component in the mixture substance.
+        component_replicator = ProtocolReplicator("component_replicator")
+        component_replicator.template_values = ProtocolPath("components", "global")
+        component_substance = ReplicatorValue(component_replicator.id)
+
+        component_protocols, _, component_stored_data = (
+            generate_equilibration_protocols(
+                id_suffix=f"_component_{component_replicator.placeholder_id}",
+                n_molecules=n_molecules,
+            error_tolerances=calculation_schema.error_tolerances,
+            condition_aggregation_behavior=calculation_schema.error_aggregration,
+            error_on_failure=calculation_schema.error_on_failure,
+            max_iterations=calculation_schema.max_iterations,
+            )
+        )
+        # Make sure the protocols point to the correct substance.
+        component_protocols.build_coordinates.substance = component_substance
+
+        # Build the final workflow schema
+        schema = WorkflowSchema()
+
+        schema.protocol_schemas = [
+            component_protocols.build_coordinates.schema,
+            component_protocols.assign_parameters.schema,
+            component_protocols.energy_minimisation.schema,
+            component_protocols.converge_uncertainty.schema,
+            mixture_protocols.build_coordinates.schema,
+            mixture_protocols.assign_parameters.schema,
+            mixture_protocols.energy_minimisation.schema,
+            mixture_protocols.converge_uncertainty.schema,
+        ]
+
+        schema.protocol_replicators = [component_replicator]
+
+        schema.final_value_source = mixture_value
+
+        schema.outputs_to_store = {
+            "full_system": mixture_stored_data,
+            f"component_{component_replicator.placeholder_id}": component_stored_data,
+        }
+
+        calculation_schema.workflow_schema = schema
+        return calculation_schema
 
     @classmethod
     def default_simulation_schema(

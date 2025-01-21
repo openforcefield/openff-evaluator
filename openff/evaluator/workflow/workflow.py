@@ -1058,7 +1058,8 @@ class WorkflowGraph:
 
                     results_by_id[protocol_path] = output_value
 
-            if value_reference is not None:
+            # allow an UNDEFINED result to still pass through
+            if value_reference is not None and value_reference != UNDEFINED:
                 return_object.value = results_by_id[value_reference].value.plus_minus(
                     results_by_id[value_reference].error
                 )
