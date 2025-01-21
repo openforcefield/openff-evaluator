@@ -5,7 +5,6 @@ Defines the base API for defining new openff-evaluator estimation layers.
 import abc
 import collections
 import logging
-import math
 from os import path
 
 from openff.units import unit
@@ -306,9 +305,6 @@ class CalculationLayer(abc.ABC):
                     returned_output.physical_property.__class__.__name__
                 ][layer_name]
 
-                input_uncertainty = matches[0].uncertainty
-                if input_uncertainty == UNDEFINED:
-                    input_uncertainty = math.inf * matches[0].value.unit
                 if (
                     options.absolute_tolerance != UNDEFINED
                     and options.absolute_tolerance < uncertainty
@@ -316,7 +312,7 @@ class CalculationLayer(abc.ABC):
                     continue
                 elif (
                     options.relative_tolerance != UNDEFINED
-                    and options.relative_tolerance * input_uncertainty < uncertainty
+                    and options.relative_tolerance * uncertainty < uncertainty
                 ):
                     continue
 
