@@ -1014,7 +1014,6 @@ def generate_simulation_protocols(
     output_to_store.number_of_molecules = ProtocolPath(
         "output_number_of_molecules", build_coordinates.id
     )
-    output_to_store.max_number_of_molecules = n_molecules
     output_to_store.substance = ProtocolPath("output_substance", build_coordinates.id)
     output_to_store.statistical_inefficiency = ProtocolPath(
         "time_series_statistics.statistical_inefficiency",
