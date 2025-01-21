@@ -122,7 +122,9 @@ def test_initialize_with_attributes():
 
     nested_object = NestedAttributeObject(
         some_value=attribute_object,
-        some_list=[3,],
+        some_list=[
+            3,
+        ],
         some_dict={"x": 4},
     )
     assert isinstance(nested_object.some_value, AttributeObject)
