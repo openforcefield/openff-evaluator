@@ -219,6 +219,108 @@ class Substance(AttributeClass):
         identifier = component if isinstance(component, str) else component.identifier
 
         return self.amounts[identifier]
+    
+    def to_substance_n_molecules(
+        self,
+        maximum_molecules: int,
+        tolerance=None,
+        count_exact_amount=True,
+        truncate_n_molecules=True,
+    ) -> "Substance":
+        """
+        Returns a new substance given a maximum total number of molecules.
+
+        Parameters
+        ----------
+        maximum_molecules: int
+            The maximum number of molecules.
+        tolerance: float, optional
+            The tolerance within which this amount should be represented. As
+            an example, when converting a mole fraction into a number of molecules,
+            the total number of molecules may not be sufficiently large enough to
+            reproduce this amount.
+        count_exact_amount: bool
+            Whether components present in an exact amount (i.e. defined with an
+            ``ExactAmount``) should be considered when apply the maximum number
+             of molecules constraint. This may be set false, for example, when
+             building a separate solvated protein (n = 1) and solvated protein +
+             ligand complex (n = 2) system but wish for both systems to have the
+             same number of solvent molecules.
+        truncate_n_molecules: bool
+            Whether or not to attempt to truncate the number of molecules in the
+            substance if the total number is over the specified maximum. If False, an
+            exception will be raised in this case.
+
+            The truncation works by iteratively removing one molecule of the
+            predominant component up to a limit of removing a total number of molecules
+            equal to the number of components  in the substance (e.g. for a binary
+            substance a maximum of two molecules can be removed). An exception is
+            raised if the number of molecules cannot be sensibly truncated.
+        """
+        
+        molecules_per_component = self.get_molecules_per_component(
+            maximum_molecules,
+            tolerance=tolerance,
+            count_exact_amount=count_exact_amount,
+            truncate_n_molecules=truncate_n_molecules,
+        )
+
+        new_amounts = defaultdict(list)
+        total_number_of_molecules = sum(molecules_per_component.values())
+
+        # Handle any exact amounts.
+        for component in self.components:
+            exact_amounts = [
+                amount
+                for amount in self.get_amounts(component)
+                if isinstance(amount, ExactAmount)
+            ]
+
+            if len(exact_amounts) == 0:
+                continue
+
+            total_number_of_molecules -= exact_amounts[0].value
+            new_amounts[component].append(exact_amounts[0])
+
+        # Recompute the mole fractions.
+        total_mole_fraction = 0.0
+        number_of_new_mole_fractions = 0
+
+        for component in self.components:
+            mole_fractions = [
+                amount
+                for amount in self.get_amounts(component)
+                if isinstance(amount, MoleFraction)
+            ]
+
+            if len(mole_fractions) == 0:
+                continue
+
+            molecule_count = molecules_per_component[component.identifier]
+
+            if component in new_amounts:
+                molecule_count -= new_amounts[component][0].value
+
+            new_mole_fraction = molecule_count / total_number_of_molecules
+            new_amounts[component].append(MoleFraction(new_mole_fraction))
+
+            total_mole_fraction += new_mole_fraction
+            number_of_new_mole_fractions += 1
+
+        if (
+            not np.isclose(total_mole_fraction, 1.0)
+            and number_of_new_mole_fractions > 0
+        ):
+            raise ValueError("The new mole fraction does not equal 1.0")
+        
+        output_substance = Substance()
+
+        for component, amounts in new_amounts.items():
+            for amount in amounts:
+                output_substance.add_component(component, amount)
+
+        return output_substance
+
 
     def get_molecules_per_component(
         self,

@@ -122,12 +122,19 @@ class PreequilibratedSimulationLayer(WorkflowCalculationLayer):
             query = copy.deepcopy(template_queries[key])
 
             # Fill in any place holder values.
-            if isinstance(query.substance, PlaceholderValue):
-                query.substance = physical_property.substance
             if isinstance(query.thermodynamic_state, PlaceholderValue):
                 query.thermodynamic_state = physical_property.thermodynamic_state
             if isinstance(query.max_number_of_molecules, PlaceholderValue):
                 query.max_number_of_molecules = calculation_schema.number_of_molecules
+
+            # need to treat the substance specially as mole fractions can vary with number of molecules
+            if isinstance(query.substance, PlaceholderValue):
+                query.substance = physical_property.substance.to_substance_n_molecules(
+                    calculation_schema.number_of_molecules
+                )
+                # query.substance = physical_property.substance
+
+            
 
             # Apply the query.
             query_results = storage_backend.query(query)
