@@ -219,7 +219,7 @@ class Substance(AttributeClass):
         identifier = component if isinstance(component, str) else component.identifier
 
         return self.amounts[identifier]
-    
+
     def to_substance_n_molecules(
         self,
         maximum_molecules: int,
@@ -257,7 +257,7 @@ class Substance(AttributeClass):
             substance a maximum of two molecules can be removed). An exception is
             raised if the number of molecules cannot be sensibly truncated.
         """
-        
+
         molecules_per_component = self.get_molecules_per_component(
             maximum_molecules,
             tolerance=tolerance,
@@ -312,7 +312,7 @@ class Substance(AttributeClass):
             and number_of_new_mole_fractions > 0
         ):
             raise ValueError("The new mole fraction does not equal 1.0")
-        
+
         output_substance = Substance()
 
         for component, amounts in new_amounts.items():
