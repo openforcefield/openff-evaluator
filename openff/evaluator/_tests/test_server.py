@@ -13,6 +13,7 @@ from openff.evaluator._tests.utils import create_dummy_property
 from openff.evaluator.backends.dask import DaskLocalCluster
 from openff.evaluator.client import EvaluatorClient, RequestOptions
 from openff.evaluator.datasets import PhysicalPropertyDataSet
+from openff.evaluator.forcefield import SmirnoffForceFieldSource
 from openff.evaluator.layers import (
     CalculationLayer,
     CalculationLayerResult,
@@ -20,11 +21,10 @@ from openff.evaluator.layers import (
     calculation_layer,
 )
 from openff.evaluator.properties import Density, EnthalpyOfVaporization
-from openff.evaluator.server.server import Batch, EvaluatorServer, BatchMode
+from openff.evaluator.server.server import Batch, BatchMode, EvaluatorServer
 from openff.evaluator.substances import Substance
 from openff.evaluator.thermodynamics import ThermodynamicState
 from openff.evaluator.utils.utils import temporarily_change_directory
-from openff.evaluator.forcefield import SmirnoffForceFieldSource
 
 
 @calculation_layer()
@@ -148,7 +148,9 @@ def dataset_submission(c_o_dataset):
     submission = EvaluatorClient._Submission()
     submission.dataset = c_o_dataset
     submission.options = options
-    submission.force_field_source = SmirnoffForceFieldSource.from_path("openff-2.1.0.offxml")
+    submission.force_field_source = SmirnoffForceFieldSource.from_path(
+        "openff-2.1.0.offxml"
+    )
 
     return submission
 
