@@ -20,10 +20,11 @@ from openff.evaluator.layers import (
     calculation_layer,
 )
 from openff.evaluator.properties import Density, EnthalpyOfVaporization
-from openff.evaluator.server.server import Batch, EvaluatorServer
+from openff.evaluator.server.server import Batch, EvaluatorServer, BatchMode
 from openff.evaluator.substances import Substance
 from openff.evaluator.thermodynamics import ThermodynamicState
 from openff.evaluator.utils.utils import temporarily_change_directory
+from openff.evaluator.forcefield import SmirnoffForceFieldSource
 
 
 @calculation_layer()
@@ -147,6 +148,7 @@ def dataset_submission(c_o_dataset):
     submission = EvaluatorClient._Submission()
     submission.dataset = c_o_dataset
     submission.options = options
+    submission.force_field_source = SmirnoffForceFieldSource.from_path("openff-2.1.0.offxml")
 
     return submission
 
@@ -182,3 +184,18 @@ def test_nobatching(dataset_submission, tmp_path):
     assert len(batches) == 1
     assert len(batches[0].queued_properties) == 4
     assert batches[0].id == "batch_0000"
+
+
+def test_prepare_batches_nobatch(dataset_submission, tmp_path):
+    os.chdir(tmp_path)
+    dataset_submission.options.batch_mode = BatchMode.NoBatch
+    with DaskLocalCluster() as calculation_backend:
+        server = EvaluatorServer(calculation_backend)
+        server._batch_ids_per_client_id["request_id"] = []
+        batches = server._prepare_batches(dataset_submission, "request_id")
+
+        assert len(batches) == 1
+        assert len(batches[0].queued_properties) == 4
+        assert batches[0].id == "batch_0000"
+        assert server._queued_batches["batch_0000"] is batches[0]
+        assert server._batch_ids_per_client_id["request_id"] == ["batch_0000"]
