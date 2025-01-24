@@ -20,6 +20,7 @@ from openff.evaluator.layers.workflow import (
     WorkflowCalculationLayer,
     WorkflowCalculationSchema,
 )
+from openff.evaluator.layers.equilibration import EquilibrationProperty, ConditionAggregationBehavior
 from openff.evaluator.storage.query import EquilibrationDataQuery
 
 logger = logging.getLogger(__name__)
@@ -55,6 +56,35 @@ class PreequilibratedSimulationSchema(WorkflowCalculationSchema):
     of physical properties using the built-in workflow framework.
     """
 
+    n_uncorrelated_samples: int = Attribute(
+        docstring="The minimum number of uncorrelated samples to use in evaluating property.",
+        type_hint=int,
+        optional=True,
+        default_value=UNDEFINED,
+    )
+
+    equilibration_error_tolerances = Attribute(
+        docstring="The error tolerances to use when equilibrating the box.",
+        type_hint=list,
+        default_value=[],
+    )
+    equilibration_condition_aggregation_behavior = Attribute(
+        docstring="How to aggregate errors -- any vs all.",
+        type_hint=ConditionAggregationBehavior,
+        default_value=ConditionAggregationBehavior.All,
+    )
+
+    equilibration_error_on_failure = Attribute(
+        docstring="Whether to raise an error if the convergence conditions are not met.",
+        type_hint=bool,
+        default_value=False,
+    )
+    equilibration_max_iterations = Attribute(
+        docstring="The maximum number of iterations to run the equilibration for.",
+        type_hint=int,
+        default_value=100,
+    )
+
     storage_queries = Attribute(
         docstring="The queries to perform when retrieving data for each "
         "of the components in the system from the storage backend. The "
@@ -76,6 +106,9 @@ class PreequilibratedSimulationSchema(WorkflowCalculationSchema):
         assert all(
             isinstance(x, EquilibrationDataQuery) for x in self.storage_queries.values()
         )
+        if self.equilibration_error_tolerances:
+            for error_tolerance in self.equilibration_error_tolerances:
+                assert isinstance(error_tolerance, EquilibrationProperty)
 
 
 @calculation_layer()

@@ -164,6 +164,7 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
         relative_tolerance=UNDEFINED,
         n_molecules=1000,
         protocol_generator_function: callable = generate_simulation_protocols,
+        **kwargs
     ):
         """Returns the default calculation schema to use when estimating
         this class of property from direct simulations.
@@ -199,6 +200,7 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
             use_target_uncertainty,
             id_suffix="_mixture",
             n_molecules=n_molecules,
+            **kwargs
         )
         # Specify the average observable which should be estimated.
         mixture_protocols.analysis_protocol.observable = ProtocolPath(
@@ -388,6 +390,11 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
         absolute_tolerance=UNDEFINED,
         relative_tolerance=UNDEFINED,
         n_molecules=1000,
+        equilibration_error_tolerances: list[EquilibrationProperty] = [],
+        equilibration_condition_aggregation_behavior: ConditionAggregationBehavior = ConditionAggregationBehavior.All,
+        equilibration_error_on_failure: bool = False,
+        equilibration_max_iterations: int = 100,
+        n_uncorrelated_samples: int = 200,
     ) -> PreequilibratedSimulationSchema:
         """Returns the default calculation schema to use when estimating
         this class of property from direct simulations.
@@ -419,13 +426,16 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
             mixture_protocols,
             mixture_value,
             mixture_stored_data,
-            # mixture_data_replicators,
         ) = generate_preequilibrated_simulation_protocols(
             analysis.AverageObservable("extract_observable_mixture"),
             use_target_uncertainty,
             id_suffix="_mixture",
-            replicator_id="mixture_data_replicator",
             n_molecules=n_molecules,
+            error_tolerances=equilibration_error_tolerances,
+            condition_aggregation_behavior=equilibration_condition_aggregation_behavior,
+            error_on_failure=equilibration_error_on_failure,
+            max_iterations=equilibration_max_iterations,
+            n_uncorrelated_samples=n_uncorrelated_samples,
         )
         # mixture_data_replicator = mixture_data_replicators[0]
 
@@ -451,6 +461,11 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
                 replicator_id=f"component_{component_replicator.placeholder_id}_data_replicator",
                 id_suffix=f"_component_{component_replicator.placeholder_id}",
                 n_molecules=n_molecules,
+                error_tolerances=equilibration_error_tolerances,
+                condition_aggregation_behavior=equilibration_condition_aggregation_behavior,
+                error_on_failure=equilibration_error_on_failure,
+                max_iterations=equilibration_max_iterations,
+                n_uncorrelated_samples=n_uncorrelated_samples,
             )
         )
         # specify simulation data path
@@ -464,10 +479,6 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
             f"observables[{cls._observable_type().value}]",
             component_protocols.production_simulation.id,
         )
-        # component_data_replicator = component_data_replicators[0]
-        # component_data_replicator.template_values = ProtocolPath(
-        #     f"component_data[$({component_replicator.id})]", "global"
-        # )
 
         (
             component_protocols.analysis_protocol.divisor,
@@ -490,31 +501,6 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
             "_mixture",
         )
 
-
-        # (
-        #     component_protocols.analysis_protocol.divisor,
-        #     component_n_molar_molecules,
-        # ) = cls._n_molecules_divisor(
-        #     ProtocolPath(
-        #         "total_number_of_molecules",
-        #         component_protocols.unpack_stored_data.id.replace(
-        #             component_data_replicator.placeholder_id, "0"
-        #         ),
-        #     ),
-        #     f"_component_{component_replicator.placeholder_id}",
-        # )
-        # (
-        #     mixture_protocols.analysis_protocol.divisor,
-        #     mixture_n_molar_molecules,
-        # ) = cls._n_molecules_divisor(
-        #     ProtocolPath(
-        #         "total_number_of_molecules",
-        #         mixture_protocols.unpack_stored_data.id.replace(
-        #             mixture_data_replicator.placeholder_id, "0"
-        #         ),
-        #     ),
-        #     "_mixture",
-        # )
 
         # Weight the component value by the mole fraction.
         weight_by_mole_fraction = miscellaneous.WeightByMoleFraction(
@@ -562,14 +548,14 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
             component_protocols.unpack_stored_data.schema,
             component_protocols.assign_parameters.schema,
             component_protocols.energy_minimisation.schema,
-            component_protocols.equilibration_simulation.schema,
+            component_protocols.converge_equilibration.schema,
             component_protocols.converge_uncertainty.schema,
             component_protocols.decorrelate_trajectory.schema,
             component_protocols.decorrelate_observables.schema,
             mixture_protocols.unpack_stored_data.schema,
             mixture_protocols.assign_parameters.schema,
             mixture_protocols.energy_minimisation.schema,
-            mixture_protocols.equilibration_simulation.schema,
+            mixture_protocols.converge_equilibration.schema,
             mixture_protocols.converge_uncertainty.schema,
             mixture_protocols.decorrelate_trajectory.schema,
             mixture_protocols.decorrelate_observables.schema,
@@ -604,6 +590,11 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
         calculation_schema.storage_queries = (
             cls._default_preequilibrated_simulation_storage_query()
         )
+        calculation_schema.n_uncorrelated_samples = n_uncorrelated_samples
+        calculation_schema.equilibration_condition_aggregation_behavior = equilibration_condition_aggregation_behavior
+        calculation_schema.equilibration_error_on_failure = equilibration_error_on_failure
+        calculation_schema.equilibration_error_tolerances = equilibration_error_tolerances
+        calculation_schema.equilibration_max_iterations = equilibration_max_iterations
 
         calculation_schema.workflow_schema = schema
         return calculation_schema
