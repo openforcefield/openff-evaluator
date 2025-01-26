@@ -431,10 +431,10 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
             use_target_uncertainty,
             id_suffix="_mixture",
             n_molecules=n_molecules,
-            error_tolerances=equilibration_error_tolerances,
-            condition_aggregation_behavior=equilibration_condition_aggregation_behavior,
-            error_on_failure=equilibration_error_on_failure,
-            max_iterations=equilibration_max_iterations,
+            equilibration_error_tolerances=equilibration_error_tolerances,
+            equilibration_condition_aggregation_behavior=equilibration_condition_aggregation_behavior,
+            equilibration_error_on_failure=equilibration_error_on_failure,
+            equilibration_max_iterations=equilibration_max_iterations,
             n_uncorrelated_samples=n_uncorrelated_samples,
         )
         # mixture_data_replicator = mixture_data_replicators[0]
