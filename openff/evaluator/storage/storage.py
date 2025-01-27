@@ -450,6 +450,7 @@ class StorageBackend(abc.ABC):
         results = defaultdict(list)
 
         if len(self._stored_object_keys.get(data_class.__name__, [])) == 0:
+            print("no correct data types")
             # Exit early of there are no objects of the correct type.
             return results
 
@@ -461,14 +462,15 @@ class StorageBackend(abc.ABC):
             stored_object, stored_directory = self.retrieve_object(
                 unique_key, data_class
             )
-
+            print("stored object", stored_object)
             matches = data_query.apply(stored_object)
+            print("applied matches", matches)
 
             if matches is None:
                 continue
 
             results[matches].append((unique_key, stored_object, stored_directory))
-
+        print("results", results)
         return results
 
     def query(self, data_query):

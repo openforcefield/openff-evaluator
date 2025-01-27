@@ -68,12 +68,13 @@ class BaseDataQuery(AttributeClass, abc.ABC):
                 continue
 
             data_value = getattr(data_object, attribute_name)
+            print(data_value, query_value, attribute_name, data_value != query_value)
 
             matches.append(None if data_value != query_value else data_value)
 
         if any(x is None for x in matches):
             return None
-
+        print("matches", matches)
         return tuple(matches)
 
     @classmethod
@@ -213,10 +214,13 @@ class BaseSimulationDataQuery(BaseDataQuery, abc.ABC):
             The matched substance if a match is made, otherwise
             `None`.
         """
+        print("self substance", self.substance)
+
         if self.substance == UNDEFINED:
             return None
 
         data_substance: Substance = data_object.substance
+        print("data substance", data_substance, self.substance != data_substance)
 
         if self.substance_query == UNDEFINED:
             return None if self.substance != data_substance else self.substance
@@ -263,12 +267,13 @@ class BaseSimulationDataQuery(BaseDataQuery, abc.ABC):
 
         base_matches = super(BaseSimulationDataQuery, self).apply(data_object)
         base_matches = [None] if base_matches is None else base_matches
+        print("base matches", base_matches)
 
         matches = [*matches, *base_matches]
 
         if len(matches) == 0 or any(x is None for x in matches):
             return None
-
+        print("..... matches", matches)
         return tuple(matches)
 
     def validate(self, attribute_type=None):

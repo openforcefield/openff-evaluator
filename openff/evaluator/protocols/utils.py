@@ -695,7 +695,7 @@ def generate_preequilibrated_simulation_protocols(
         energy_minimisation=energy_minimisation,
         assign_parameters=assign_parameters,
         id_suffix=id_suffix,
-        conditional_id_suffix=id_suffix,
+        conditional_id_suffix=f"_equilibration{id_suffix}",
         error_tolerances=equilibration_error_tolerances,
         condition_aggregation_behavior=equilibration_condition_aggregation_behavior,
         error_on_failure=equilibration_error_on_failure,
@@ -713,7 +713,7 @@ def generate_preequilibrated_simulation_protocols(
         "thermodynamic_state", "global"
     )
     production_simulation.input_coordinate_file = ProtocolPath(
-        "output_coordinate_file", equilibration_simulation.id
+        "output_coordinate_file", conditional_group_eq.id, equilibration_simulation.id
     )
     production_simulation.parameterized_system = ProtocolPath(
         "parameterized_system", assign_parameters.id

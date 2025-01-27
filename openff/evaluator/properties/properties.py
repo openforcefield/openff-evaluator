@@ -457,8 +457,7 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
                 analysis.AverageObservable(
                     f"extract_observable_component_{component_replicator.placeholder_id}"
                 ),
-                use_target_uncertainty,
-                replicator_id=f"component_{component_replicator.placeholder_id}_data_replicator",
+                use_target_uncertainty, 
                 id_suffix=f"_component_{component_replicator.placeholder_id}",
                 n_molecules=n_molecules,
                 equilibration_error_tolerances=equilibration_error_tolerances,
