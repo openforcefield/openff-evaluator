@@ -481,7 +481,7 @@ def generate_equilibration_protocols(
         if equilibration_property.n_uncorrelated_samples != UNDEFINED:
             condition = groups.ConditionalGroup.Condition()
             condition.right_hand_value = equilibration_property.n_uncorrelated_samples
-            condition.type = groups.ConditionalGroup.Condition.Type.GreaterThan
+            condition.type = groups.ConditionalGroup.Condition.Type.GreaterThanOrEqualTo
             condition.left_hand_value = ProtocolPath(
                 "time_series_statistics.n_uncorrelated_points",
                 conditional_group.id,
