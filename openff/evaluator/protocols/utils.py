@@ -728,6 +728,8 @@ def generate_preequilibrated_simulation_protocols(
         conditional_group.condition_aggregation_behavior = ConditionAggregationBehavior.All
         conditional_group.max_iterations = max_iterations
 
+        has_conditions = False
+
         if use_target_uncertainty:
             condition = groups.ConditionalGroup.Condition()
             condition.right_hand_value = ProtocolPath("target_uncertainty", "global")
@@ -737,11 +739,7 @@ def generate_preequilibrated_simulation_protocols(
             )
 
             conditional_group.add_condition(condition)
-
-            # Make sure the simulation gets extended after each iteration.
-            production_simulation.total_number_of_iterations = ProtocolPath(
-                "current_iteration", conditional_group.id
-            )
+            has_conditions = True
 
         if n_uncorrelated_samples != UNDEFINED:
             condition = groups.ConditionalGroup.Condition()
@@ -753,6 +751,13 @@ def generate_preequilibrated_simulation_protocols(
                 analysis_protocol.id,
             )
             conditional_group.add_condition(condition)
+            has_conditions = True
+        
+        if has_conditions:
+            # Make sure the simulation gets extended after each iteration.
+            production_simulation.total_number_of_iterations = ProtocolPath(
+                "current_iteration", conditional_group.id
+            )
 
     conditional_group.add_protocols(production_simulation, analysis_protocol)
 
