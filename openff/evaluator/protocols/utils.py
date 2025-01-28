@@ -526,7 +526,7 @@ def generate_conditional_equilibration_protocols(
         statistical_inefficiency_protocol
     )
 
-    return conditional_group, equilibration_simulation
+    return conditional_group, equilibration_simulation, statistical_inefficiency_protocol
 
 
 
@@ -585,7 +585,7 @@ def generate_equilibration_protocols(
         "parameterized_system", assign_parameters.id
     )
 
-    conditional_group, equilibration_simulation = generate_conditional_equilibration_protocols(
+    conditional_group, equilibration_simulation, statistical_inefficiency_protocol = generate_conditional_equilibration_protocols(
         energy_minimisation=energy_minimisation,
         assign_parameters=assign_parameters,
         id_suffix=id_suffix,
@@ -691,7 +691,7 @@ def generate_preequilibrated_simulation_protocols(
         "parameterized_system", assign_parameters.id
     )
 
-    conditional_group_eq, equilibration_simulation = generate_conditional_equilibration_protocols(
+    conditional_group_eq, equilibration_simulation, _ = generate_conditional_equilibration_protocols(
         energy_minimisation=energy_minimisation,
         assign_parameters=assign_parameters,
         id_suffix=id_suffix,
