@@ -99,6 +99,12 @@ class PreequilibratedSimulationSchema(WorkflowCalculationSchema):
         type_hint=int,
     )
 
+    max_iterations = Attribute(
+        docstring="The maximum number of iterations to run the simulation for.",
+        type_hint=int,
+        default_value=100,
+    )
+
     def validate(self, attribute_type=None):
         super().validate(attribute_type)
 

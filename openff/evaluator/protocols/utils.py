@@ -659,7 +659,7 @@ def generate_preequilibrated_simulation_protocols(
     equilibration_error_on_failure: bool = False,
     equilibration_max_iterations: int = 100,
     n_uncorrelated_samples: int = 200,
-
+    max_iterations: int = 100,
 ) -> Tuple[
     PreequilibratedSimulationProtocols[S], ProtocolPath, StoredSimulationData
 ]:
@@ -726,7 +726,7 @@ def generate_preequilibrated_simulation_protocols(
     if conditional_group is None:
         conditional_group = groups.ConditionalGroup(f"conditional_group{id_suffix}")
         conditional_group.condition_aggregation_behavior = ConditionAggregationBehavior.All
-        conditional_group.max_iterations = 100
+        conditional_group.max_iterations = max_iterations
 
         if use_target_uncertainty:
             condition = groups.ConditionalGroup.Condition()
