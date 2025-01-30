@@ -64,7 +64,7 @@ def test_get_nested_attribute():
     assert get_nested_attribute(dummy_object, "object_b[b].object_b[0].object_b") == "b"
 
 
-def test_is_file_and_not_empty(tmpdir):
+def test_is_file_and_not_empty(tmp_path):
     path = "testfile"
     with tempfile.TemporaryDirectory():
         with open(path, "w") as f:
