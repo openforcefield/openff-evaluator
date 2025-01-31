@@ -336,7 +336,9 @@ class CalculationLayer(abc.ABC):
                     batch.queued_properties.remove(match)
 
                 if layer_name == "EquilibrationLayer":
-                    batch.equilibrated_properties.append(returned_output.physical_property)
+                    batch.equilibrated_properties.append(
+                        returned_output.physical_property
+                    )
                 else:
                     batch.estimated_properties.append(returned_output.physical_property)
 
