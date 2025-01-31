@@ -280,7 +280,8 @@ class TestEquilibrationLayer:
                 assert exception is None
                 assert len(results.queued_properties) == 0
                 assert len(results.estimated_properties) == 0
-                assert len(results.unsuccessful_properties) == 2
+                assert len(results.unsuccessful_properties) == 0
+                assert len(results.equilibrated_properties) == 2
                 assert len(results.exceptions) == 0
 
                 # check data stored
