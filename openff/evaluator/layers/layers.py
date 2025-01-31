@@ -289,7 +289,10 @@ class CalculationLayer(abc.ABC):
 
                         continue
 
-                if returned_output.physical_property == UNDEFINED:
+                if (
+                    returned_output.physical_property == UNDEFINED
+                    or returned_output.physical_property.value == UNDEFINED
+                ):
                     if (
                         len(returned_output.exceptions) == 0
                         and layer_name != "EquilibrationLayer"
@@ -327,7 +330,10 @@ class CalculationLayer(abc.ABC):
                 for match in matches:
                     batch.queued_properties.remove(match)
 
-                batch.estimated_properties.append(returned_output.physical_property)
+                if layer_name == "EquilibrationLayer":
+                    batch.equilibrated_properties.append(returned_output.physical_property)
+                else:
+                    batch.estimated_properties.append(returned_output.physical_property)
 
         except Exception as e:
             logger.exception(f"Error processing layer results for request {batch.id}")
