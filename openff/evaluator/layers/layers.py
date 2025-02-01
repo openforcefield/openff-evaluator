@@ -298,16 +298,18 @@ class CalculationLayer(abc.ABC):
                     returned_output.physical_property == UNDEFINED
                     or returned_output.physical_property.value == UNDEFINED
                 ):
-                    if (
-                        len(returned_output.exceptions) == 0
-                        and layer_name != "EquilibrationLayer"
-                    ):
-                        logger.info(
-                            "A calculation layer did not return an estimated property nor did it "
-                            "raise an Exception. This sometimes and expectedly occurs when using "
-                            "queue based calculation backends, but should be investigated."
-                        )
-
+                    if len(returned_output.exceptions) == 0:
+                        if layer_name != "EquilibrationLayer":
+                            logger.info(
+                                "A calculation layer did not return an estimated property nor did it "
+                                "raise an Exception. This sometimes and expectedly occurs when using "
+                                "queue based calculation backends, but should be investigated."
+                            )
+                        else:
+                            # only move properties over if there are no exceptions
+                            for match in matches:
+                                batch.queued_properties.remove(match)
+                                batch.equilibrated_properties.append(match)
                     continue
 
                 if len(returned_output.exceptions) > 0:
@@ -343,6 +345,7 @@ class CalculationLayer(abc.ABC):
                     batch.estimated_properties.append(returned_output.physical_property)
 
         except Exception as e:
+            raise e
             logger.exception(f"Error processing layer results for request {batch.id}")
             exception = EvaluatorException.from_exception(e)
 
