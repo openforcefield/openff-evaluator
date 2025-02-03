@@ -95,6 +95,7 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
         calculation_schema.error_aggregration = copy.deepcopy(condition_aggregation_behavior)
         calculation_schema.error_on_failure = error_on_failure
         calculation_schema.max_iterations = max_iterations
+        calculation_schema.number_of_molecules = n_molecules
 
         # Define the protocols to use for the fully mixed system.
         (
@@ -155,6 +156,9 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
         }
 
         calculation_schema.workflow_schema = schema
+        calculation_schema.storage_queries = (
+            cls._default_equilibration_data_storage_query()
+        )
         return calculation_schema
 
     @classmethod
@@ -590,7 +594,7 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
         calculation_schema.relative_tolerance = relative_tolerance
         calculation_schema.number_of_molecules = n_molecules
         calculation_schema.storage_queries = (
-            cls._default_preequilibrated_simulation_storage_query()
+            cls._default_equilibration_data_storage_query()
         )
         calculation_schema.n_uncorrelated_samples = n_uncorrelated_samples
         calculation_schema.equilibration_condition_aggregation_behavior = equilibration_condition_aggregation_behavior
@@ -603,7 +607,7 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
         return calculation_schema
 
     @classmethod
-    def _default_preequilibrated_simulation_storage_query(
+    def _default_equilibration_data_storage_query(
         cls,
     ) -> Dict[str, SimulationDataQuery]:
         """Returns the default storage queries to use when retrieving cached simulation
