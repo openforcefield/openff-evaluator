@@ -3,7 +3,7 @@ import pathlib
 import pytest
 
 from openff.units import unit
-from openff.utilities.utilities import get_data_dir_path
+from openff.utilities.utilities import get_data_dir_path, temporary_cd
 
 from openff.evaluator.datasets import (
     MeasurementSource,
@@ -89,6 +89,30 @@ class TestEquilibrationLayer:
         )
         return path
 
+    @pytest.fixture
+    def force_field_source(self):
+        force_field_source = SmirnoffForceFieldSource.from_path(
+            "openff-2.1.0.offxml"
+        )
+        return force_field_source
+
+    @staticmethod
+    def _generate_error_tolerances(
+        absolute_potential_tolerance: float = 200,
+        relative_density_tolerance: float = 0.2,
+    ):
+        abstol = absolute_potential_tolerance * unit.kilojoules_per_mole
+        errors = [
+            EquilibrationProperty(
+                absolute_tolerance=abstol,
+                observable_type=ObservableType.PotentialEnergy,
+            ),
+            EquilibrationProperty(
+                relative_tolerance=relative_density_tolerance,
+                observable_type=ObservableType.Density,
+            ),
+        ]
+        return errors
 
     @pytest.mark.parametrize("potential_error, density_error, aggregation_behavior, error_on_nonconvergence, success", [
         # passes because both conditions are met
@@ -140,16 +164,10 @@ class TestEquilibrationLayer:
 
         We test allowing the workflow to fail and continue on nonconvergence.
         """
-        errors = [
-            EquilibrationProperty(
-                absolute_tolerance=potential_error * unit.kilojoules_per_mole,
-                observable_type=ObservableType.PotentialEnergy,
-            ),
-            EquilibrationProperty(
-                relative_tolerance=density_error,
-                observable_type=ObservableType.Density,
-            ),
-        ]
+        errors = self._generate_error_tolerances(
+            potential_error,
+            density_error
+        )
         os.chdir(dhmix_density_CCCO)
         _write_force_field()
 
@@ -220,29 +238,18 @@ class TestEquilibrationLayer:
         
 
         
-    def test_data_storage_and_retrieval(self, dummy_dataset, dhmix_density_CCCO):
+    def test_data_storage_and_retrieval(
+        self,
+        dummy_dataset,
+        dhmix_density_CCCO,
+        force_field_source
+    ):
         """
         Test the storage and retrieval of equilibration data.
         """
 
-        force_field_path = "openff-2.1.0.offxml"
-        force_field_source = SmirnoffForceFieldSource.from_path(
-            force_field_path
-        )
-
-        error_tolerances = [
-            EquilibrationProperty(
-                absolute_tolerance=200 * unit.kilojoules_per_mole,
-                observable_type=ObservableType.PotentialEnergy,
-            ),
-            EquilibrationProperty(
-                relative_tolerance=0.2,
-                observable_type=ObservableType.Density,
-            ),
-        ]
-
         equilibration_options = _get_equilibration_request_options(
-            error_tolerances=error_tolerances
+            error_tolerances=self._generate_error_tolerances(),
         )
         equilibration_options.batch_mode = BatchMode.NoBatch
 
