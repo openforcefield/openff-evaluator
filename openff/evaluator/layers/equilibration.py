@@ -214,7 +214,6 @@ class EquilibrationLayer(WorkflowCalculationLayer):
 
         # search storage for matching boxes already
         template_queries = calculation_schema.storage_queries
-        found_queries = []
         for key in template_queries:
             query = EquilibrationLayer._update_query(
                 template_queries[key],
