@@ -130,15 +130,22 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
         # Make sure the protocols point to the correct substance.
         component_protocols.build_coordinates.substance = component_substance
 
+        # component_protocols.check_existing_data.simulation_data_path = ProtocolPath(
+        #     f"component_data[{component_replicator.placeholder_id}]",
+        #     "global",
+        # )
+
         # Build the final workflow schema
         schema = WorkflowSchema()
 
         schema.protocol_schemas = [
+            component_protocols.check_existing_data.schema,
             component_protocols.build_coordinates.schema,
             component_protocols.assign_parameters.schema,
             component_protocols.energy_minimisation.schema,
             # component_protocols.equilibration_simulation.schema,
             component_protocols.converge_uncertainty.schema,
+            mixture_protocols.check_existing_data.schema,
             mixture_protocols.build_coordinates.schema,
             mixture_protocols.assign_parameters.schema,
             mixture_protocols.energy_minimisation.schema,

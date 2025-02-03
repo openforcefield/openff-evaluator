@@ -40,6 +40,7 @@ class EquilibrationProtocols:
     """The common set of protocols which would be required to estimate an observable
     by running a new molecule simulation."""
 
+    check_existing_data: storage.CheckStoredEquilibrationData
     build_coordinates: coordinates.BuildCoordinatesPackmol
     assign_parameters: forcefield.BaseBuildSystem
     energy_minimisation: openmm.OpenMMEnergyMinimisation
@@ -560,6 +561,10 @@ def generate_equilibration_protocols(
         A string suffix to append to each of the protocol ids.
     conditional_group
     """
+    check_existing_data = storage.CheckStoredEquilibrationData(
+        f"check_existing_data{id_suffix}"
+    )
+    # check_existing_data.simulation_data_path = ProtocolPath("full_system_data", "global")
 
     build_coordinates = coordinates.BuildCoordinatesPackmol(
         f"build_coordinates{id_suffix}"
@@ -638,6 +643,7 @@ def generate_equilibration_protocols(
     final_value_source = UNDEFINED
 
     protocols = EquilibrationProtocols(
+        check_existing_data,
         build_coordinates,
         assign_parameters,
         energy_minimisation,

@@ -99,3 +99,13 @@ class MissingOptionalDependency(EvaluatorException):
 
         self.library_name = library_name
         self.license_issue = license_issue
+
+
+class EquilibrationDataExistsException(EvaluatorException):
+    """
+    An exception raised when an attempt is made to generate equilibration data
+    to a storage backend which already contains equilibration data for the
+    same system.
+    This is not a real exception, but is used to short-circuit the
+    workflow graph.
+    """

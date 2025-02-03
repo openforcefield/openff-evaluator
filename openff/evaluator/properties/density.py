@@ -131,6 +131,7 @@ class Density(PhysicalProperty):
         schema = WorkflowSchema()
 
         schema.protocol_schemas = [
+            protocols.check_existing_data.schema,
             protocols.build_coordinates.schema,
             protocols.assign_parameters.schema,
             protocols.energy_minimisation.schema,

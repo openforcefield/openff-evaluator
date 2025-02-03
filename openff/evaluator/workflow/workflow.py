@@ -21,7 +21,7 @@ from openff.evaluator.forcefield import (
 )
 from openff.evaluator.storage.attributes import FilePath, StorageAttribute
 from openff.evaluator.substances import Substance
-from openff.evaluator.utils.exceptions import EvaluatorException
+from openff.evaluator.utils.exceptions import EvaluatorException, EquilibrationDataExistsException
 from openff.evaluator.utils.graph import retrieve_uuid
 from openff.evaluator.utils.observables import (
     Observable,
@@ -1043,7 +1043,8 @@ class WorkflowGraph:
                 # Make sure none of the protocols failed and we actually have a value
                 # and uncertainty.
                 if isinstance(protocol_results, EvaluatorException):
-                    return_object.exceptions.append(protocol_results)
+                    if not isinstance(protocol_results, EquilibrationDataExistsException):
+                        return_object.exceptions.append(protocol_results)
                     return return_object
 
                 # Store the protocol results in a dictionary, with keys of the

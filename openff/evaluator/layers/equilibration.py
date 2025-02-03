@@ -4,6 +4,7 @@
 import copy
 import logging
 import os
+import sys
 
 from openff.units import unit
 
@@ -211,6 +212,7 @@ class EquilibrationLayer(WorkflowCalculationLayer):
         )
         global_metadata["error_tolerances"] = copy.deepcopy(calculation_schema.error_tolerances)
         global_metadata["error_aggregation"] = calculation_schema.error_aggregration
+        raise ValueError()
 
         # search storage for matching boxes already
         template_queries = calculation_schema.storage_queries
@@ -223,6 +225,8 @@ class EquilibrationLayer(WorkflowCalculationLayer):
 
             # Apply the query.
             query_results = storage_backend.query(query)
+            print(query_results)
+            sys.exit()
 
             stored_data_tuples = []
             for query_list in query_results.values():
@@ -235,6 +239,9 @@ class EquilibrationLayer(WorkflowCalculationLayer):
                 stored_data_tuples = stored_data_tuples[0]
             
             global_metadata[key] = stored_data_tuples
+
+        print(global_metadata)
+        sys.exit()
 
         return global_metadata
     

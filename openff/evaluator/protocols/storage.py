@@ -5,6 +5,7 @@ A collection of protocols for loading cached data off of the disk.
 from os import path
 from typing import Union
 
+from openff.evaluator.utils.exceptions import EquilibrationDataExistsException
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.storage.data import StoredSimulationData, StoredEquilibrationData
 from openff.evaluator.substances import Substance
@@ -12,6 +13,35 @@ from openff.evaluator.thermodynamics import ThermodynamicState
 from openff.evaluator.utils.observables import ObservableFrame
 from openff.evaluator.workflow import Protocol, workflow_protocol
 from openff.evaluator.workflow.attributes import InputAttribute, OutputAttribute
+
+
+@workflow_protocol()
+class CheckStoredEquilibrationData(Protocol):
+    """Checks if a `StoredEquilibrationData` object exists on disk.
+    """
+
+    # simulation_data_path = InputAttribute(
+    #     docstring="A path to the simulation data object.",
+    #     type_hint=Union[list, tuple],
+    #     default_value=UNDEFINED,
+    # )
+
+    data_exists = OutputAttribute(
+        docstring="Whether the data object exists on disk.", type_hint=bool
+    )
+
+    def _execute(self, directory, available_resources):
+        self.data_exists = False
+        # if len(self.simulation_data_path) == 3:
+        #     data_object_path = self.simulation_data_path[0]
+        #     self.data_exists = path.isfile(data_object_path)
+
+        # # short-circuit rest of graph -- if the data exists, we don't need to re-run
+        # if self.data_exists:
+        #     raise EquilibrationDataExistsException(
+        #         "The equilibration data already exists on disk."
+        #     )
+
 
 @workflow_protocol()
 class UnpackStoredEquilibrationData(Protocol):
