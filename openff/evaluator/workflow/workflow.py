@@ -1043,8 +1043,8 @@ class WorkflowGraph:
                 # Make sure none of the protocols failed and we actually have a value
                 # and uncertainty.
                 if isinstance(protocol_results, EvaluatorException):
-                    if not isinstance(protocol_results, EquilibrationDataExistsException):
-                        return_object.exceptions.append(protocol_results)
+                    # if not isinstance(protocol_results, EquilibrationDataExistsException):
+                    return_object.exceptions.append(protocol_results)
                     return return_object
 
                 # Store the protocol results in a dictionary, with keys of the

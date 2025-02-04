@@ -318,6 +318,7 @@ def _copy_property_working_data(
     source_directory: str,
     uuid_prefix: str,
     destination_directory: str = ".",
+    suffix: str = "",
     include_data_files: bool = False,
 ):
     """
@@ -348,6 +349,8 @@ def _copy_property_working_data(
     # copy data files over from data_directory
     for path in abs_path.iterdir():
         if path.name.startswith(uuid_prefix) and path.is_dir():
+            if suffix and not path.name.endswith(suffix):
+                continue
             dest_dir = destination_directory / path.name
             shutil.copytree(path, dest_dir)
 

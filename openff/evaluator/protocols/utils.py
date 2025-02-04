@@ -564,7 +564,7 @@ def generate_equilibration_protocols(
     check_existing_data = storage.CheckStoredEquilibrationData(
         f"check_existing_data{id_suffix}"
     )
-    # check_existing_data.simulation_data_path = ProtocolPath("full_system_data", "global")
+    check_existing_data.simulation_data_path = ProtocolPath("full_system_data", "global")
 
     build_coordinates = coordinates.BuildCoordinatesPackmol(
         f"build_coordinates{id_suffix}"

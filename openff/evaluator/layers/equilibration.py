@@ -4,7 +4,6 @@
 import copy
 import logging
 import os
-import sys
 
 from openff.units import unit
 
@@ -212,7 +211,6 @@ class EquilibrationLayer(WorkflowCalculationLayer):
         )
         global_metadata["error_tolerances"] = copy.deepcopy(calculation_schema.error_tolerances)
         global_metadata["error_aggregation"] = calculation_schema.error_aggregration
-        raise ValueError()
 
         # search storage for matching boxes already
         template_queries = calculation_schema.storage_queries
@@ -225,24 +223,42 @@ class EquilibrationLayer(WorkflowCalculationLayer):
 
             # Apply the query.
             query_results = storage_backend.query(query)
-            print(query_results)
-            sys.exit()
 
             stored_data_tuples = []
-            for query_list in query_results.values():
-                for storage_key, data_object, data_directory in query_list:
-                    object_path = os.path.join(working_directory, f"{storage_key}.json")
-                    if os.path.isfile(object_path):
-                        stored_data_tuples.append((object_path, data_directory, force_field_path))
+
+            # TODO: should this be hardcoded?
+            # TODO: it is hardcoded in protocols already
+            if key == "component_data":
+                if not len(query_results):
+                    stored_data_tuples = [
+                        list() for _ in physical_property.substance.components
+                    ]
+                else:
+                    query_list = list(query_results.values())[0]
+
+                    query_lists_by_components = {}
+                    for storage_key, data_object, data_directory in query_list:
+                        component = data_object.substance.components[0]
+                        if component not in query_lists_by_components:
+                            query_lists_by_components[component] = (storage_key, data_object, data_directory)
+
+                    for component in physical_property.substance.components:
+                        if component not in query_lists_by_components:
+                            stored_data_tuples.append([])
+                            continue
+                        storage_key, data_object, data_directory = query_lists_by_components[component]
+                        object_path = os.path.join(working_directory, f"{storage_key}")
+                        if not os.path.isfile(object_path):
+                            data_object.json(object_path)
+
+                        if os.path.isfile(object_path):
+                            stored_data_tuples.append((object_path, data_directory, force_field_path))
                     
             if len(stored_data_tuples) == 1:
                 stored_data_tuples = stored_data_tuples[0]
             
             global_metadata[key] = stored_data_tuples
-
-        print(global_metadata)
-        sys.exit()
-
+        
         return global_metadata
     
 
