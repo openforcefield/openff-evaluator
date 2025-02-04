@@ -248,7 +248,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
 
     @staticmethod
     def _unnest_restraint_specs(
-        restraint_specs: List[Dict[str, Any]]
+        restraint_specs: List[Dict[str, Any]],
     ) -> List[Dict[str, Any]]:
         """A helper method to un-nest restraint lists parsed from a taproom
         yaml file.
