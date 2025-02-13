@@ -114,3 +114,22 @@ def test_nested_validation():
 
     nested_object.some_dict["x"].required_input = ""
     nested_object.validate()
+
+
+def test_initialize_with_attributes():
+    attribute_object = AttributeObject()
+    attribute_object.required_input = ""
+
+    nested_object = NestedAttributeObject(
+        some_value=attribute_object,
+        some_list=[
+            3,
+        ],
+        some_dict={"x": 4},
+    )
+    assert isinstance(nested_object.some_value, AttributeObject)
+    assert nested_object.some_value.required_input == ""
+    assert nested_object.some_list == [3]
+    assert nested_object.some_dict == {"x": 4}
+
+    nested_object.validate()

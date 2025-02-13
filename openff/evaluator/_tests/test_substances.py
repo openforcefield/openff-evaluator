@@ -98,3 +98,14 @@ def test_truncate_n_molecules():
 def test_substance_len():
     substance = Substance.from_components("C", "CC", "CCC", "CCC")
     assert len(substance) == 3
+
+
+def test_to_substance_n_molecules():
+    substance = Substance()
+    substance.add_component(Component("C"), MoleFraction(0.509800))
+    substance.add_component(Component("CC"), MoleFraction(0.490200))
+
+    new_substance = substance.to_substance_n_molecules(100)
+    assert new_substance.number_of_components == 2
+    assert new_substance.get_amounts(substance.components[0])[0].value == 0.51
+    assert new_substance.get_amounts(substance.components[1])[0].value == 0.49

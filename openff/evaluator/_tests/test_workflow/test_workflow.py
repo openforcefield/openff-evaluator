@@ -249,7 +249,7 @@ def test_replicated_ids():
     )
 
 
-def test_find_relevant_gradient_keys(tmpdir):
+def test_find_relevant_gradient_keys(tmp_path):
     force_field = ForceField()
 
     vdw_handler = force_field.get_parameter_handler("vdW")
@@ -287,7 +287,7 @@ def test_find_relevant_gradient_keys(tmpdir):
     )
     force_field.register_parameter_handler(vsite_handler)
 
-    force_field_path = os.path.join(tmpdir, "ff.json")
+    force_field_path = os.path.join(tmp_path, "ff.json")
     SmirnoffForceFieldSource.from_object(force_field).json(force_field_path)
 
     expected_gradient_keys = {

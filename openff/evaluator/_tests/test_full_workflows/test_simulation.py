@@ -1,21 +1,18 @@
 import os
 import pathlib
-import shutil
 
 import pytest
-from openff.utilities.utilities import get_data_dir_path
 
 from openff.evaluator._tests.utils import (
     _copy_property_working_data,
     _write_force_field,
 )
-from openff.evaluator.attributes.attributes import UNDEFINED
 from openff.evaluator.backends.dask import DaskLocalCluster
 from openff.evaluator.client import BatchMode, EvaluatorClient, RequestOptions
 from openff.evaluator.forcefield import SmirnoffForceFieldSource
 from openff.evaluator.layers.simulation import SimulationLayer
 from openff.evaluator.properties import Density, EnthalpyOfMixing
-from openff.evaluator.server.server import Batch, EvaluatorServer
+from openff.evaluator.server.server import EvaluatorServer
 from openff.evaluator.storage.localfile import LocalFileStorage
 from openff.evaluator.workflow import Workflow
 

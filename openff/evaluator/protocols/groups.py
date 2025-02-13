@@ -46,6 +46,9 @@ class ConditionalGroup(ProtocolGroup):
 
             LessThan = "lessthan"
             GreaterThan = "greaterthan"
+            EqualTo = "equalto"
+            LessThanOrEqualTo = "lessthanorequalto"
+            GreaterThanOrEqualTo = "greaterthanorequalto"
 
         left_hand_value = Attribute(
             docstring="The left-hand value to compare.",
@@ -148,6 +151,12 @@ class ConditionalGroup(ProtocolGroup):
             return left_hand_value < right_hand_value
         elif condition.type == self.Condition.Type.GreaterThan:
             return left_hand_value > right_hand_value
+        elif condition.type == self.Condition.Type.EqualTo:
+            return left_hand_value == right_hand_value
+        elif condition.type == self.Condition.Type.LessThanOrEqualTo:
+            return left_hand_value <= right_hand_value
+        elif condition.type == self.Condition.Type.GreaterThanOrEqualTo:
+            return left_hand_value >= right_hand_value
 
         raise NotImplementedError()
 
