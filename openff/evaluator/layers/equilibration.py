@@ -224,36 +224,53 @@ class EquilibrationLayer(WorkflowCalculationLayer):
             # Apply the query.
             query_results = storage_backend.query(query)
 
-            stored_data_tuples = []
+            objects_to_store = []
 
             # TODO: should this be hardcoded?
             # TODO: it is hardcoded in protocols already
             if key == "component_data":
-                if not len(query_results):
-                    stored_data_tuples = [
-                        list() for _ in physical_property.substance.components
-                    ]
-                else:
-                    query_list = list(query_results.values())[0]
-
-                    query_lists_by_components = {}
-                    for storage_key, data_object, data_directory in query_list:
+                # we sort things into components so we
+                # can get them in the order of the physical property substance
+                # later on
+                query_lists_by_components = {}
+                for query_list in query_results.values():
+                    for result in query_list:
+                        storage_key, data_object, data_directory = result
                         component = data_object.substance.components[0]
                         if component not in query_lists_by_components:
-                            query_lists_by_components[component] = (storage_key, data_object, data_directory)
+                            query_lists_by_components[component] = result
+                        else:
+                            # take object with lowest statistical inefficiency
+                            existing_object = query_lists_by_components[component][1]
+                            if data_object.statistical_inefficiency < existing_object.statistical_inefficiency:
+                                query_lists_by_components[component] = result
 
-                    for component in physical_property.substance.components:
-                        if component not in query_lists_by_components:
-                            stored_data_tuples.append([])
-                            continue
-                        storage_key, data_object, data_directory = query_lists_by_components[component]
-                        object_path = os.path.join(working_directory, f"{storage_key}")
-                        if not os.path.isfile(object_path):
-                            data_object.json(object_path)
+                for component in physical_property.substance.components:
+                    if component not in query_lists_by_components:
+                        objects_to_store.append([])
+                        continue
+                    objects_to_store.append(query_lists_by_components[component])
 
-                        if os.path.isfile(object_path):
-                            stored_data_tuples.append((object_path, data_directory, force_field_path))
-                    
+
+            else:
+                assert len(query_results) == 1
+                query_list = list(query_results.values())[0]
+                objects_to_store = [
+                    min(query_list, key=lambda x: x[1].statistical_inefficiency)
+                ]
+
+            stored_data_tuples = []
+            for obj in objects_to_store:
+                if not len(obj):
+                    stored_data_tuples.append([])
+                    continue
+
+                storage_key, data_object, data_directory = obj
+                object_path = os.path.join(working_directory, f"{storage_key}")
+                if not os.path.isfile(object_path):
+                    data_object.json(object_path)
+                stored_data_tuples.append((object_path, data_directory, force_field_path))
+
             if len(stored_data_tuples) == 1:
                 stored_data_tuples = stored_data_tuples[0]
             

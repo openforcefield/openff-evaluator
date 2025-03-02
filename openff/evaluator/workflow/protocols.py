@@ -1198,6 +1198,7 @@ class ProtocolGraph:
             logger.info(f"Executing {protocol.id}")
 
             start_time = time.perf_counter()
+
             protocol.execute(directory, available_resources)
 
             output = {key.full_path: value for key, value in protocol.outputs.items()}
@@ -1208,7 +1209,7 @@ class ProtocolGraph:
             execution_time = (end_time - start_time) * 1000
             logger.info(f"{protocol.id} finished executing after {execution_time} ms")
 
-        except Exception as e:
+        except (Exception, EvaluatorException) as e:
             logger.info(f"Protocol failed to execute: {protocol.id}")
 
             if not safe_exceptions:

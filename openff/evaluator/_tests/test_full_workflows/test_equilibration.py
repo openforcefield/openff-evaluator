@@ -24,6 +24,8 @@ from openff.evaluator.forcefield import SmirnoffForceFieldSource
 from openff.evaluator.workflow.attributes import ConditionAggregationBehavior
 from openff.evaluator.storage.query import EquilibrationDataQuery
 from openff.evaluator._tests.utils import _write_force_field, _copy_property_working_data
+from openff.evaluator.utils.exceptions import EquilibrationDataExistsException
+
 
 from openff.evaluator.workflow import Workflow
 
@@ -326,11 +328,77 @@ class TestEquilibrationLayer:
                 ccco_o_boxes = server._storage_backend.query(ccco_o_query)
                 key = next(iter(ccco_o_boxes.keys()))
                 assert len(ccco_o_boxes[key]) == 1
+
+
+    def test_retrieves_stored_boxes(self, dummy_enthalpy_of_mixing):
+        """Direct test that the EquilibrationLayer retrieves stored boxes for a property"""
+        with temporary_cd():
+            _copy_property_working_data(
+                source_directory="test/workflows/preequilibrated_simulation/dhmix-density-CCCO",
+                uuid_prefix="stored",
+                destination_directory="."
+            )
+
+            # check storage is full
+            storage_path = "stored_data"
+            storage_path = pathlib.Path(storage_path)
+            assert len(list(storage_path.rglob("*/output.pdb"))) == 3
+
+
+            errors = self._generate_error_tolerances()
+            _write_force_field()
+
+            schema = EnthalpyOfMixing.default_equilibration_schema(
+                n_molecules=256,
+                error_tolerances=errors,
+                max_iterations=0
+            )
+            storage_backend = LocalFileStorage()
+            metadata = EquilibrationLayer._get_workflow_metadata(
+                ".",
+                dummy_enthalpy_of_mixing,
+                "force-field.json",
+                [],
+                storage_backend,
+                schema
+            )
+            uuid_prefix = "1"
+
+            
+            workflow_schema = schema.workflow_schema
+            workflow_schema.replace_protocol_types(
+                {"BaseBuildSystem": "BuildSmirnoffSystem"}
+            )
+            workflow = Workflow.from_schema(
+                workflow_schema, metadata=metadata, unique_id=uuid_prefix
+            )
+            workflow_graph = workflow.to_graph()
+            protocol_graph = workflow_graph._protocol_graph
+
+            protocols = [
+                (name, protocol)
+                for name, protocol in workflow_graph.protocols.items()
+                if "check_existing" in name
+            ]
+
+            assert len(protocols) == 3
+
+            for name, protocol in protocols:
+                path = name.replace("|", "_")
+                with pytest.raises(EquilibrationDataExistsException):
+                    protocol_graph._execute_protocol(
+                        path,
+                        protocol,
+                        True,
+                        available_resources=None,
+                        safe_exceptions=False,
+                    )
+
             
     def test_short_circuit_found_data(self, dummy_dataset, force_field_source):
         """
         Test that finding all equilibrated boxes for a dataset
-        short circuits the equilibration layer.
+        short circuits the equilibration layer, with a remote server.
         """
         with temporary_cd():
             _copy_property_working_data(
@@ -369,11 +437,11 @@ class TestEquilibrationLayer:
 
                     # check execution finished
                     assert exception is None
+                    assert len(results.exceptions) == 0
                     assert len(results.queued_properties) == 0
                     assert len(results.estimated_properties) == 0
                     assert len(results.unsuccessful_properties) == 0
                     assert len(results.equilibrated_properties) == 2
-                    assert len(results.exceptions) == 0
 
                     # check data stored has not increased
                     assert len(list(storage_path.rglob("*/output.pdb"))) == 3

@@ -571,6 +571,9 @@ def generate_equilibration_protocols(
     )
     build_coordinates.substance = ProtocolPath("substance", "global")
     build_coordinates.max_molecules = n_molecules
+    build_coordinates.should_execute = ProtocolPath(
+        "data_missing", check_existing_data.id
+    )
 
     assign_parameters = forcefield.BaseBuildSystem(f"assign_parameters{id_suffix}")
     assign_parameters.force_field_path = ProtocolPath("force_field_path", "global")

@@ -26,18 +26,19 @@ class CheckStoredEquilibrationData(Protocol):
         default_value=UNDEFINED,
     )
 
-    data_exists = OutputAttribute(
-        docstring="Whether the data object exists on disk.", type_hint=bool
+    data_missing = OutputAttribute(
+        docstring="Whether the data object is missing on disk.",
+        type_hint=bool,
     )
 
     def _execute(self, directory, available_resources):
-        self.data_exists = False
+        self.data_missing = True
         if len(self.simulation_data_path) == 3:
             data_object_path = self.simulation_data_path[0]
-            self.data_exists = path.isfile(data_object_path)
+            self.data_missing = not path.isfile(data_object_path)
 
         # short-circuit rest of graph -- if the data exists, we don't need to re-run
-        if self.data_exists:
+        if not self.data_missing:
             raise EquilibrationDataExistsException(
                 "The equilibration data already exists on disk."
             )
