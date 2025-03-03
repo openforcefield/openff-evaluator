@@ -17,15 +17,18 @@ from openff.evaluator.datasets import (
     PhysicalPropertyDataSet,
     PropertyPhase,
 )
-from openff.evaluator.storage.localfile import LocalFileStorage
-from openff.evaluator.utils.exceptions import EquilibrationDataExistsException
 from openff.evaluator.forcefield import SmirnoffForceFieldSource
-from openff.evaluator.layers.equilibration import EquilibrationProperty, EquilibrationLayer
+from openff.evaluator.layers.equilibration import (
+    EquilibrationLayer,
+    EquilibrationProperty,
+)
 from openff.evaluator.properties import Density, EnthalpyOfMixing
 from openff.evaluator.server.server import Batch, EvaluatorServer
+from openff.evaluator.storage.localfile import LocalFileStorage
 from openff.evaluator.storage.query import EquilibrationDataQuery
 from openff.evaluator.substances import Substance
 from openff.evaluator.thermodynamics import ThermodynamicState
+from openff.evaluator.utils.exceptions import EquilibrationDataExistsException
 from openff.evaluator.utils.observables import ObservableType
 from openff.evaluator.workflow import Workflow
 from openff.evaluator.workflow.attributes import ConditionAggregationBehavior
@@ -94,14 +97,12 @@ class TestEquilibrationLayer:
             destination_directory=path,
         )
         return path
-    
+
     @pytest.fixture
     def force_field_source(self):
-        force_field_source = SmirnoffForceFieldSource.from_path(
-            "openff-2.1.0.offxml"
-        )
+        force_field_source = SmirnoffForceFieldSource.from_path("openff-2.1.0.offxml")
         return force_field_source
-    
+
     @staticmethod
     def _generate_error_tolerances(
         absolute_potential_tolerance: float = 200,
@@ -201,7 +202,7 @@ class TestEquilibrationLayer:
             "force-field.json",
             [],
             storage_backend,
-            schema
+            schema,
         )
 
         workflow_schema = schema.workflow_schema
@@ -255,7 +256,9 @@ class TestEquilibrationLayer:
                 if not success:
                     raise AssertionError("Equilibration should have failed")
 
-    def test_data_storage_and_retrieval(self, dummy_dataset, dhmix_density_CCCO, force_field_source):
+    def test_data_storage_and_retrieval(
+        self, dummy_dataset, dhmix_density_CCCO, force_field_source
+    ):
         """
         Test the storage and retrieval of equilibration data.
 
@@ -350,7 +353,7 @@ class TestEquilibrationLayer:
             _copy_property_working_data(
                 source_directory="test/workflows/preequilibrated_simulation/dhmix-density-CCCO",
                 uuid_prefix="stored",
-                destination_directory="."
+                destination_directory=".",
             )
 
             # check storage is full
@@ -358,14 +361,11 @@ class TestEquilibrationLayer:
             storage_path = pathlib.Path(storage_path)
             assert len(list(storage_path.rglob("*/output.pdb"))) == 3
 
-
             errors = self._generate_error_tolerances()
             _write_force_field()
 
             schema = EnthalpyOfMixing.default_equilibration_schema(
-                n_molecules=256,
-                error_tolerances=errors,
-                max_iterations=0
+                n_molecules=256, error_tolerances=errors, max_iterations=0
             )
             storage_backend = LocalFileStorage()
             metadata = EquilibrationLayer._get_workflow_metadata(
@@ -374,11 +374,10 @@ class TestEquilibrationLayer:
                 "force-field.json",
                 [],
                 storage_backend,
-                schema
+                schema,
             )
             uuid_prefix = "1"
 
-            
             workflow_schema = schema.workflow_schema
             workflow_schema.replace_protocol_types(
                 {"BaseBuildSystem": "BuildSmirnoffSystem"}
@@ -408,7 +407,6 @@ class TestEquilibrationLayer:
                         safe_exceptions=False,
                     )
 
-            
     def test_short_circuit_found_data(self, dummy_dataset, force_field_source):
         """
         Test that finding all equilibrated boxes for a dataset
@@ -418,7 +416,7 @@ class TestEquilibrationLayer:
             _copy_property_working_data(
                 source_directory="test/workflows/preequilibrated_simulation/dhmix-density-CCCO",
                 uuid_prefix="stored",
-                destination_directory="."
+                destination_directory=".",
             )
 
             equilibration_options = _get_equilibration_request_options(
@@ -430,7 +428,7 @@ class TestEquilibrationLayer:
                 server = EvaluatorServer(
                     calculation_backend=calculation_backend,
                     working_directory=".",
-                    delete_working_files=False
+                    delete_working_files=False,
                 )
                 with server:
                     client = EvaluatorClient()
@@ -447,7 +445,9 @@ class TestEquilibrationLayer:
                         equilibration_options,
                     )
                     assert error is None
-                    results, exception = request.results(synchronous=True, polling_interval=30)
+                    results, exception = request.results(
+                        synchronous=True, polling_interval=30
+                    )
 
                     # check execution finished
                     assert exception is None
@@ -460,7 +460,6 @@ class TestEquilibrationLayer:
                     # check data stored has not increased
                     assert len(list(storage_path.rglob("*/output.pdb"))) == 3
 
-
     def test_single_missing_box(self, dummy_dataset, force_field_source):
         """
         Test that for properties that require multiple boxes,
@@ -470,7 +469,7 @@ class TestEquilibrationLayer:
             _copy_property_working_data(
                 source_directory="test/workflows/preequilibrated_simulation/dhmix-density-CCCO",
                 uuid_prefix="stored_data_without_O",
-                destination_directory="."
+                destination_directory=".",
             )
 
             # rename stored_data_without_O to stored_data
@@ -481,7 +480,7 @@ class TestEquilibrationLayer:
                 source_directory="test/workflows/equilibration/dhmix-density-CCCO",
                 uuid_prefix="1",
                 suffix="component_1",
-                destination_directory="."
+                destination_directory=".",
             )
 
             equilibration_options = _get_equilibration_request_options(
@@ -493,7 +492,7 @@ class TestEquilibrationLayer:
                 server = EvaluatorServer(
                     calculation_backend=calculation_backend,
                     working_directory=".",
-                    delete_working_files=False
+                    delete_working_files=False,
                 )
                 with server:
                     client = EvaluatorClient()
@@ -505,7 +504,7 @@ class TestEquilibrationLayer:
                         source_directory="test/workflows/equilibration/dhmix-density-CCCO",
                         uuid_prefix="1",
                         suffix="component_1",
-                        destination_directory=batch_path
+                        destination_directory=batch_path,
                     )
 
                     # check storage is missing 1
@@ -520,7 +519,9 @@ class TestEquilibrationLayer:
                         equilibration_options,
                     )
                     assert error is None
-                    results, exception = request.results(synchronous=True, polling_interval=30)
+                    results, exception = request.results(
+                        synchronous=True, polling_interval=30
+                    )
 
                     # check execution finished
                     assert exception is None

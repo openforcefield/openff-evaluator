@@ -21,7 +21,10 @@ from openff.evaluator.forcefield import (
 )
 from openff.evaluator.storage.attributes import FilePath, StorageAttribute
 from openff.evaluator.substances import Substance
-from openff.evaluator.utils.exceptions import EvaluatorException, EquilibrationDataExistsException
+from openff.evaluator.utils.exceptions import (
+    EquilibrationDataExistsException,
+    EvaluatorException,
+)
 from openff.evaluator.utils.graph import retrieve_uuid
 from openff.evaluator.utils.observables import (
     Observable,
@@ -1125,6 +1128,7 @@ class WorkflowGraph:
             estimation workflow.
         """
         import os
+
         makedirs(data_directory, exist_ok=True)
 
         for attribute_name in output_to_store.get_attributes(StorageAttribute):

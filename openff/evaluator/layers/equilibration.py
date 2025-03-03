@@ -1,5 +1,4 @@
-"""A calculation layer for equilibration.
-"""
+"""A calculation layer for equilibration."""
 
 import copy
 import logging
@@ -11,23 +10,24 @@ from openff.evaluator.attributes import (
     UNDEFINED,
     Attribute,
     AttributeClass,
-    PlaceholderValue
+    PlaceholderValue,
 )
+from openff.evaluator.datasets import CalculationSource, PropertyPhase
 from openff.evaluator.layers import calculation_layer
 from openff.evaluator.layers.layers import BaseCalculationLayerSchema
 from openff.evaluator.layers.workflow import (
+    BaseWorkflowCalculationSchema,
     WorkflowCalculationLayer,
     WorkflowCalculationSchema,
-    BaseWorkflowCalculationSchema,
-    WorkflowGraph
+    WorkflowGraph,
 )
-from openff.evaluator.datasets import CalculationSource, PropertyPhase
-from openff.evaluator.workflow.attributes import ConditionAggregationBehavior
-from openff.evaluator.utils.observables import ObservableType, ObservableFrame
-from openff.evaluator.workflow import Workflow
 from openff.evaluator.storage.query import EquilibrationDataQuery
+from openff.evaluator.utils.observables import ObservableFrame, ObservableType
+from openff.evaluator.workflow import Workflow
+from openff.evaluator.workflow.attributes import ConditionAggregationBehavior
 
 logger = logging.getLogger(__name__)
+
 
 def default_storage_query():
     """Return the default query to use when retrieving cached simulation
@@ -49,6 +49,7 @@ def default_storage_query():
     query.calculation_layer = "EquilibrationLayer"
 
     return {"full_system_data": query}
+
 
 class EquilibrationProperty(AttributeClass):
     """A schema which encodes the options that a `CalculationLayer`
@@ -75,13 +76,13 @@ class EquilibrationProperty(AttributeClass):
     observable_type = Attribute(
         docstring="The type of observable to use in evaluating equilibration.",
         type_hint=ObservableType,
-        optional=False
+        optional=False,
     )
     n_uncorrelated_samples = Attribute(
         docstring="The number of uncorrelated samples to use in evaluating equilibration.",
         type_hint=int,
         default_value=UNDEFINED,
-        optional=True
+        optional=True,
     )
 
     def validate(self, attribute_type=None):
@@ -96,7 +97,9 @@ class EquilibrationProperty(AttributeClass):
 
         # check units
         if self.absolute_tolerance != UNDEFINED:
-            assert self.absolute_tolerance.units.is_compatible_with(self.observable_unit)
+            assert self.absolute_tolerance.units.is_compatible_with(
+                self.observable_unit
+            )
         super(EquilibrationProperty, self).validate(attribute_type)
 
     @property
@@ -108,7 +111,6 @@ class EquilibrationProperty(AttributeClass):
         if self.absolute_tolerance != UNDEFINED:
             return self.absolute_tolerance
         return self.relative_tolerance
-
 
 
 class EquilibrationSchema(WorkflowCalculationSchema):
@@ -160,7 +162,6 @@ class EquilibrationSchema(WorkflowCalculationSchema):
         super(EquilibrationSchema, self).validate(attribute_type)
 
 
-
 @calculation_layer()
 class EquilibrationLayer(WorkflowCalculationLayer):
     """A calculation layer which employs molecular simulation
@@ -209,7 +210,9 @@ class EquilibrationLayer(WorkflowCalculationLayer):
             parameter_gradient_keys,
             None,  # set target to None for now
         )
-        global_metadata["error_tolerances"] = copy.deepcopy(calculation_schema.error_tolerances)
+        global_metadata["error_tolerances"] = copy.deepcopy(
+            calculation_schema.error_tolerances
+        )
         global_metadata["error_aggregation"] = calculation_schema.error_aggregration
 
         # search storage for matching boxes already
@@ -242,7 +245,10 @@ class EquilibrationLayer(WorkflowCalculationLayer):
                         else:
                             # take object with lowest statistical inefficiency
                             existing_object = query_lists_by_components[component][1]
-                            if data_object.statistical_inefficiency < existing_object.statistical_inefficiency:
+                            if (
+                                data_object.statistical_inefficiency
+                                < existing_object.statistical_inefficiency
+                            ):
                                 query_lists_by_components[component] = result
 
                 for component in physical_property.substance.components:
@@ -250,7 +256,6 @@ class EquilibrationLayer(WorkflowCalculationLayer):
                         objects_to_store.append([])
                         continue
                     objects_to_store.append(query_lists_by_components[component])
-
 
             elif len(query_results):
                 assert len(query_results) == 1, query_results
@@ -269,15 +274,16 @@ class EquilibrationLayer(WorkflowCalculationLayer):
                 object_path = os.path.join(working_directory, f"{storage_key}")
                 if not os.path.isfile(object_path):
                     data_object.json(object_path)
-                stored_data_tuples.append((object_path, data_directory, force_field_path))
+                stored_data_tuples.append(
+                    (object_path, data_directory, force_field_path)
+                )
 
             if len(stored_data_tuples) == 1:
                 stored_data_tuples = stored_data_tuples[0]
-            
+
             global_metadata[key] = stored_data_tuples
-        
+
         return global_metadata
-    
 
     @staticmethod
     def _update_query(query, physical_property, calculation_schema):
@@ -296,7 +302,6 @@ class EquilibrationLayer(WorkflowCalculationLayer):
             )
             # query.substance = physical_property.substance
         return query
-
 
     @classmethod
     def required_schema_type(cls):

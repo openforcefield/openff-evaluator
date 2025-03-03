@@ -5,11 +5,11 @@ A collection of protocols for loading cached data off of the disk.
 from os import path
 from typing import Union
 
-from openff.evaluator.utils.exceptions import EquilibrationDataExistsException
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.storage.data import StoredEquilibrationData, StoredSimulationData
 from openff.evaluator.substances import Substance
 from openff.evaluator.thermodynamics import ThermodynamicState
+from openff.evaluator.utils.exceptions import EquilibrationDataExistsException
 from openff.evaluator.utils.observables import ObservableFrame
 from openff.evaluator.workflow import Protocol, workflow_protocol
 from openff.evaluator.workflow.attributes import InputAttribute, OutputAttribute
@@ -17,8 +17,7 @@ from openff.evaluator.workflow.attributes import InputAttribute, OutputAttribute
 
 @workflow_protocol()
 class CheckStoredEquilibrationData(Protocol):
-    """Checks if a `StoredEquilibrationData` object exists on disk.
-    """
+    """Checks if a `StoredEquilibrationData` object exists on disk."""
 
     simulation_data_path = InputAttribute(
         docstring="A path to the simulation data object.",

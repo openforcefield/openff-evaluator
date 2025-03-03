@@ -90,7 +90,7 @@ class Protocol(AttributeClass, abc.ABC, metaclass=ProtocolMeta):
         docstring="Defines whether this protocol should be executed",
         type_hint=bool,
         default_value=True,
-        optional=True
+        optional=True,
     )
 
     @property

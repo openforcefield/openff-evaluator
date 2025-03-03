@@ -362,7 +362,7 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
 
         calculation_schema.workflow_schema = schema
         return calculation_schema
-    
+
     @classmethod
     def _default_equilibration_data_storage_query(
         cls,
