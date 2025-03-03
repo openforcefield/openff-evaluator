@@ -262,7 +262,13 @@ class TestEquilibrationLayer:
         )
         equilibration_options.batch_mode = BatchMode.NoBatch
 
-        os.chdir(dhmix_density_CCCO)
+        # os.chdir(dhmix_density_CCCO)
+        _copy_property_working_data(
+            source_directory="test/workflows/equilibration/dhmix-density-CCCO",
+            uuid_prefix="1",
+            destination_directory=".",
+        )
+
         with DaskLocalCluster(number_of_workers=1) as calculation_backend:
             server = EvaluatorServer(
                 calculation_backend=calculation_backend,
@@ -452,69 +458,69 @@ class TestEquilibrationLayer:
         Test that for properties that require multiple boxes,
         only the missing box/es are re-computed.
         """
-        with temporary_cd():
-            _copy_property_working_data(
-                source_directory="test/workflows/preequilibrated_simulation/dhmix-density-CCCO",
-                uuid_prefix="stored_data_without_O",
-                destination_directory="."
+        # with temporary_cd():
+        _copy_property_working_data(
+            source_directory="test/workflows/preequilibrated_simulation/dhmix-density-CCCO",
+            uuid_prefix="stored_data_without_O",
+            destination_directory="."
+        )
+
+        # rename stored_data_without_O to stored_data
+        os.rename("stored_data_without_O", "stored_data")
+
+        # copy working files for component_0
+        _copy_property_working_data(
+            source_directory="test/workflows/equilibration/dhmix-density-CCCO",
+            uuid_prefix="1",
+            suffix="component_1",
+            destination_directory="."
+        )
+
+        equilibration_options = _get_equilibration_request_options(
+            error_tolerances=self._generate_error_tolerances()
+        )
+        equilibration_options.batch_mode = BatchMode.NoBatch
+
+        with DaskLocalCluster(number_of_workers=1) as calculation_backend:
+            server = EvaluatorServer(
+                calculation_backend=calculation_backend,
+                working_directory=".",
+                delete_working_files=False
             )
+            with server:
+                client = EvaluatorClient()
 
-            # rename stored_data_without_O to stored_data
-            os.rename("stored_data_without_O", "stored_data")
-
-            # copy working files for component_0
-            _copy_property_working_data(
-                source_directory="test/workflows/equilibration/dhmix-density-CCCO",
-                uuid_prefix="1",
-                suffix="component_0",
-                destination_directory="."
-            )
-
-            equilibration_options = _get_equilibration_request_options(
-                error_tolerances=self._generate_error_tolerances()
-            )
-            equilibration_options.batch_mode = BatchMode.NoBatch
-
-            with DaskLocalCluster(number_of_workers=1) as calculation_backend:
-                server = EvaluatorServer(
-                    calculation_backend=calculation_backend,
-                    working_directory=".",
-                    delete_working_files=False
+                # make and copy over working files to expected directory
+                batch_path = pathlib.Path("EquilibrationLayer/batch_0000")
+                batch_path.mkdir(exist_ok=True, parents=True)
+                _copy_property_working_data(
+                    source_directory="test/workflows/equilibration/dhmix-density-CCCO",
+                    uuid_prefix="1",
+                    suffix="component_1",
+                    destination_directory=batch_path
                 )
-                with server:
-                    client = EvaluatorClient()
 
-                    # make and copy over working files to expected directory
-                    batch_path = pathlib.Path("EquilibrationLayer/batch_0000")
-                    batch_path.mkdir(exist_ok=True, parents=True)
-                    _copy_property_working_data(
-                        source_directory="test/workflows/equilibration/dhmix-density-CCCO",
-                        uuid_prefix="1",
-                        suffix="component_0",
-                        destination_directory=batch_path
-                    )
+                # check storage is missing 1
+                storage_path = "stored_data"
+                storage_path = pathlib.Path(storage_path)
+                assert len(list(storage_path.rglob("*/output.pdb"))) == 2
 
-                    # check storage is missing 1
-                    storage_path = "stored_data"
-                    storage_path = pathlib.Path(storage_path)
-                    assert len(list(storage_path.rglob("*/output.pdb"))) == 2
+                # test equilibration stops
+                request, error = client.request_estimate(
+                    dummy_dataset,
+                    force_field_source,
+                    equilibration_options,
+                )
+                assert error is None
+                results, exception = request.results(synchronous=True, polling_interval=30)
 
-                    # test equilibration stops
-                    request, error = client.request_estimate(
-                        dummy_dataset,
-                        force_field_source,
-                        equilibration_options,
-                    )
-                    assert error is None
-                    results, exception = request.results(synchronous=True, polling_interval=30)
+                # check execution finished
+                assert exception is None
+                assert len(results.exceptions) == 0
+                assert len(results.queued_properties) == 0
+                assert len(results.estimated_properties) == 0
+                assert len(results.unsuccessful_properties) == 0
+                assert len(results.equilibrated_properties) == 2
 
-                    # check execution finished
-                    assert exception is None
-                    assert len(results.queued_properties) == 0
-                    assert len(results.estimated_properties) == 0
-                    assert len(results.unsuccessful_properties) == 0
-                    assert len(results.equilibrated_properties) == 2
-                    assert len(results.exceptions) == 0
-
-                    # check data stored has only increased by 1
-                    assert len(list(storage_path.rglob("*/output.pdb"))) == 3
+                # check data stored has only increased by 1
+                assert len(list(storage_path.rglob("*/output.pdb"))) == 3

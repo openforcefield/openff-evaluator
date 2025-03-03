@@ -252,8 +252,8 @@ class EquilibrationLayer(WorkflowCalculationLayer):
                     objects_to_store.append(query_lists_by_components[component])
 
 
-            else:
-                assert len(query_results) == 1
+            elif len(query_results):
+                assert len(query_results) == 1, query_results
                 query_list = list(query_results.values())[0]
                 objects_to_store = [
                     min(query_list, key=lambda x: x[1].statistical_inefficiency)
