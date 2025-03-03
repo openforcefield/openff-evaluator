@@ -65,6 +65,20 @@ class InequalityMergeBehavior(BaseMergeBehavior):
     LargestValue = "LargestValue"
 
 
+class ConditionAggregationBehavior(Enum):
+    """A enum which describes how conditions should be aggregated
+    when multiple conditions are present.
+
+    This enum may take values of
+
+    * All: All conditions must be met
+    * Any: Any condition must be met
+    """
+
+    All = "All"
+    Any = "Any"
+
+
 class InputAttribute(Attribute):
     """A descriptor used to mark an attribute of an object as
     an input to that object.

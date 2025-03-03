@@ -16,7 +16,11 @@ from openff.evaluator.attributes import (
     PlaceholderValue,
 )
 from openff.evaluator.datasets import PhysicalProperty
-from openff.evaluator.storage.data import BaseStoredData, StoredSimulationData
+from openff.evaluator.storage.data import (
+    BaseStoredData,
+    StoredEquilibrationData,
+    StoredSimulationData,
+)
 from openff.evaluator.utils.exceptions import EvaluatorException
 
 logger = logging.getLogger(__name__)
@@ -59,7 +63,11 @@ class CalculationLayerResult(AttributeClass):
         assert all(isinstance(x, EvaluatorException) for x in self.exceptions)
 
 
-class CalculationLayerSchema(AttributeClass):
+class BaseCalculationLayerSchema(AttributeClass):
+    pass
+
+
+class CalculationLayerSchema(BaseCalculationLayerSchema):
     """A schema which encodes the options that a `CalculationLayer`
     should use when estimating a given class of physical properties.
     """
@@ -161,7 +169,7 @@ class CalculationLayer(abc.ABC):
             callback_future.add_done_callback(callback_wrapper)
 
     @staticmethod
-    def _store_cached_output(batch, returned_output, storage_backend):
+    def _store_cached_output(batch, returned_output, storage_backend, layer_name):
         """Stores any cached pieces of simulation data using a storage backend.
 
         Parameters
@@ -188,11 +196,12 @@ class CalculationLayer(abc.ABC):
             # Attach any extra metadata which is missing.
             data_object = BaseStoredData.from_json(data_object_path)
 
-            if isinstance(data_object, StoredSimulationData):
+            if isinstance(data_object, (StoredSimulationData, StoredEquilibrationData)):
                 if isinstance(data_object.force_field_id, PlaceholderValue):
                     data_object.force_field_id = batch.force_field_id
                 if isinstance(data_object.source_calculation_id, PlaceholderValue):
                     data_object.source_calculation_id = batch.id
+                data_object.calculation_layer = layer_name
 
             storage_backend.store_object(data_object, data_directory_path)
 
@@ -258,7 +267,7 @@ class CalculationLayer(abc.ABC):
                         and batch.enable_data_caching
                     ):
                         CalculationLayer._store_cached_output(
-                            batch, returned_output, storage_backend
+                            batch, returned_output, storage_backend, layer_name
                         )
 
                 matches = []
@@ -285,14 +294,22 @@ class CalculationLayer(abc.ABC):
 
                         continue
 
-                if returned_output.physical_property == UNDEFINED:
+                if (
+                    returned_output.physical_property == UNDEFINED
+                    or returned_output.physical_property.value == UNDEFINED
+                ):
                     if len(returned_output.exceptions) == 0:
-                        logger.info(
-                            "A calculation layer did not return an estimated property nor did it "
-                            "raise an Exception. This sometimes and expectedly occurs when using "
-                            "queue based calculation backends, but should be investigated."
-                        )
-
+                        if layer_name != "EquilibrationLayer":
+                            logger.info(
+                                "A calculation layer did not return an estimated property nor did it "
+                                "raise an Exception. This sometimes and expectedly occurs when using "
+                                "queue based calculation backends, but should be investigated."
+                            )
+                        else:
+                            # only move properties over if there are no exceptions
+                            for match in matches:
+                                batch.queued_properties.remove(match)
+                                batch.equilibrated_properties.append(match)
                     continue
 
                 if len(returned_output.exceptions) > 0:
@@ -320,9 +337,15 @@ class CalculationLayer(abc.ABC):
                 for match in matches:
                     batch.queued_properties.remove(match)
 
-                batch.estimated_properties.append(returned_output.physical_property)
+                if layer_name == "EquilibrationLayer":
+                    batch.equilibrated_properties.append(
+                        returned_output.physical_property
+                    )
+                else:
+                    batch.estimated_properties.append(returned_output.physical_property)
 
         except Exception as e:
+            raise e
             logger.exception(f"Error processing layer results for request {batch.id}")
             exception = EvaluatorException.from_exception(e)
 
