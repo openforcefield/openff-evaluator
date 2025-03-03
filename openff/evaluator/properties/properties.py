@@ -121,6 +121,7 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
         )
         calculation_schema.error_on_failure = error_on_failure
         calculation_schema.max_iterations = max_iterations
+        calculation_schema.number_of_molecules = n_molecules
 
         # Define the protocols to use for the fully mixed system.
         (
@@ -155,14 +156,21 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
         # Make sure the protocols point to the correct substance.
         component_protocols.build_coordinates.substance = component_substance
 
+        component_protocols.check_existing_data.simulation_data_path = ProtocolPath(
+            f"component_data[{component_replicator.placeholder_id}]",
+            "global",
+        )
+
         # Build the final workflow schema
         schema = WorkflowSchema()
 
         schema.protocol_schemas = [
+            component_protocols.check_existing_data.schema,
             component_protocols.build_coordinates.schema,
             component_protocols.assign_parameters.schema,
             component_protocols.energy_minimisation.schema,
             component_protocols.converge_uncertainty.schema,
+            mixture_protocols.check_existing_data.schema,
             mixture_protocols.build_coordinates.schema,
             mixture_protocols.assign_parameters.schema,
             mixture_protocols.energy_minimisation.schema,
@@ -179,6 +187,9 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
         }
 
         calculation_schema.workflow_schema = schema
+        calculation_schema.storage_queries = (
+            cls._default_equilibration_data_storage_query()
+        )
         return calculation_schema
 
     @classmethod
@@ -351,6 +362,46 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
 
         calculation_schema.workflow_schema = schema
         return calculation_schema
+    
+    @classmethod
+    def _default_equilibration_data_storage_query(
+        cls,
+    ) -> Dict[str, SimulationDataQuery]:
+        """Returns the default storage queries to use when retrieving cached simulation
+        data to reweight.
+
+        This will include one query (with the key `"full_system_data"`) to return data
+        for the full mixture system, and another query (with the key `"component_data"`)
+        which will include data for each pure component in the system.
+
+        Returns
+        -------
+            The dictionary of queries.
+        """
+        mixture_data_query = EquilibrationDataQuery()
+        mixture_data_query.substance = PlaceholderValue()
+        mixture_data_query.thermodynamic_state = PlaceholderValue()
+        mixture_data_query.max_number_of_molecules = PlaceholderValue()
+        mixture_data_query.calculation_layer = "EquilibrationLayer"
+        mixture_data_query.property_phase = PropertyPhase.Liquid
+
+        # Set up a query which will return the data of each
+        # individual component in the system.
+        component_query = SubstanceQuery()
+        component_query.components_only = True
+
+        component_data_query = EquilibrationDataQuery()
+        component_data_query.property_phase = PropertyPhase.Liquid
+        component_data_query.substance = PlaceholderValue()
+        component_data_query.substance_query = component_query
+        component_data_query.thermodynamic_state = PlaceholderValue()
+        component_data_query.max_number_of_molecules = PlaceholderValue()
+        component_data_query.calculation_layer = "EquilibrationLayer"
+
+        return {
+            "full_system_data": mixture_data_query,
+            "component_data": component_data_query,
+        }
 
     @classmethod
     def _default_reweighting_storage_query(cls) -> Dict[str, SimulationDataQuery]:

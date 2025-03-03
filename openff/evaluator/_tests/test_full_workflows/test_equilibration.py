@@ -3,7 +3,7 @@ import pathlib
 
 import pytest
 from openff.units import unit
-from openff.utilities.utilities import get_data_dir_path
+from openff.utilities.utilities import get_data_dir_path, temporary_cd
 
 from openff.evaluator._tests.utils import (
     _copy_property_working_data,
@@ -17,8 +17,10 @@ from openff.evaluator.datasets import (
     PhysicalPropertyDataSet,
     PropertyPhase,
 )
+from openff.evaluator.storage.localfile import LocalFileStorage
+from openff.evaluator.utils.exceptions import EquilibrationDataExistsException
 from openff.evaluator.forcefield import SmirnoffForceFieldSource
-from openff.evaluator.layers.equilibration import EquilibrationProperty
+from openff.evaluator.layers.equilibration import EquilibrationProperty, EquilibrationLayer
 from openff.evaluator.properties import Density, EnthalpyOfMixing
 from openff.evaluator.server.server import Batch, EvaluatorServer
 from openff.evaluator.storage.query import EquilibrationDataQuery
@@ -78,7 +80,7 @@ def _create_equilibration_data_query(
 
 class TestEquilibrationLayer:
 
-    @pytest.fixture
+    @pytest.fixture(scope="function")
     def dhmix_density_CCCO(self, tmp_path_factory):
         path = tmp_path_factory.mktemp("dhmix-density-CCCO")
         _copy_property_working_data(
@@ -86,7 +88,37 @@ class TestEquilibrationLayer:
             uuid_prefix="1",
             destination_directory=path,
         )
+        _copy_property_working_data(
+            source_directory="test/workflows/equilibration/dhmix-density-CCCO",
+            uuid_prefix="0",
+            destination_directory=path,
+        )
         return path
+    
+    @pytest.fixture
+    def force_field_source(self):
+        force_field_source = SmirnoffForceFieldSource.from_path(
+            "openff-2.1.0.offxml"
+        )
+        return force_field_source
+    
+    @staticmethod
+    def _generate_error_tolerances(
+        absolute_potential_tolerance: float = 200,
+        relative_density_tolerance: float = 0.2,
+    ):
+        abstol = absolute_potential_tolerance * unit.kilojoules_per_mole
+        errors = [
+            EquilibrationProperty(
+                absolute_tolerance=abstol,
+                observable_type=ObservableType.PotentialEnergy,
+            ),
+            EquilibrationProperty(
+                relative_tolerance=relative_density_tolerance,
+                observable_type=ObservableType.Density,
+            ),
+        ]
+        return errors
 
     @pytest.mark.parametrize(
         "potential_error, density_error, aggregation_behavior, error_on_nonconvergence, success",
@@ -153,9 +185,6 @@ class TestEquilibrationLayer:
         os.chdir(dhmix_density_CCCO)
         _write_force_field()
 
-        metadata = Workflow.generate_default_metadata(
-            dummy_enthalpy_of_mixing, "force-field.json"
-        )
         uuid_prefix = "1"
 
         schema = EnthalpyOfMixing.default_equilibration_schema(
@@ -165,6 +194,16 @@ class TestEquilibrationLayer:
             error_on_failure=error_on_nonconvergence,
             max_iterations=0,
         )
+        storage_backend = LocalFileStorage()
+        metadata = EquilibrationLayer._get_workflow_metadata(
+            ".",
+            dummy_enthalpy_of_mixing,
+            "force-field.json",
+            [],
+            storage_backend,
+            schema
+        )
+
         workflow_schema = schema.workflow_schema
         workflow_schema.replace_protocol_types(
             {"BaseBuildSystem": "BuildSmirnoffSystem"}
@@ -216,27 +255,17 @@ class TestEquilibrationLayer:
                 if not success:
                     raise AssertionError("Equilibration should have failed")
 
-    def test_data_storage_and_retrieval(self, dummy_dataset, dhmix_density_CCCO):
+    def test_data_storage_and_retrieval(self, dummy_dataset, dhmix_density_CCCO, force_field_source):
         """
         Test the storage and retrieval of equilibration data.
+
+        Note: this test takes ~30 seconds if it executes successfully.
+        If something goes wrong and the workflow needs to be re-executed,
+        it'll take 20+ min.
         """
 
-        force_field_path = "openff-2.1.0.offxml"
-        force_field_source = SmirnoffForceFieldSource.from_path(force_field_path)
-
-        error_tolerances = [
-            EquilibrationProperty(
-                absolute_tolerance=200 * unit.kilojoules_per_mole,
-                observable_type=ObservableType.PotentialEnergy,
-            ),
-            EquilibrationProperty(
-                relative_tolerance=0.2,
-                observable_type=ObservableType.Density,
-            ),
-        ]
-
         equilibration_options = _get_equilibration_request_options(
-            error_tolerances=error_tolerances
+            error_tolerances=self._generate_error_tolerances(),
         )
         equilibration_options.batch_mode = BatchMode.NoBatch
 
@@ -256,6 +285,12 @@ class TestEquilibrationLayer:
                 _copy_property_working_data(
                     source_directory="test/workflows/equilibration/dhmix-density-CCCO",
                     uuid_prefix="1",
+                    destination_directory=batch_path,
+                    # include_data_files=True
+                )
+                _copy_property_working_data(
+                    source_directory="test/workflows/equilibration/dhmix-density-CCCO",
+                    uuid_prefix="0",
                     destination_directory=batch_path,
                     # include_data_files=True
                 )
@@ -308,3 +343,192 @@ class TestEquilibrationLayer:
                 ccco_o_boxes = server._storage_backend.query(ccco_o_query)
                 key = next(iter(ccco_o_boxes.keys()))
                 assert len(ccco_o_boxes[key]) == 1
+
+    def test_retrieves_stored_boxes(self, dummy_enthalpy_of_mixing):
+        """Direct test that the EquilibrationLayer retrieves stored boxes for a property"""
+        with temporary_cd():
+            _copy_property_working_data(
+                source_directory="test/workflows/preequilibrated_simulation/dhmix-density-CCCO",
+                uuid_prefix="stored",
+                destination_directory="."
+            )
+
+            # check storage is full
+            storage_path = "stored_data"
+            storage_path = pathlib.Path(storage_path)
+            assert len(list(storage_path.rglob("*/output.pdb"))) == 3
+
+
+            errors = self._generate_error_tolerances()
+            _write_force_field()
+
+            schema = EnthalpyOfMixing.default_equilibration_schema(
+                n_molecules=256,
+                error_tolerances=errors,
+                max_iterations=0
+            )
+            storage_backend = LocalFileStorage()
+            metadata = EquilibrationLayer._get_workflow_metadata(
+                ".",
+                dummy_enthalpy_of_mixing,
+                "force-field.json",
+                [],
+                storage_backend,
+                schema
+            )
+            uuid_prefix = "1"
+
+            
+            workflow_schema = schema.workflow_schema
+            workflow_schema.replace_protocol_types(
+                {"BaseBuildSystem": "BuildSmirnoffSystem"}
+            )
+            workflow = Workflow.from_schema(
+                workflow_schema, metadata=metadata, unique_id=uuid_prefix
+            )
+            workflow_graph = workflow.to_graph()
+            protocol_graph = workflow_graph._protocol_graph
+
+            protocols = [
+                (name, protocol)
+                for name, protocol in workflow_graph.protocols.items()
+                if "check_existing" in name
+            ]
+
+            assert len(protocols) == 3
+
+            for name, protocol in protocols:
+                path = name.replace("|", "_")
+                with pytest.raises(EquilibrationDataExistsException):
+                    protocol_graph._execute_protocol(
+                        path,
+                        protocol,
+                        True,
+                        available_resources=None,
+                        safe_exceptions=False,
+                    )
+
+            
+    def test_short_circuit_found_data(self, dummy_dataset, force_field_source):
+        """
+        Test that finding all equilibrated boxes for a dataset
+        short circuits the equilibration layer, with a remote server.
+        """
+        with temporary_cd():
+            _copy_property_working_data(
+                source_directory="test/workflows/preequilibrated_simulation/dhmix-density-CCCO",
+                uuid_prefix="stored",
+                destination_directory="."
+            )
+
+            equilibration_options = _get_equilibration_request_options(
+                error_tolerances=self._generate_error_tolerances()
+            )
+            equilibration_options.batch_mode = BatchMode.NoBatch
+
+            with DaskLocalCluster(number_of_workers=1) as calculation_backend:
+                server = EvaluatorServer(
+                    calculation_backend=calculation_backend,
+                    working_directory=".",
+                    delete_working_files=False
+                )
+                with server:
+                    client = EvaluatorClient()
+
+                    # check storage is full
+                    storage_path = "stored_data"
+                    storage_path = pathlib.Path(storage_path)
+                    assert len(list(storage_path.rglob("*/output.pdb"))) == 3
+
+                    # test equilibration stops
+                    request, error = client.request_estimate(
+                        dummy_dataset,
+                        force_field_source,
+                        equilibration_options,
+                    )
+                    assert error is None
+                    results, exception = request.results(synchronous=True, polling_interval=30)
+
+                    # check execution finished
+                    assert exception is None
+                    assert len(results.exceptions) == 0
+                    assert len(results.queued_properties) == 0
+                    assert len(results.estimated_properties) == 0
+                    assert len(results.unsuccessful_properties) == 0
+                    assert len(results.equilibrated_properties) == 2
+
+                    # check data stored has not increased
+                    assert len(list(storage_path.rglob("*/output.pdb"))) == 3
+
+
+    def test_single_missing_box(self, dummy_dataset, force_field_source):
+        """
+        Test that for properties that require multiple boxes,
+        only the missing box/es are re-computed.
+        """
+        with temporary_cd():
+            _copy_property_working_data(
+                source_directory="test/workflows/preequilibrated_simulation/dhmix-density-CCCO",
+                uuid_prefix="stored_data_without_O",
+                destination_directory="."
+            )
+
+            # rename stored_data_without_O to stored_data
+            os.rename("stored_data_without_O", "stored_data")
+
+            # copy working files for component_0
+            _copy_property_working_data(
+                source_directory="test/workflows/equilibration/dhmix-density-CCCO",
+                uuid_prefix="1",
+                suffix="component_1",
+                destination_directory="."
+            )
+
+            equilibration_options = _get_equilibration_request_options(
+                error_tolerances=self._generate_error_tolerances()
+            )
+            equilibration_options.batch_mode = BatchMode.NoBatch
+
+            with DaskLocalCluster(number_of_workers=1) as calculation_backend:
+                server = EvaluatorServer(
+                    calculation_backend=calculation_backend,
+                    working_directory=".",
+                    delete_working_files=False
+                )
+                with server:
+                    client = EvaluatorClient()
+
+                    # make and copy over working files to expected directory
+                    batch_path = pathlib.Path("EquilibrationLayer/batch_0000")
+                    batch_path.mkdir(exist_ok=True, parents=True)
+                    _copy_property_working_data(
+                        source_directory="test/workflows/equilibration/dhmix-density-CCCO",
+                        uuid_prefix="1",
+                        suffix="component_1",
+                        destination_directory=batch_path
+                    )
+
+                    # check storage is missing 1
+                    storage_path = "stored_data"
+                    storage_path = pathlib.Path(storage_path)
+                    assert len(list(storage_path.rglob("*/output.pdb"))) == 2
+
+                    # test equilibration stops
+                    request, error = client.request_estimate(
+                        dummy_dataset,
+                        force_field_source,
+                        equilibration_options,
+                    )
+                    assert error is None
+                    results, exception = request.results(synchronous=True, polling_interval=30)
+
+                    # check execution finished
+                    assert exception is None
+                    assert len(results.exceptions) == 0
+                    assert len(results.queued_properties) == 0
+                    assert len(results.estimated_properties) == 0
+                    assert len(results.unsuccessful_properties) == 0
+                    assert len(results.equilibrated_properties) == 2
+
+                    # check data stored has only increased by 1
+                    assert len(list(storage_path.rglob("*/output.pdb"))) == 3

@@ -43,6 +43,7 @@ T = TypeVar("T", bound=reweighting.BaseMBARProtocol)
 class EquilibrationProtocols:
     """The common set of protocols for equilibration"""
 
+    check_existing_data: storage.CheckStoredEquilibrationData
     build_coordinates: coordinates.BuildCoordinatesPackmol
     assign_parameters: forcefield.BaseBuildSystem
     energy_minimisation: openmm.OpenMMEnergyMinimisation
@@ -407,11 +408,19 @@ def generate_equilibration_protocols(
     conditional_group
     """
 
+    check_existing_data = storage.CheckStoredEquilibrationData(
+        f"check_existing_data{id_suffix}"
+    )
+    check_existing_data.simulation_data_path = ProtocolPath("full_system_data", "global")
+
     build_coordinates = coordinates.BuildCoordinatesPackmol(
         f"build_coordinates{id_suffix}"
     )
     build_coordinates.substance = ProtocolPath("substance", "global")
     build_coordinates.max_molecules = n_molecules
+    build_coordinates.should_execute = ProtocolPath(
+        "data_missing", check_existing_data.id
+    )
 
     assign_parameters = forcefield.BaseBuildSystem(f"assign_parameters{id_suffix}")
     assign_parameters.force_field_path = ProtocolPath("force_field_path", "global")
@@ -597,6 +606,7 @@ def generate_equilibration_protocols(
     final_value_source = UNDEFINED
 
     protocols = EquilibrationProtocols(
+        check_existing_data,
         build_coordinates,
         assign_parameters,
         energy_minimisation,

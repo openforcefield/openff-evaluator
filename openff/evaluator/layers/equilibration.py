@@ -3,23 +3,52 @@
 
 import copy
 import logging
+import os
 
 from openff.units import unit
 
-from openff.evaluator.attributes import UNDEFINED, Attribute, AttributeClass
+from openff.evaluator.attributes import (
+    UNDEFINED,
+    Attribute,
+    AttributeClass,
+    PlaceholderValue
+)
 from openff.evaluator.layers import calculation_layer
 from openff.evaluator.layers.layers import BaseCalculationLayerSchema
 from openff.evaluator.layers.workflow import (
-    BaseWorkflowCalculationSchema,
     WorkflowCalculationLayer,
     WorkflowCalculationSchema,
+    BaseWorkflowCalculationSchema,
+    WorkflowGraph
 )
-from openff.evaluator.utils.observables import ObservableFrame, ObservableType
-from openff.evaluator.workflow import Workflow
+from openff.evaluator.datasets import CalculationSource, PropertyPhase
 from openff.evaluator.workflow.attributes import ConditionAggregationBehavior
+from openff.evaluator.utils.observables import ObservableType, ObservableFrame
+from openff.evaluator.workflow import Workflow
+from openff.evaluator.storage.query import EquilibrationDataQuery
 
 logger = logging.getLogger(__name__)
 
+def default_storage_query():
+    """Return the default query to use when retrieving cached simulation
+     data from the storage backend.
+    Currently this query will search for data for the full substance of
+    interest in the liquid phase.
+    Returns
+    -------
+    dict of str and SimulationDataQuery
+        A single query with a key of `"full_system_data"`.
+    """
+
+    query = EquilibrationDataQuery()
+    query.substance = PlaceholderValue()
+    query.thermodynamic_state = PlaceholderValue()
+    query.max_number_of_molecules = PlaceholderValue()
+
+    query.property_phase = PropertyPhase.Liquid
+    query.calculation_layer = "EquilibrationLayer"
+
+    return {"full_system_data": query}
 
 class EquilibrationProperty(AttributeClass):
     """A schema which encodes the options that a `CalculationLayer`
@@ -46,13 +75,13 @@ class EquilibrationProperty(AttributeClass):
     observable_type = Attribute(
         docstring="The type of observable to use in evaluating equilibration.",
         type_hint=ObservableType,
-        optional=False,
+        optional=False
     )
     n_uncorrelated_samples = Attribute(
         docstring="The number of uncorrelated samples to use in evaluating equilibration.",
         type_hint=int,
         default_value=UNDEFINED,
-        optional=True,
+        optional=True
     )
 
     def validate(self, attribute_type=None):
@@ -67,9 +96,7 @@ class EquilibrationProperty(AttributeClass):
 
         # check units
         if self.absolute_tolerance != UNDEFINED:
-            assert self.absolute_tolerance.units.is_compatible_with(
-                self.observable_unit
-            )
+            assert self.absolute_tolerance.units.is_compatible_with(self.observable_unit)
         super(EquilibrationProperty, self).validate(attribute_type)
 
     @property
@@ -81,6 +108,7 @@ class EquilibrationProperty(AttributeClass):
         if self.absolute_tolerance != UNDEFINED:
             return self.absolute_tolerance
         return self.relative_tolerance
+
 
 
 class EquilibrationSchema(WorkflowCalculationSchema):
@@ -111,6 +139,18 @@ class EquilibrationSchema(WorkflowCalculationSchema):
         type_hint=int,
         default_value=100,
     )
+    storage_queries = Attribute(
+        docstring="The queries to perform when retrieving data for each "
+        "of the components in the system from the storage backend. The "
+        "keys of this dictionary will correspond to the metadata keys made "
+        "available to the workflow system.",
+        type_hint=dict,
+        default_value=default_storage_query(),
+    )
+    number_of_molecules = Attribute(
+        docstring="The number of molecules in the system.",
+        type_hint=int,
+    )
 
     def validate(self, attribute_type=None):
         if self.error_tolerances:
@@ -120,9 +160,12 @@ class EquilibrationSchema(WorkflowCalculationSchema):
         super(EquilibrationSchema, self).validate(attribute_type)
 
 
+
 @calculation_layer()
 class EquilibrationLayer(WorkflowCalculationLayer):
-    """A calculation layer for box equilibration."""
+    """A calculation layer which employs molecular simulation
+    to estimate sets of physical properties.
+    """
 
     @staticmethod
     def _get_workflow_metadata(
@@ -166,11 +209,94 @@ class EquilibrationLayer(WorkflowCalculationLayer):
             parameter_gradient_keys,
             None,  # set target to None for now
         )
-        global_metadata["error_tolerances"] = copy.deepcopy(
-            calculation_schema.error_tolerances
-        )
+        global_metadata["error_tolerances"] = copy.deepcopy(calculation_schema.error_tolerances)
         global_metadata["error_aggregation"] = calculation_schema.error_aggregration
+
+        # search storage for matching boxes already
+        template_queries = calculation_schema.storage_queries
+        for key in template_queries:
+            query = EquilibrationLayer._update_query(
+                template_queries[key],
+                physical_property,
+                calculation_schema,
+            )
+
+            # Apply the query.
+            query_results = storage_backend.query(query)
+
+            objects_to_store = []
+
+            # TODO: should this be hardcoded?
+            # TODO: it is hardcoded in protocols already
+            if key == "component_data":
+                # we sort things into components so we
+                # can get them in the order of the physical property substance
+                # later on
+                query_lists_by_components = {}
+                for query_list in query_results.values():
+                    for result in query_list:
+                        storage_key, data_object, data_directory = result
+                        component = data_object.substance.components[0]
+                        if component not in query_lists_by_components:
+                            query_lists_by_components[component] = result
+                        else:
+                            # take object with lowest statistical inefficiency
+                            existing_object = query_lists_by_components[component][1]
+                            if data_object.statistical_inefficiency < existing_object.statistical_inefficiency:
+                                query_lists_by_components[component] = result
+
+                for component in physical_property.substance.components:
+                    if component not in query_lists_by_components:
+                        objects_to_store.append([])
+                        continue
+                    objects_to_store.append(query_lists_by_components[component])
+
+
+            elif len(query_results):
+                assert len(query_results) == 1, query_results
+                query_list = list(query_results.values())[0]
+                objects_to_store = [
+                    min(query_list, key=lambda x: x[1].statistical_inefficiency)
+                ]
+
+            stored_data_tuples = []
+            for obj in objects_to_store:
+                if not len(obj):
+                    stored_data_tuples.append([])
+                    continue
+
+                storage_key, data_object, data_directory = obj
+                object_path = os.path.join(working_directory, f"{storage_key}")
+                if not os.path.isfile(object_path):
+                    data_object.json(object_path)
+                stored_data_tuples.append((object_path, data_directory, force_field_path))
+
+            if len(stored_data_tuples) == 1:
+                stored_data_tuples = stored_data_tuples[0]
+            
+            global_metadata[key] = stored_data_tuples
+        
         return global_metadata
+    
+
+    @staticmethod
+    def _update_query(query, physical_property, calculation_schema):
+        query = copy.deepcopy(query)
+
+        # Fill in any place holder values.
+        if isinstance(query.thermodynamic_state, PlaceholderValue):
+            query.thermodynamic_state = physical_property.thermodynamic_state
+        if isinstance(query.max_number_of_molecules, PlaceholderValue):
+            query.max_number_of_molecules = calculation_schema.number_of_molecules
+
+        # need to treat the substance specially as mole fractions can vary with number of molecules
+        if isinstance(query.substance, PlaceholderValue):
+            query.substance = physical_property.substance.to_substance_n_molecules(
+                calculation_schema.number_of_molecules
+            )
+            # query.substance = physical_property.substance
+        return query
+
 
     @classmethod
     def required_schema_type(cls):

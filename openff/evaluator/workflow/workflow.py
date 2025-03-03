@@ -21,7 +21,7 @@ from openff.evaluator.forcefield import (
 )
 from openff.evaluator.storage.attributes import FilePath, StorageAttribute
 from openff.evaluator.substances import Substance
-from openff.evaluator.utils.exceptions import EvaluatorException
+from openff.evaluator.utils.exceptions import EvaluatorException, EquilibrationDataExistsException
 from openff.evaluator.utils.graph import retrieve_uuid
 from openff.evaluator.utils.observables import (
     Observable,
@@ -936,9 +936,10 @@ class WorkflowGraph:
             The results of executing the graph. If a `calculation_backend`
             is specified, these results will be wrapped in a `Future`.
         """
+        import warnings
+
         if calculation_backend is None and compute_resources is None:
             compute_resources = ComputeResources(number_of_threads=1)
-
         protocol_outputs = self._protocol_graph.execute(
             root_directory, calculation_backend, compute_resources
         )
@@ -1034,6 +1035,7 @@ class WorkflowGraph:
 
         try:
             results_by_id = {}
+            failed_protocols = []
 
             for protocol_id, protocol_result_path in protocol_result_paths:
                 with open(protocol_result_path, "r") as file:
@@ -1042,8 +1044,14 @@ class WorkflowGraph:
                 # Make sure none of the protocols failed and we actually have a value
                 # and uncertainty.
                 if isinstance(protocol_results, EvaluatorException):
-                    return_object.exceptions.append(protocol_results)
-                    return return_object
+                    # EquilibrationDataExistsException actually represents
+                    # a "successful" short-circuit
+                    if "EquilibrationDataExistsException" not in str(protocol_results):
+                        return_object.exceptions.append(protocol_results)
+                        return return_object
+                    else:
+                        failed_protocols.append(protocol_id)
+                        continue
 
                 # Store the protocol results in a dictionary, with keys of the
                 # path to the original protocol output.
@@ -1058,7 +1066,6 @@ class WorkflowGraph:
 
                     results_by_id[protocol_path] = output_value
 
-            # allow an UNDEFINED result to still pass through
             if value_reference is not None and value_reference != UNDEFINED:
                 return_object.value = results_by_id[value_reference].value.plus_minus(
                     results_by_id[value_reference].error
@@ -1073,12 +1080,19 @@ class WorkflowGraph:
                 data_object_path = path.join(directory, f"data_{unique_id}.json")
                 data_directory = path.join(directory, f"data_{unique_id}")
 
-                WorkflowGraph._store_output_data(
-                    data_object_path,
-                    data_directory,
-                    output_to_store,
-                    results_by_id,
-                )
+                try:
+                    WorkflowGraph._store_output_data(
+                        data_object_path,
+                        data_directory,
+                        output_to_store,
+                        results_by_id,
+                    )
+                except KeyError as e:
+                    # this happens for the equilibration short-circuit
+                    if any(protocol_id in str(e) for protocol_id in failed_protocols):
+                        continue
+                    else:
+                        raise e
 
                 return_object.data_to_store.append((data_object_path, data_directory))
 
@@ -1110,7 +1124,7 @@ class WorkflowGraph:
             The results of the protocols which formed the property
             estimation workflow.
         """
-
+        import os
         makedirs(data_directory, exist_ok=True)
 
         for attribute_name in output_to_store.get_attributes(StorageAttribute):

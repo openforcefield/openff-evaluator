@@ -86,6 +86,12 @@ class Protocol(AttributeClass, abc.ABC, metaclass=ProtocolMeta):
         type_hint=bool,
         default_value=True,
     )
+    should_execute = InputAttribute(
+        docstring="Defines whether this protocol should be executed",
+        type_hint=bool,
+        default_value=True,
+        optional=True
+    )
 
     @property
     def schema(self):
@@ -678,7 +684,8 @@ class Protocol(AttributeClass, abc.ABC, metaclass=ProtocolMeta):
             available_resources = ComputeResources(number_of_threads=1)
 
         self.validate(InputAttribute)
-        self._execute(directory, available_resources)
+        if self.should_execute:
+            self._execute(directory, available_resources)
 
 
 class ProtocolGraph:
@@ -1201,7 +1208,7 @@ class ProtocolGraph:
             execution_time = (end_time - start_time) * 1000
             logger.info(f"{protocol.id} finished executing after {execution_time} ms")
 
-        except Exception as e:
+        except (Exception, EvaluatorException) as e:
             logger.info(f"Protocol failed to execute: {protocol.id}")
 
             if not safe_exceptions:
