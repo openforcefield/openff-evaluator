@@ -186,6 +186,43 @@ class DivideValue(Protocol):
 
 
 @workflow_protocol()
+class AbsoluteValue(Protocol):
+    """
+    A protocol which calculates the absolute value of a given value.
+    """
+
+    value = InputAttribute(
+        docstring="The value to absolute.",
+        type_hint=typing.Union[
+            int,
+            float,
+            unit.Measurement,
+            unit.Quantity,
+            ParameterGradient,
+            Observable,
+            ObservableArray,
+        ],
+        default_value=UNDEFINED,
+    )
+
+    result = OutputAttribute(
+        docstring="The result of the absolute.",
+        type_hint=typing.Union[
+            int,
+            float,
+            unit.Measurement,
+            unit.Quantity,
+            ParameterGradient,
+            Observable,
+            ObservableArray,
+        ],
+    )
+
+    def _execute(self, directory, available_resources):
+        self.result = abs(self.value)
+
+
+@workflow_protocol()
 class WeightByMoleFraction(Protocol):
     """Multiplies a value by the mole fraction of a component
     in a `Substance`.
@@ -267,6 +304,84 @@ class WeightByMoleFraction(Protocol):
             )
 
         self.weighted_value = self._weight_values(amount.value)
+
+
+@workflow_protocol()
+class MinimumValue(Protocol):
+    """A protocol to get the lowest of a list of values.
+
+    Notes
+    -----
+    The `values` input must either be a list of openff.evaluator.unit.Quantity, a
+    ProtocolPath to a list of openff.evaluator.unit.Quantity, or a list of ProtocolPath
+    which each point to a openff.evaluator.unit.Quantity.
+    """
+
+    values = InputAttribute(
+        docstring="The values to compare.", type_hint=list, default_value=UNDEFINED
+    )
+
+    result = OutputAttribute(
+        docstring="The minimum value",
+        type_hint=typing.Union[
+            int,
+            float,
+            unit.Measurement,
+            unit.Quantity,
+            ParameterGradient,
+            Observable,
+            ObservableArray,
+        ],
+    )
+
+    def _execute(self, directory, available_resources):
+        if len(self.values) < 1:
+            raise ValueError("There were no values to add together")
+
+        self.result = self.values[0]
+
+        for value in self.values[1:]:
+            if self.result > value:
+                self.result = value
+
+
+@workflow_protocol()
+class MaximumValue(Protocol):
+    """A protocol to get the highest of a list of values.
+
+    Notes
+    -----
+    The `values` input must either be a list of openff.evaluator.unit.Quantity, a
+    ProtocolPath to a list of openff.evaluator.unit.Quantity, or a list of ProtocolPath
+    which each point to a openff.evaluator.unit.Quantity.
+    """
+
+    values = InputAttribute(
+        docstring="The values to compare.", type_hint=list, default_value=UNDEFINED
+    )
+
+    result = OutputAttribute(
+        docstring="The maximum value",
+        type_hint=typing.Union[
+            int,
+            float,
+            unit.Measurement,
+            unit.Quantity,
+            ParameterGradient,
+            Observable,
+            ObservableArray,
+        ],
+    )
+
+    def _execute(self, directory, available_resources):
+        if len(self.values) < 1:
+            raise ValueError("There were no values to add together")
+
+        self.result = self.values[0]
+
+        for value in self.values[1:]:
+            if self.result < value:
+                self.result = value
 
 
 @workflow_protocol()

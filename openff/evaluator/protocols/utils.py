@@ -7,8 +7,9 @@ from typing import Generic, Optional, Tuple, TypeVar
 
 from openff.units import unit
 
-from openff.evaluator.attributes import PlaceholderValue
+from openff.evaluator.attributes import UNDEFINED, PlaceholderValue
 from openff.evaluator.datasets import PropertyPhase
+from openff.evaluator.layers.equilibration import EquilibrationProperty
 from openff.evaluator.protocols import (
     analysis,
     coordinates,
@@ -21,15 +22,35 @@ from openff.evaluator.protocols import (
     storage,
 )
 from openff.evaluator.protocols.groups import ConditionalGroup
-from openff.evaluator.storage.data import StoredSimulationData
+from openff.evaluator.protocols.miscellaneous import (
+    AbsoluteValue,
+    MaximumValue,
+    MultiplyValue,
+)
+from openff.evaluator.storage.data import StoredEquilibrationData, StoredSimulationData
 from openff.evaluator.thermodynamics import Ensemble
 from openff.evaluator.utils.observables import ObservableType
 from openff.evaluator.workflow import ProtocolGroup
+from openff.evaluator.workflow.attributes import ConditionAggregationBehavior
 from openff.evaluator.workflow.schemas import ProtocolReplicator
 from openff.evaluator.workflow.utils import ProtocolPath, ReplicatorValue
 
 S = TypeVar("S", bound=analysis.BaseAverageObservable)
 T = TypeVar("T", bound=reweighting.BaseMBARProtocol)
+
+
+@dataclass
+class EquilibrationProtocols:
+    """The common set of protocols for equilibration"""
+
+    check_existing_data: storage.CheckStoredEquilibrationData
+    build_coordinates: coordinates.BuildCoordinatesPackmol
+    assign_parameters: forcefield.BaseBuildSystem
+    energy_minimisation: openmm.OpenMMEnergyMinimisation
+    converge_uncertainty: ProtocolGroup
+
+    def __iter__(self):
+        yield from astuple(self)
 
 
 @dataclass
@@ -354,6 +375,248 @@ def generate_reweighting_protocols(
         )
 
     return protocols, data_replicator
+
+
+def generate_equilibration_protocols(
+    id_suffix: str = "",
+    n_molecules: int = 1000,
+    error_tolerances: list[EquilibrationProperty] = [],
+    condition_aggregation_behavior: ConditionAggregationBehavior = ConditionAggregationBehavior.All,
+    error_on_failure: bool = True,
+    max_iterations: int = 100,
+) -> Tuple[EquilibrationProtocols, ProtocolPath, StoredSimulationData]:
+    """
+    Constructs a set of protocols which, when combined in a workflow schema, may be
+    executed to equilibrate a system for further simulation to collect production data.
+
+    The protocols returned will:
+
+        1) Build a set of liquid coordinates for the
+           property substance using packmol.
+
+        2) Assign a set of smirnoff force field parameters
+           to the system.
+
+        3) Perform an energy minimisation on the system.
+
+        4) Run an NPT equilibration until properties converge.
+
+    Parameters
+    ----------
+    id_suffix: str
+        A string suffix to append to each of the protocol ids.
+    conditional_group
+    """
+
+    check_existing_data = storage.CheckStoredEquilibrationData(
+        f"check_existing_data{id_suffix}"
+    )
+    check_existing_data.simulation_data_path = ProtocolPath(
+        "full_system_data", "global"
+    )
+
+    build_coordinates = coordinates.BuildCoordinatesPackmol(
+        f"build_coordinates{id_suffix}"
+    )
+    build_coordinates.substance = ProtocolPath("substance", "global")
+    build_coordinates.max_molecules = n_molecules
+    build_coordinates.should_execute = ProtocolPath(
+        "data_missing", check_existing_data.id
+    )
+
+    assign_parameters = forcefield.BaseBuildSystem(f"assign_parameters{id_suffix}")
+    assign_parameters.force_field_path = ProtocolPath("force_field_path", "global")
+    assign_parameters.coordinate_file_path = ProtocolPath(
+        "coordinate_file_path", build_coordinates.id
+    )
+    assign_parameters.substance = ProtocolPath("output_substance", build_coordinates.id)
+
+    # Equilibration
+    energy_minimisation = openmm.OpenMMEnergyMinimisation(
+        f"energy_minimisation{id_suffix}"
+    )
+    energy_minimisation.input_coordinate_file = ProtocolPath(
+        "coordinate_file_path", build_coordinates.id
+    )
+    energy_minimisation.parameterized_system = ProtocolPath(
+        "parameterized_system", assign_parameters.id
+    )
+
+    equilibration_simulation = openmm.OpenMMSimulation(
+        f"equilibration_simulation{id_suffix}"
+    )
+    equilibration_simulation.ensemble = Ensemble.NPT
+    equilibration_simulation.steps_per_iteration = 100000
+    equilibration_simulation.output_frequency = 5000
+    equilibration_simulation.timestep = 2.0 * unit.femtosecond
+    equilibration_simulation.thermodynamic_state = ProtocolPath(
+        "thermodynamic_state", "global"
+    )
+    equilibration_simulation.input_coordinate_file = ProtocolPath(
+        "output_coordinate_file", energy_minimisation.id
+    )
+    equilibration_simulation.parameterized_system = ProtocolPath(
+        "parameterized_system", assign_parameters.id
+    )
+
+    # Set up a conditional group to ensure convergence of uncertainty
+    conditional_group = groups.ConditionalGroup(f"conditional_group{id_suffix}")
+    conditional_group.max_iterations = max_iterations
+    conditional_group.condition_aggregation_behavior = condition_aggregation_behavior
+    conditional_group.error_on_failure = error_on_failure
+
+    analysis_protocols = []
+    multiplication_protocols = []
+
+    for i, equilibration_property in enumerate(error_tolerances):
+        observable_type = equilibration_property.observable_type.value
+
+        # construct analysis protocol
+        analysis_protocol = analysis.AverageObservable(
+            f"extract_{i}_{observable_type}{id_suffix}"
+        )
+
+        analysis_protocol.thermodynamic_state = ProtocolPath(
+            "thermodynamic_state", "global"
+        )
+        analysis_protocol.potential_energies = ProtocolPath(
+            f"observables[{ObservableType.PotentialEnergy.value}]",
+            equilibration_simulation.id,
+        )
+        analysis_protocol.observable = ProtocolPath(
+            f"observables[{observable_type}]",
+            equilibration_simulation.id,
+        )
+        analysis_protocols.append(analysis_protocol)
+
+        if equilibration_property.n_uncorrelated_samples != UNDEFINED:
+            condition = groups.ConditionalGroup.Condition()
+            condition.right_hand_value = equilibration_property.n_uncorrelated_samples
+            condition.type = groups.ConditionalGroup.Condition.Type.GreaterThanOrEqualTo
+            condition.left_hand_value = ProtocolPath(
+                "time_series_statistics.n_uncorrelated_points",
+                conditional_group.id,
+                analysis_protocol.id,
+            )
+            conditional_group.add_condition(condition)
+
+        if equilibration_property.tolerance != UNDEFINED:
+            condition = groups.ConditionalGroup.Condition()
+            # add checking of absolute error tolerance
+            if equilibration_property.absolute_tolerance != UNDEFINED:
+                tolerance = equilibration_property.absolute_tolerance.to(
+                    equilibration_property.observable_unit
+                )
+            elif equilibration_property.relative_tolerance != UNDEFINED:
+                # add error tolerance
+                multiplication_protocol = MultiplyValue(
+                    f"multiply_{i}_{observable_type}{id_suffix}"
+                )
+                multiplication_protocol.value = ProtocolPath(
+                    "value.value", conditional_group.id, analysis_protocol.id
+                )
+                multiplication_protocol.multiplier = (
+                    equilibration_property.relative_tolerance
+                )
+
+                absolute_protocol = AbsoluteValue(
+                    f"absolute_{i}_{observable_type}{id_suffix}"
+                )
+                absolute_protocol.value = ProtocolPath(
+                    "result", conditional_group.id, multiplication_protocol.id
+                )
+                tolerance = ProtocolPath(
+                    "result", conditional_group.id, absolute_protocol.id
+                )
+                multiplication_protocols.extend(
+                    [multiplication_protocol, absolute_protocol]
+                )
+            else:
+                # should never get here
+                continue
+            condition.right_hand_value = tolerance
+            condition.type = groups.ConditionalGroup.Condition.Type.LessThan
+            condition.left_hand_value = ProtocolPath(
+                "value.error", conditional_group.id, analysis_protocol.id
+            )
+            conditional_group.add_condition(condition)
+
+        # Make sure the simulation gets extended after each iteration.
+        equilibration_simulation.total_number_of_iterations = ProtocolPath(
+            "current_iteration", conditional_group.id
+        )
+
+    # get the highest? statistical inefficiency for each protocol
+    statistical_inefficiency_protocol = MaximumValue(
+        f"get_maximum_statistical_inefficiency{id_suffix}"
+    )
+    statistical_inefficiency_protocol.values = [
+        ProtocolPath(
+            "time_series_statistics.statistical_inefficiency",
+            conditional_group.id,
+            analysis_protocol.id,
+        )
+        for analysis_protocol in analysis_protocols
+    ]
+
+    conditional_group.add_protocols(
+        equilibration_simulation,
+        *analysis_protocols,
+        *multiplication_protocols,
+        statistical_inefficiency_protocol,
+    )
+
+    # Finally, extract uncorrelated data
+    # time_series_statistics = ProtocolPath(
+    #     "time_series_statistics", conditional_group.id, analysis_protocol.id
+    # )
+    coordinate_file = ProtocolPath(
+        "output_coordinate_file", conditional_group.id, equilibration_simulation.id
+    )
+    # trajectory_path = ProtocolPath(
+    #     "trajectory_file_path", conditional_group.id, equilibration_simulation.id
+    # )
+    observables = ProtocolPath(
+        "observables", conditional_group.id, equilibration_simulation.id
+    )
+
+    # Build the object which defines which pieces of simulation data to store.
+    output_to_store = StoredEquilibrationData()
+    output_to_store.thermodynamic_state = ProtocolPath("thermodynamic_state", "global")
+    output_to_store.property_phase = PropertyPhase.Liquid
+    output_to_store.force_field_id = PlaceholderValue()
+    output_to_store.number_of_molecules = ProtocolPath(
+        "output_number_of_molecules", build_coordinates.id
+    )
+    output_to_store.max_number_of_molecules = n_molecules
+    output_to_store.substance = ProtocolPath("output_substance", build_coordinates.id)
+    output_to_store.statistical_inefficiency = ProtocolPath(
+        "result",
+        conditional_group.id,
+        statistical_inefficiency_protocol.id,
+    )
+    output_to_store.observables = observables
+    # output_to_store.trajectory_file_name = trajectory_path
+    output_to_store.coordinate_file_name = coordinate_file
+    output_to_store.source_calculation_id = PlaceholderValue()
+    output_to_store.calculation_layer = "EquilibrationLayer"
+
+    # Define where the final values come from.
+    # final_value_source = ProtocolPath(
+    #     "value", conditional_group.id, analysis_protocol.id
+    # )
+    final_value_source = UNDEFINED
+
+    protocols = EquilibrationProtocols(
+        check_existing_data,
+        build_coordinates,
+        assign_parameters,
+        energy_minimisation,
+        # equilibration_simulation,
+        # analysis_protocol,
+        conditional_group,
+    )
+    return protocols, final_value_source, output_to_store
 
 
 def generate_simulation_protocols(
