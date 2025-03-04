@@ -1,19 +1,30 @@
 import abc
+import copy
 from typing import Dict, Optional, Tuple
 
 from openff.units import unit
 
 from openff.evaluator.attributes import UNDEFINED, PlaceholderValue
 from openff.evaluator.datasets import PhysicalProperty, PropertyPhase
+from openff.evaluator.layers.equilibration import (
+    EquilibrationProperty,
+    EquilibrationSchema,
+)
 from openff.evaluator.layers.reweighting import ReweightingSchema
 from openff.evaluator.layers.simulation import SimulationSchema
 from openff.evaluator.protocols import analysis, miscellaneous
 from openff.evaluator.protocols.utils import (
+    generate_equilibration_protocols,
     generate_reweighting_protocols,
     generate_simulation_protocols,
 )
-from openff.evaluator.storage.query import SimulationDataQuery, SubstanceQuery
+from openff.evaluator.storage.query import (
+    EquilibrationDataQuery,
+    SimulationDataQuery,
+    SubstanceQuery,
+)
 from openff.evaluator.utils.observables import ObservableType
+from openff.evaluator.workflow.attributes import ConditionAggregationBehavior
 from openff.evaluator.workflow.schemas import ProtocolReplicator, WorkflowSchema
 from openff.evaluator.workflow.utils import ProtocolPath, ReplicatorValue
 
@@ -70,6 +81,116 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
             n_molecules = ProtocolPath("result", n_molar_molecules.id)
 
         return n_molecules, n_molar_molecules
+
+    @classmethod
+    def default_equilibration_schema(
+        cls,
+        n_molecules: int = 1000,
+        error_tolerances: list[EquilibrationProperty] = [],
+        condition_aggregation_behavior: ConditionAggregationBehavior = ConditionAggregationBehavior.All,
+        error_on_failure: bool = True,
+        max_iterations: int = 100,
+    ) -> EquilibrationSchema:
+        """Returns the default equilibration schema to use when equilibrating
+        liquid boxes.
+
+        Parameters
+        ----------
+        n_molecules: int
+            The number of molecules to use in the simulation.
+        error_tolerances: list[EquilibrationProperty]
+            The error tolerances to estimate the property to within.
+        condition_aggregation_behavior: ConditionAggregationBehavior
+            How to aggregate errors -- any vs all.
+        error_on_failure: bool
+            Whether to raise an error if the convergence conditions are not met.
+        max_iterations: int
+            The maximum number of iterations to run the equilibration for.
+            Each iteration is 200 ps long by default.
+
+        Returns
+        -------
+        EquilibrationSchema
+            The schema to follow when equilibrating boxes for this property.
+        """
+
+        calculation_schema = EquilibrationSchema()
+        calculation_schema.error_tolerances = copy.deepcopy(error_tolerances)
+        calculation_schema.error_aggregration = copy.deepcopy(
+            condition_aggregation_behavior
+        )
+        calculation_schema.error_on_failure = error_on_failure
+        calculation_schema.max_iterations = max_iterations
+        calculation_schema.number_of_molecules = n_molecules
+
+        # Define the protocols to use for the fully mixed system.
+        (
+            mixture_protocols,
+            mixture_value,
+            mixture_stored_data,
+        ) = generate_equilibration_protocols(
+            id_suffix="_mixture",
+            n_molecules=n_molecules,
+            error_tolerances=calculation_schema.error_tolerances,
+            condition_aggregation_behavior=calculation_schema.error_aggregration,
+            error_on_failure=calculation_schema.error_on_failure,
+            max_iterations=calculation_schema.max_iterations,
+        )
+
+        # Define the protocols to use for each component, creating a replicator that
+        # will copy these for each component in the mixture substance.
+        component_replicator = ProtocolReplicator("component_replicator")
+        component_replicator.template_values = ProtocolPath("components", "global")
+        component_substance = ReplicatorValue(component_replicator.id)
+
+        component_protocols, _, component_stored_data = (
+            generate_equilibration_protocols(
+                id_suffix=f"_component_{component_replicator.placeholder_id}",
+                n_molecules=n_molecules,
+                error_tolerances=calculation_schema.error_tolerances,
+                condition_aggregation_behavior=calculation_schema.error_aggregration,
+                error_on_failure=calculation_schema.error_on_failure,
+                max_iterations=calculation_schema.max_iterations,
+            )
+        )
+        # Make sure the protocols point to the correct substance.
+        component_protocols.build_coordinates.substance = component_substance
+
+        component_protocols.check_existing_data.simulation_data_path = ProtocolPath(
+            f"component_data[{component_replicator.placeholder_id}]",
+            "global",
+        )
+
+        # Build the final workflow schema
+        schema = WorkflowSchema()
+
+        schema.protocol_schemas = [
+            component_protocols.check_existing_data.schema,
+            component_protocols.build_coordinates.schema,
+            component_protocols.assign_parameters.schema,
+            component_protocols.energy_minimisation.schema,
+            component_protocols.converge_uncertainty.schema,
+            mixture_protocols.check_existing_data.schema,
+            mixture_protocols.build_coordinates.schema,
+            mixture_protocols.assign_parameters.schema,
+            mixture_protocols.energy_minimisation.schema,
+            mixture_protocols.converge_uncertainty.schema,
+        ]
+
+        schema.protocol_replicators = [component_replicator]
+
+        schema.final_value_source = mixture_value
+
+        schema.outputs_to_store = {
+            "full_system": mixture_stored_data,
+            f"component_{component_replicator.placeholder_id}": component_stored_data,
+        }
+
+        calculation_schema.workflow_schema = schema
+        calculation_schema.storage_queries = (
+            cls._default_equilibration_data_storage_query()
+        )
+        return calculation_schema
 
     @classmethod
     def default_simulation_schema(
@@ -241,6 +362,46 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
 
         calculation_schema.workflow_schema = schema
         return calculation_schema
+
+    @classmethod
+    def _default_equilibration_data_storage_query(
+        cls,
+    ) -> Dict[str, SimulationDataQuery]:
+        """Returns the default storage queries to use when retrieving cached simulation
+        data to reweight.
+
+        This will include one query (with the key `"full_system_data"`) to return data
+        for the full mixture system, and another query (with the key `"component_data"`)
+        which will include data for each pure component in the system.
+
+        Returns
+        -------
+            The dictionary of queries.
+        """
+        mixture_data_query = EquilibrationDataQuery()
+        mixture_data_query.substance = PlaceholderValue()
+        mixture_data_query.thermodynamic_state = PlaceholderValue()
+        mixture_data_query.max_number_of_molecules = PlaceholderValue()
+        mixture_data_query.calculation_layer = "EquilibrationLayer"
+        mixture_data_query.property_phase = PropertyPhase.Liquid
+
+        # Set up a query which will return the data of each
+        # individual component in the system.
+        component_query = SubstanceQuery()
+        component_query.components_only = True
+
+        component_data_query = EquilibrationDataQuery()
+        component_data_query.property_phase = PropertyPhase.Liquid
+        component_data_query.substance = PlaceholderValue()
+        component_data_query.substance_query = component_query
+        component_data_query.thermodynamic_state = PlaceholderValue()
+        component_data_query.max_number_of_molecules = PlaceholderValue()
+        component_data_query.calculation_layer = "EquilibrationLayer"
+
+        return {
+            "full_system_data": mixture_data_query,
+            "component_data": component_data_query,
+        }
 
     @classmethod
     def _default_reweighting_storage_query(cls) -> Dict[str, SimulationDataQuery]:

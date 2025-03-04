@@ -280,6 +280,12 @@ class RequestResult(AttributeClass):
         default_value=PhysicalPropertyDataSet(),
     )
 
+    equilibrated_properties = Attribute(
+        docstring="The set of properties which have been successfully equilibrated.",
+        type_hint=PhysicalPropertyDataSet,
+        default_value=PhysicalPropertyDataSet(),
+    )
+
     exceptions = Attribute(
         docstring="The set of properties which have yet to be, or "
         "are currently being estimated.",
