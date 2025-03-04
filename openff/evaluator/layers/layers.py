@@ -349,7 +349,6 @@ class CalculationLayer(abc.ABC):
                     batch.estimated_properties.append(returned_output.physical_property)
 
         except Exception as e:
-            raise e
             logger.exception(f"Error processing layer results for request {batch.id}")
             exception = EvaluatorException.from_exception(e)
 
