@@ -193,12 +193,19 @@ def test_thermoml_molality_constraints():
     assert len(data_set.properties[0].substance) > 1
 
 
-def test_thermoml_mole_constraints():
+def test_thermoml_mole_constraints(caplog):
     """A collection of tests to ensure that the Mole fraction constraint is
     implemented correctly alongside solvent constraints."""
 
     # Mole fraction
-    data_set = ThermoMLDataSet.from_file(get_data_filename("test/properties/mole.xml"))
+    # This file contains a bad smiles to test Issue #620
+    # Test that the file a) gets parsed
+    # and b) logs a warning about parsing radicals
+
+    with caplog.at_level("WARNING"):
+        data_set = ThermoMLDataSet.from_file(get_data_filename("test/properties/mole.xml"))
+    assert "An error occurred while parsing a compound" in caplog.text
+    assert "radical" in caplog.text
 
     assert data_set is not None
     assert len(data_set) > 0

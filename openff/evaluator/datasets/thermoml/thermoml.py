@@ -2143,6 +2143,13 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
     def from_xml(cls, xml, default_source):
         """Load a ThermoML data set from an xml object.
 
+        .. versionchanged:: 0.4.11
+            As of 0.4.11, this will no longer raise an error if
+            the document contains a compound that cannot be parsed.
+            Instead, that compound will simply be skipped and parsing
+            will continue. See Issue #620 for more.
+
+
         Parameters
         ----------
         xml: str
