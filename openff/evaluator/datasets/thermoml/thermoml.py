@@ -2184,7 +2184,11 @@ class ThermoMLDataSet(PhysicalPropertyDataSet):
 
         # Extract the base compounds present in the xml file
         for node in root_node.findall("ThermoML:Compound", namespace):
-            compound = _Compound.from_xml_node(node, namespace)
+            try:
+                compound = _Compound.from_xml_node(node, namespace)
+            except Exception as e:
+                logger.warning(f"An error occurred while parsing a compound: {e}")
+                continue
 
             if compound is None:
                 continue
