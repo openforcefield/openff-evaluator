@@ -203,7 +203,9 @@ def test_thermoml_mole_constraints(caplog):
     # and b) logs a warning about parsing radicals
 
     with caplog.at_level("WARNING"):
-        data_set = ThermoMLDataSet.from_file(get_data_filename("test/properties/mole.xml"))
+        data_set = ThermoMLDataSet.from_file(
+            get_data_filename("test/properties/mole.xml")
+        )
     assert "An error occurred while parsing a compound" in caplog.text
     assert "radical" in caplog.text
 
