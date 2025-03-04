@@ -11,6 +11,12 @@
   </Compound>
   <Compound>
     <RegNum>
+      <nOrgNum>2</nOrgNum>
+    </RegNum>
+    <sSmiles>C[N]C</sSmiles>
+  </Compound>
+  <Compound>
+    <RegNum>
       <nOrgNum>3</nOrgNum>
     </RegNum>
     <sStandardInChI>InChI=1S/C5H10O2/c1-3-4-5(6)7-2/h3-4H2,1-2H3</sStandardInChI>
