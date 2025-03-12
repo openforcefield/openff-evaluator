@@ -134,7 +134,9 @@ def _statistical_inefficiency(
 
 
 def analyze_time_series(
-    time_series: np.ndarray, minimum_samples: int = 3
+    time_series: np.ndarray,
+    discard_initial_frames: int = 0,
+    minimum_samples: int = 3
 ) -> TimeSeriesStatistics:
     """Detect when a time series set has effectively become stationary (i.e has reached
     equilibrium).
@@ -143,6 +145,8 @@ def analyze_time_series(
     ----------
     time_series
         The time series to analyse with shape=(n_data_points, n_dimensions).
+    discard_initial_frames
+        The number of initial frames to discard.
     minimum_samples
         The minimum number of data points to consider in the calculation.
 
@@ -177,7 +181,7 @@ def analyze_time_series(
 
     effect_samples_array = np.ones([n_timesteps - 1])
 
-    for current_timestep in range(0, n_timesteps - 1):
+    for current_timestep in range(discard_initial_frames, n_timesteps - 1):
         try:
             statistical_inefficiency_array[current_timestep] = (
                 _statistical_inefficiency(
@@ -201,7 +205,11 @@ def analyze_time_series(
     return TimeSeriesStatistics(
         n_total_points=len(time_series),
         n_uncorrelated_points=len(
-            get_uncorrelated_indices(len(time_series), statistical_inefficiency)
+            get_uncorrelated_indices(
+                len(time_series),
+                statistical_inefficiency,
+                discard_initial_frames
+            )
         ),
         statistical_inefficiency=float(statistical_inefficiency),
         equilibration_index=int(equilibration_time),
@@ -209,7 +217,9 @@ def analyze_time_series(
 
 
 def get_uncorrelated_indices(
-    time_series_length: int, statistical_inefficiency: float
+    time_series_length: int,
+    statistical_inefficiency: float,
+    discard_initial_frames: int = 0,
 ) -> List[int]:
     """Returns the indices of the uncorrelated frames of a time series taking strides
     computed by the ``get_uncorrelated_stride`` function.
@@ -220,6 +230,9 @@ def get_uncorrelated_indices(
         The length of the time series to extract frames from.
     statistical_inefficiency
         The statistical inefficiency of the time series.
+    discard_initial_frames
+        The number of initial frames to discard. Samples will be taken from
+        ``discard_initial_frames`` to ``time_series_length``.
 
     Returns
     -------
@@ -228,4 +241,7 @@ def get_uncorrelated_indices(
 
     # Extract a set of uncorrelated data points.
     stride = int(math.ceil(statistical_inefficiency))
-    return [index for index in range(0, time_series_length, stride)]
+    return [
+        index
+        for index in range(discard_initial_frames, time_series_length, stride)
+    ]

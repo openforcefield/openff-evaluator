@@ -384,6 +384,7 @@ def generate_equilibration_protocols(
     condition_aggregation_behavior: ConditionAggregationBehavior = ConditionAggregationBehavior.All,
     error_on_failure: bool = True,
     max_iterations: int = 100,
+    discard_initial_frames: int = 0,
 ) -> Tuple[EquilibrationProtocols, ProtocolPath, StoredSimulationData]:
     """
     Constructs a set of protocols which, when combined in a workflow schema, may be
@@ -475,6 +476,8 @@ def generate_equilibration_protocols(
         analysis_protocol = analysis.AverageObservable(
             f"extract_{i}_{observable_type}{id_suffix}"
         )
+
+        analysis_protocol.discard_initial_frames = discard_initial_frames
 
         analysis_protocol.thermodynamic_state = ProtocolPath(
             "thermodynamic_state", "global"

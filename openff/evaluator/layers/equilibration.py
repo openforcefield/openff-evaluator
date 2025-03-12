@@ -153,6 +153,12 @@ class EquilibrationSchema(WorkflowCalculationSchema):
         docstring="The number of molecules in the system.",
         type_hint=int,
     )
+    discard_initial_frames = Attribute(
+        docstring="The number of frames to discard from the start of the trajectory.",
+        type_hint=int,
+        default_value=0,
+        optional=True,
+    )
 
     def validate(self, attribute_type=None):
         if self.error_tolerances:

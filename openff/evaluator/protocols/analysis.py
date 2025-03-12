@@ -156,6 +156,13 @@ class BaseAverageObservable(Protocol, abc.ABC):
         optional=True,
     )
 
+    discard_initial_frames = InputAttribute(
+        docstring="Number of frames to initially discard from the observable.",
+        type_hint=int,
+        default_value=0,
+        optional=True
+    )
+
     value = OutputAttribute(
         docstring="The average value of the observable.", type_hint=Observable
     )
@@ -289,7 +296,10 @@ class BaseAverageObservable(Protocol, abc.ABC):
         statistical_inefficiency = 0.0
 
         for observable in observables.values():
-            observable_statistics = analyze_time_series(observable.value.magnitude)
+            observable_statistics = analyze_time_series(
+                observable.value.magnitude,
+                discard_initial_frames=self.discard_initial_frames
+            )
 
             equilibration_index = max(
                 equilibration_index, observable_statistics.equilibration_index

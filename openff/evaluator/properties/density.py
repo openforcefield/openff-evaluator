@@ -45,6 +45,7 @@ class Density(PhysicalProperty):
         condition_aggregation_behavior: ConditionAggregationBehavior = ConditionAggregationBehavior.All,
         error_on_failure: bool = True,
         max_iterations: int = 100,
+        discard_initial_frames: int = 0,
     ) -> EquilibrationSchema:
         """Returns the default equilibration schema to use when equilibrating
         liquid boxes.
@@ -77,6 +78,7 @@ class Density(PhysicalProperty):
         calculation_schema.error_on_failure = error_on_failure
         calculation_schema.max_iterations = max_iterations
         calculation_schema.number_of_molecules = n_molecules
+        calculation_schema.discard_initial_frames = discard_initial_frames
 
         # Define the protocols which will run the simulation itself.
         protocols, value_source, output_to_store = generate_equilibration_protocols(
@@ -85,6 +87,7 @@ class Density(PhysicalProperty):
             condition_aggregation_behavior=calculation_schema.error_aggregration,
             error_on_failure=calculation_schema.error_on_failure,
             max_iterations=calculation_schema.max_iterations,
+            discard_initial_frames=calculation_schema.discard_initial_frames,
         )
 
         # Build the workflow schema.
