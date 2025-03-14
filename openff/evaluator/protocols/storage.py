@@ -42,6 +42,12 @@ class CheckStoredEquilibrationData(Protocol):
                 "The equilibration data already exists on disk."
             )
 
+    def can_merge(self, other, path_replacements=None):
+        # I think there can be false positives if simulation_data_path is empty
+        # One could turn off allow_merging but this method is here to document
+        # that this protocol should not be merged.
+        return False
+
 
 @workflow_protocol()
 class UnpackStoredEquilibrationData(Protocol):
