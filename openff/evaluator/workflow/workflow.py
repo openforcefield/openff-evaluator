@@ -1,7 +1,6 @@
 """
 Defines the core workflow object and execution graph.
 """
-import logging
 
 import copy
 import json
@@ -38,7 +37,6 @@ from openff.evaluator.workflow import Protocol, ProtocolGraph
 from openff.evaluator.workflow.schemas import ProtocolReplicator, WorkflowSchema
 from openff.evaluator.workflow.utils import ProtocolPath, ReplicatorValue
 
-logger = logging.getLogger(__name__)
 
 class Workflow:
     """Encapsulates and prepares a workflow which is able to estimate
@@ -488,12 +486,9 @@ class Workflow:
             new_protocol if not isinstance(new_protocol, Protocol) else new_protocol.id
         )
 
-        logger.warn(f"Swapping {old_protocol.id} --> {new_protocol.id}")
-
         if new_id in [x.id for x in self._protocols]:
             raise ValueError(
-                    f"A protocol with the same id already exists in this workflow: {new_id}."
-                    f" {', '.join([x.id for x in self._protocols])}"
+                "A protocol with the same id already exists in this workflow."
             )
 
         if isinstance(old_protocol, Protocol):
