@@ -140,7 +140,11 @@ class FilterDuplicates(CurationComponent):
             filtered_data.append(sorted_filtered_data)
 
         filtered_data = pandas.concat(filtered_data, ignore_index=True, sort=False)
-        return filtered_data
+
+        original_filtered_data = data_frame[
+            data_frame["Id"].isin(filtered_data["Id"])
+        ]
+        return original_filtered_data
 
 
 class FilterByTemperatureSchema(CurationComponentSchema):
