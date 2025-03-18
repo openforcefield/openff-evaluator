@@ -1122,8 +1122,6 @@ class WorkflowGraph:
             The results of the protocols which formed the property
             estimation workflow.
         """
-        import os
-
         makedirs(data_directory, exist_ok=True)
 
         for attribute_name in output_to_store.get_attributes(StorageAttribute):
