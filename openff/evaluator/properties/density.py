@@ -1,7 +1,9 @@
 """
 A collection of density physical property definitions.
 """
+
 import copy
+
 from openff.units import unit
 
 from openff.evaluator.attributes import UNDEFINED
