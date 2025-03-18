@@ -8,7 +8,7 @@ import copy
 import logging
 import os
 
-from openff.evaluator.attributes import UNDEFINED, Attribute, AttributeClass
+from openff.evaluator.attributes import UNDEFINED, Attribute
 from openff.evaluator.datasets import CalculationSource
 from openff.evaluator.layers import (
     CalculationLayer,

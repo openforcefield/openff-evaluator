@@ -21,10 +21,7 @@ from openff.evaluator.forcefield import (
 )
 from openff.evaluator.storage.attributes import FilePath, StorageAttribute
 from openff.evaluator.substances import Substance
-from openff.evaluator.utils.exceptions import (
-    EquilibrationDataExistsException,
-    EvaluatorException,
-)
+from openff.evaluator.utils.exceptions import EvaluatorException
 from openff.evaluator.utils.graph import retrieve_uuid
 from openff.evaluator.utils.observables import (
     Observable,
