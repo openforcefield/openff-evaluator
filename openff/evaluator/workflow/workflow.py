@@ -939,8 +939,6 @@ class WorkflowGraph:
             The results of executing the graph. If a `calculation_backend`
             is specified, these results will be wrapped in a `Future`.
         """
-        import warnings
-
         if calculation_backend is None and compute_resources is None:
             compute_resources = ComputeResources(number_of_threads=1)
         protocol_outputs = self._protocol_graph.execute(
