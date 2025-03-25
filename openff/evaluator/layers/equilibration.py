@@ -212,6 +212,26 @@ class EquilibrationLayer(WorkflowCalculationLayer):
         )
         global_metadata["error_aggregation"] = calculation_schema.error_aggregration
 
+        EquilibrationLayer._update_metadata_with_template_queries(
+            global_metadata,
+            working_directory,
+            physical_property,
+            force_field_path,
+            storage_backend,
+            calculation_schema,
+        )
+
+        return global_metadata
+    
+    @staticmethod
+    def _update_metadata_with_template_queries(
+        global_metadata,
+        working_directory,
+        physical_property,
+        force_field_path,
+        storage_backend,
+        calculation_schema,
+    ):
         # search storage for matching boxes already
         template_queries = calculation_schema.storage_queries
         for key in template_queries:
@@ -280,7 +300,6 @@ class EquilibrationLayer(WorkflowCalculationLayer):
 
             global_metadata[key] = stored_data_tuples
 
-        return global_metadata
 
     @staticmethod
     def _update_query(query, physical_property, calculation_schema):
