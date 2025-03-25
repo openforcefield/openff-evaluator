@@ -15,6 +15,7 @@ from openff.evaluator.server.server import Batch, EvaluatorServer
 from openff.evaluator.client import EvaluatorClient, RequestOptions, BatchMode
 from openff.evaluator.forcefield import SmirnoffForceFieldSource
 from openff.evaluator._tests.utils import _write_force_field, _copy_property_working_data
+from openff.evaluator._tests.test_full_workflows.test_equilibration import _generate_error_tolerances
 
 from openff.evaluator.workflow import Workflow
 
@@ -47,6 +48,7 @@ def _get_preequilibrated_simulation_request_options(
     )
     return options
 
+
 class TestPreequilibratedSimulationLayer:
 
     @pytest.fixture
@@ -60,25 +62,32 @@ class TestPreequilibratedSimulationLayer:
         abs_path = data_directory.resolve()
         path = tmp_path_factory.mktemp("dhmix-density-CCCO")
         path.mkdir(exist_ok=True, parents=True)
-        path = pathlib.Path(".")
         shutil.copytree(abs_path, path / "stored_data")
         return path
     
-    def test_preequilibrated_simulation(self, dummy_enthalpy_of_mixing, dhmix_density_CCCO):
+
+    def test_preequilibrated_simulation_execution(
+        self,
+        dummy_enthalpy_of_mixing,
+        dhmix_density_CCCO
+    ):
         """
         Test direct execution of an EnthalpyOfMixing protocol
         """
-        # os.chdir(dhmix_density_CCCO)
+        os.chdir(dhmix_density_CCCO)
 
+        # set up equilibration options
         _write_force_field()
         schema = EnthalpyOfMixing.default_preequilibrated_simulation_schema(
             n_molecules=256,
             relative_tolerance=0.2,
+            equilibration_error_tolerances=_generate_error_tolerances()
         )
 
         metadata = Workflow.generate_default_metadata(
             dummy_enthalpy_of_mixing, "force-field.json"
         )
+        # have to update with additional metadata
         metadata.update(
             PreequilibratedSimulationLayer._get_workflow_metadata(
                 ".",
@@ -89,7 +98,6 @@ class TestPreequilibratedSimulationLayer:
                 schema,
             )
         )
-
 
         workflow_schema = schema.workflow_schema
         workflow_schema.replace_protocol_types(
@@ -111,7 +119,7 @@ class TestPreequilibratedSimulationLayer:
 
         for name, protocol in workflow_graph.protocols.items():
             path = name.replace("|", "_")
-            if "conditional" not in name:
+            if "conditional" not in name or "equilibration" in name:
                 output = protocol_graph._execute_protocol(
                     path,
                     protocol,
@@ -121,27 +129,29 @@ class TestPreequilibratedSimulationLayer:
                     safe_exceptions=False,
                 )
                 previous_output_paths.append(output)
-            else:
-                print(name)
         
         # delete existing output so we can re-create it
         pattern = "*conditional*/*conditional*output.json"
         for file in pathlib.Path(".").rglob(pattern):
-            file.unlink()
+            if "equilibration" not in str(file):
+                print(file)
+                file.unlink()
 
         for name, protocol in workflow_graph.protocols.items():
             path = name.replace("|", "_")
-            if "conditional" in name:
-                output = protocol_graph._execute_protocol(
-                    path,
-                    protocol,
-                    True,
-                    *previous_output_paths,
-                    available_resources=None,
-                    safe_exceptions=False,
-                )
-                raise ValueError(name)
-                previous_output_paths.append(output)
+            if "conditional" in name and "equilibration" not in name:
+                print(previous_output_paths)
+                raise ValueError(path)
+                
+        #         output = protocol_graph._execute_protocol(
+        #             path,
+        #             protocol,
+        #             True,
+        #             *previous_output_paths,
+        #             available_resources=None,
+        #             safe_exceptions=False,
+        #         )
+        #         previous_output_paths.append(output)
 
     
     # def test_preequilibrated_simulation_with_server(self, dummy_dataset, dhmix_density_CCCO):

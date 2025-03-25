@@ -1518,7 +1518,9 @@ class ProtocolGroup(Protocol):
         if target_protocol_id not in self.protocols:
             raise ValueError(
                 "The reference path does not target this protocol "
-                "or any of its children."
+                "or any of its children. "
+                f"{target_protocol_id} || "
+                f"{self.protocols.keys()}"
             )
 
         return target_protocol_id, reference_path_clone
