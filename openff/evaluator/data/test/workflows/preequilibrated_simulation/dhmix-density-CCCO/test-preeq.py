@@ -8,7 +8,7 @@ from openff.units import unit
 
 from openff.evaluator.backends import ComputeResources
 from openff.evaluator.backends.dask import DaskLocalCluster
-from openff.evaluator.client import EvaluatorClient, RequestOptions
+from openff.evaluator.client import EvaluatorClient, RequestOptions, ConnectionOptions
 from openff.evaluator.datasets import (
     MeasurementSource,
     PhysicalPropertyDataSet,
@@ -96,7 +96,7 @@ force_field_source = SmirnoffForceFieldSource.from_path(force_field_path)
 
 
 # In[ ]:
-
+port = 8208
 
 with DaskLocalCluster(
     number_of_workers=1,
@@ -110,9 +110,12 @@ with DaskLocalCluster(
         calculation_backend=calculation_backend,
         working_directory=".",
         delete_working_files=False,
+        port=port
     )
     with server:
-        client = EvaluatorClient()
+        client = EvaluatorClient(
+                connection_options=ConnectionOptions(server_port=port)
+        )
 
         # test equilibration
         request, error = client.request_estimate(
