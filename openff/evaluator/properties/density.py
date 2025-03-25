@@ -14,12 +14,16 @@ from openff.evaluator.layers.equilibration import (
     EquilibrationProperty,
     EquilibrationSchema,
 )
+from openff.evaluator.layers.preequilibrated_simulation import (
+    PreequilibratedSimulationSchema
+)
 from openff.evaluator.layers.reweighting import ReweightingLayer, ReweightingSchema
 from openff.evaluator.layers.simulation import SimulationLayer, SimulationSchema
 from openff.evaluator.properties.properties import EstimableExcessProperty
 from openff.evaluator.protocols import analysis
 from openff.evaluator.protocols.utils import (
     generate_equilibration_protocols,
+    generate_preequilibrated_simulation_protocols,
     generate_reweighting_protocols,
     generate_simulation_protocols,
 )
@@ -104,6 +108,69 @@ class Density(PhysicalProperty):
 
         calculation_schema.workflow_schema = schema
         return calculation_schema
+    
+    @classmethod
+    def default_preequilibrated_simulation_schema(
+        cls,
+        absolute_tolerance=UNDEFINED,
+        relative_tolerance=UNDEFINED,
+        n_molecules=1000,
+        equilibration_error_tolerances: list[EquilibrationProperty] = [],
+        equilibration_error_aggregration: ConditionAggregationBehavior = ConditionAggregationBehavior.All,
+        equilibration_error_on_failure: bool = False,
+        equilibration_max_iterations: int = 100,
+        n_uncorrelated_samples: int = 200,
+        max_iterations: int = 100,
+    ) -> PreequilibratedSimulationSchema:
+        
+        assert absolute_tolerance == UNDEFINED or relative_tolerance == UNDEFINED
+
+        use_target_uncertainty = (
+            absolute_tolerance != UNDEFINED or relative_tolerance != UNDEFINED
+        )
+
+        calculation_schema = PreequilibratedSimulationSchema()
+        calculation_schema.absolute_tolerance = absolute_tolerance
+        calculation_schema.relative_tolerance = relative_tolerance
+        calculation_schema.number_of_molecules = n_molecules
+        calculation_schema.n_uncorrelated_samples = n_uncorrelated_samples
+        calculation_schema.equilibration_error_aggregration = equilibration_error_aggregration
+        calculation_schema.equilibration_error_on_failure = equilibration_error_on_failure
+        calculation_schema.equilibration_error_tolerances = equilibration_error_tolerances
+        calculation_schema.equilibration_max_iterations = equilibration_max_iterations
+        calculation_schema.max_iterations = max_iterations
+
+        protocols, value_source, output_to_store = generate_preequilibrated_simulation_protocols(
+            analysis.AverageObservable("average_density"),
+            use_target_uncertainty,
+            n_molecules=n_molecules,
+            equilibration_error_tolerances=equilibration_error_tolerances,
+            equilibration_error_aggregration=equilibration_error_aggregration,
+            equilibration_error_on_failure=equilibration_error_on_failure,
+            equilibration_max_iterations=equilibration_max_iterations,
+            n_uncorrelated_samples=n_uncorrelated_samples,
+            max_iterations=max_iterations
+        )
+        protocols.analysis_protocol.observable = ProtocolPath(
+            f"observables[{ObservableType.Density.value}]",
+            protocols.production_simulation.id,
+        )
+
+        schema = WorkflowSchema()
+        schema.protocol_schemas = [
+            protocols.unpack_stored_data.schema,
+            protocols.assign_parameters.schema,
+            protocols.energy_minimisation.schema,
+            protocols.converge_equilibration.schema,
+            protocols.converge_uncertainty.schema,
+            protocols.decorrelate_trajectory.schema,
+            protocols.decorrelate_observables.schema,
+        ]
+        schema.outputs_to_store = {"full_system": output_to_store}
+        schema.final_value_source = value_source
+        calculation_schema.workflow_schema = schema
+        return calculation_schema
+
 
     @staticmethod
     def default_simulation_schema(
