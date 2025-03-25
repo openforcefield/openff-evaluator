@@ -11,6 +11,7 @@ from openff.evaluator.forcefield import ForceFieldSource
 from openff.evaluator.storage.attributes import QueryAttribute
 from openff.evaluator.storage.data import (
     ForceFieldData,
+    StoredEquilibrationData,
     StoredFreeEnergyData,
     StoredSimulationData,
 )
@@ -278,6 +279,34 @@ class BaseSimulationDataQuery(BaseDataQuery, abc.ABC):
                 "The `substance_query` can only be used when the "
                 "`substance` attribute is set."
             )
+
+
+class EquilibrationDataQuery(BaseSimulationDataQuery):
+    """A class used to query a ``StorageBackend`` for ``StoredEquilibrationData`` objects
+    which meet the specified set of criteria.
+    """
+
+    @classmethod
+    def data_class(cls):
+        return StoredEquilibrationData
+
+    number_of_molecules = QueryAttribute(
+        docstring="The total number of molecules in the system.",
+        type_hint=int,
+        optional=True,
+    )
+
+    max_number_of_molecules = QueryAttribute(
+        docstring="The max/input number of molecules in the system.",
+        type_hint=int,
+        optional=True,
+    )
+
+    calculation_layer = QueryAttribute(
+        docstring="Calculation layer type (e.g. 'SimulationLayer', 'ReweightingLayer')",
+        type_hint=str,
+        optional=True,
+    )
 
 
 class SimulationDataQuery(BaseSimulationDataQuery):

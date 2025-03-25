@@ -17,10 +17,10 @@ from collections import defaultdict
 from typing import Dict, Type
 
 from openff.evaluator.datasets import PhysicalProperty
-from openff.evaluator.layers import CalculationLayer, CalculationLayerSchema
+from openff.evaluator.layers.layers import BaseCalculationLayerSchema, CalculationLayer
 
 registered_calculation_layers: Dict[str, Type[CalculationLayer]] = {}
-registered_calculation_schemas: Dict[str, Dict[str, CalculationLayerSchema]] = (
+registered_calculation_schemas: Dict[str, Dict[str, BaseCalculationLayerSchema]] = (
     defaultdict(dict)
 )
 
@@ -35,7 +35,7 @@ def register_calculation_layer(layer_class):
         The calculation layer to register.
     """
     assert issubclass(layer_class, CalculationLayer)
-    assert issubclass(layer_class.required_schema_type(), CalculationLayerSchema)
+    assert issubclass(layer_class.required_schema_type(), BaseCalculationLayerSchema)
 
     if layer_class.__name__ in registered_calculation_layers:
         raise ValueError(f"The {layer_class} layer is already registered.")
@@ -62,7 +62,7 @@ def register_calculation_schema(property_class, layer_class, schema):
 
     assert issubclass(property_class, PhysicalProperty)
     assert issubclass(layer_class, CalculationLayer)
-    assert isinstance(schema, CalculationLayerSchema) or callable(schema)
+    assert isinstance(schema, BaseCalculationLayerSchema) or callable(schema)
 
     assert property_class != PhysicalProperty
     assert layer_class != CalculationLayer

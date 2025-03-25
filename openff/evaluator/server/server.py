@@ -95,6 +95,13 @@ class Batch(AttributeClass):
         type_hint=list,
         default_value=[],
     )
+
+    equilibrated_properties = Attribute(
+        docstring="The set of properties which have been successfully equilibrated.",
+        type_hint=list,
+        default_value=[],
+    )
+
     exceptions = Attribute(
         docstring="The set of properties which have yet to be, or "
         "are currently being estimated.",
@@ -109,6 +116,9 @@ class Batch(AttributeClass):
         assert all(isinstance(x, PhysicalProperty) for x in self.estimated_properties)
         assert all(
             isinstance(x, PhysicalProperty) for x in self.unsuccessful_properties
+        )
+        assert all(
+            isinstance(x, PhysicalProperty) for x in self.equilibrated_properties
         )
         assert all(isinstance(x, EvaluatorException) for x in self.exceptions)
         assert all(
@@ -259,6 +269,9 @@ class EvaluatorServer:
             request_results.queued_properties.add_properties(*batch.queued_properties)
             request_results.unsuccessful_properties.add_properties(
                 *batch.unsuccessful_properties
+            )
+            request_results.equilibrated_properties.add_properties(
+                *batch.equilibrated_properties
             )
             request_results.estimated_properties.add_properties(
                 *batch.estimated_properties

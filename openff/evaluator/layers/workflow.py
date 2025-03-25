@@ -15,6 +15,7 @@ from openff.evaluator.layers import (
     CalculationLayerResult,
     CalculationLayerSchema,
 )
+from openff.evaluator.layers.layers import BaseCalculationLayerSchema
 from openff.evaluator.workflow import Workflow, WorkflowGraph, WorkflowSchema
 
 logger = logging.getLogger(__name__)
@@ -128,7 +129,7 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
             schema = options.calculation_schemas[property_type][cls.__name__]
 
             # Make sure the calculation schema is the correct type for this layer.
-            assert isinstance(schema, WorkflowCalculationSchema)
+            assert isinstance(schema, BaseWorkflowCalculationSchema)
             assert isinstance(schema, cls.required_schema_type())
 
             global_metadata = cls._get_workflow_metadata(
@@ -194,11 +195,16 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
             physical_property = properties_by_id[workflow_result.workflow_id]
             physical_property = copy.deepcopy(physical_property)
             physical_property.source = provenance[physical_property.id]
-            physical_property.value = workflow_result.value.value
-            physical_property.uncertainty = workflow_result.value.error
 
-            if len(workflow_result.gradients) > 0:
-                physical_property.gradients = workflow_result.gradients
+            if workflow_result.value != UNDEFINED:
+                physical_property.value = workflow_result.value.value
+                physical_property.uncertainty = workflow_result.value.error
+
+                if len(workflow_result.gradients) > 0:
+                    physical_property.gradients = workflow_result.gradients
+            else:
+                physical_property.value = UNDEFINED
+                physical_property.uncertainty = UNDEFINED
 
             calculation_result.physical_property = physical_property
             calculation_result.data_to_store.extend(workflow_result.data_to_store)
@@ -241,12 +247,7 @@ class WorkflowCalculationLayer(CalculationLayer, abc.ABC):
         return [future]
 
 
-class WorkflowCalculationSchema(CalculationLayerSchema):
-    """A schema which encodes the options and the workflow schema
-    that a `CalculationLayer` should use when estimating a given class
-    of physical properties using the built-in workflow framework.
-    """
-
+class BaseWorkflowCalculationSchema(BaseCalculationLayerSchema):
     workflow_schema = Attribute(
         docstring="The workflow schema to use when estimating properties.",
         type_hint=WorkflowSchema,
@@ -254,5 +255,12 @@ class WorkflowCalculationSchema(CalculationLayerSchema):
     )
 
     def validate(self, attribute_type=None):
-        super(WorkflowCalculationSchema, self).validate(attribute_type)
+        super(BaseWorkflowCalculationSchema, self).validate(attribute_type)
         self.workflow_schema.validate()
+
+
+class WorkflowCalculationSchema(CalculationLayerSchema, BaseWorkflowCalculationSchema):
+    """A schema which encodes the options and the workflow schema
+    that a `CalculationLayer` should use when estimating a given class
+    of physical properties using the built-in workflow framework.
+    """
