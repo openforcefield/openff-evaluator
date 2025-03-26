@@ -93,6 +93,44 @@ def test_base_simulation_data_storage():
         assert backend_directory in retrieved_directory
         assert data_object.json() == retrieved_object.json()
 
+        assert not storage._cached_retrieved_objects
+
+
+def test_cached_simulation_data_storage():
+    substance = Substance.from_components("C")
+
+    with tempfile.TemporaryDirectory() as base_directory:
+        data_directory = os.path.join(base_directory, "data_directory")
+        data_object = create_dummy_simulation_data(data_directory, substance)
+
+        backend_directory = os.path.join(base_directory, "storage_dir")
+
+        storage1 = LocalFileStorage(backend_directory, cache_objects_in_memory=True)
+        # this is the object key data
+        assert len(storage1._cached_retrieved_objects) == 1
+        object_key_key = list(storage1._cached_retrieved_objects.keys())[0]
+        object_key_data = storage1._cached_retrieved_objects[object_key_key][0]
+        assert len(object_key_data.object_keys) == 0
+
+        # test storing also caches the object
+        storage_key = storage1.store_object(data_object, data_directory)
+        assert len(storage1._cached_retrieved_objects) == 2
+        assert storage1._cached_retrieved_objects[storage_key][0].json() == data_object.json()
+        # test that the object key data is updated in cache
+        new_object_key_data = storage1._cached_retrieved_objects[object_key_key][0]
+        assert len(new_object_key_data.object_keys) == 1
+
+        # assert identity of retrieved object
+        retrieved_object, retrieved_directory = storage1.retrieve_object(
+            storage_key, StoredSimulationData
+        )
+        assert retrieved_object is storage1._cached_retrieved_objects[storage_key][0]
+
+        # test creating a new LFS from same directory reads objects into cache
+        storage2 = LocalFileStorage(backend_directory, cache_objects_in_memory=True)
+        assert len(storage2._cached_retrieved_objects) == 2
+        assert storage2._cached_retrieved_objects[storage_key][0].json() == data_object.json()
+
 
 def test_base_simulation_data_query():
     substance_a = Substance.from_components("C")
