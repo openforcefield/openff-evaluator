@@ -208,6 +208,7 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
         equilibration_max_iterations: int = 100,
         n_uncorrelated_samples: int = 200,
         max_iterations: int = 100,
+        error_on_failure: bool = False,
     ) -> PreequilibratedSimulationSchema:
         """Returns the default calculation schema to use when estimating
         this class of property from direct simulations.
@@ -248,6 +249,7 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
             equilibration_max_iterations=equilibration_max_iterations,
             n_uncorrelated_samples=n_uncorrelated_samples,
             max_iterations=max_iterations,
+            error_on_failure=error_on_failure,
         )
         # mixture_data_replicator = mixture_data_replicators[0]
 
@@ -278,6 +280,7 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
                 equilibration_max_iterations=equilibration_max_iterations,
                 n_uncorrelated_samples=n_uncorrelated_samples,
                 max_iterations=max_iterations,
+                error_on_failure=error_on_failure,
             )
         )
         # specify simulation data path
@@ -410,6 +413,7 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
         )
         calculation_schema.equilibration_max_iterations = equilibration_max_iterations
         calculation_schema.max_iterations = max_iterations
+        calculation_schema.error_on_failure = error_on_failure
 
         calculation_schema.workflow_schema = schema
         return calculation_schema

@@ -85,6 +85,11 @@ class PreequilibratedSimulationSchema(WorkflowCalculationSchema):
         type_hint=int,
         default_value=100,
     )
+    error_on_failure = Attribute(
+        docstring="Whether to raise an error if the convergence conditions are not met.",
+        type_hint=bool,
+        default_value=True,
+    )
 
     def validate(self, attribute_type=None):
         super().validate(attribute_type)
