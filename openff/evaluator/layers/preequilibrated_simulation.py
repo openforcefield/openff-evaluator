@@ -15,16 +15,16 @@ from openff.evaluator.attributes import (
 )
 from openff.evaluator.datasets import PropertyPhase
 from openff.evaluator.layers import calculation_layer
+from openff.evaluator.layers.equilibration import (
+    ConditionAggregationBehavior,
+    EquilibrationLayer,
+    EquilibrationProperty,
+    default_storage_query,
+)
 from openff.evaluator.layers.layers import CalculationLayerResult
 from openff.evaluator.layers.workflow import (
     WorkflowCalculationLayer,
     WorkflowCalculationSchema,
-)
-from openff.evaluator.layers.equilibration import (
-    default_storage_query,
-    EquilibrationProperty,
-    ConditionAggregationBehavior,
-    EquilibrationLayer
 )
 from openff.evaluator.storage.query import EquilibrationDataQuery
 
@@ -136,7 +136,6 @@ class PreequilibratedSimulationLayer(WorkflowCalculationLayer):
         global_metadata["equilibration_error_aggregration"] = (
             calculation_schema.equilibration_error_aggregration
         )
-
 
         EquilibrationLayer._update_metadata_with_template_queries(
             global_metadata,

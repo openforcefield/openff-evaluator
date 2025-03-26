@@ -8,7 +8,7 @@ from openff.units import unit
 
 from openff.evaluator.backends import ComputeResources
 from openff.evaluator.backends.dask import DaskLocalCluster
-from openff.evaluator.client import EvaluatorClient, RequestOptions, ConnectionOptions
+from openff.evaluator.client import ConnectionOptions, EvaluatorClient, RequestOptions
 from openff.evaluator.datasets import (
     MeasurementSource,
     PhysicalPropertyDataSet,
@@ -74,7 +74,7 @@ options.calculation_layers = ["PreequilibratedSimulationLayer"]
 density_schema = Density.default_preequilibrated_simulation_schema(
     n_molecules=256,
     equilibration_error_tolerances=[potential_energy, density],
-   n_uncorrelated_samples=100
+    n_uncorrelated_samples=100,
 )
 
 dhmix_schema = EnthalpyOfMixing.default_preequilibrated_simulation_schema(
@@ -110,12 +110,10 @@ with DaskLocalCluster(
         calculation_backend=calculation_backend,
         working_directory=".",
         delete_working_files=False,
-        port=port
+        port=port,
     )
     with server:
-        client = EvaluatorClient(
-                connection_options=ConnectionOptions(server_port=port)
-        )
+        client = EvaluatorClient(connection_options=ConnectionOptions(server_port=port))
 
         # test equilibration
         request, error = client.request_estimate(

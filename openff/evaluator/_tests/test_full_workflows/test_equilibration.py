@@ -73,6 +73,7 @@ def _create_equilibration_data_query(
     query.substance = substance
     return query
 
+
 def _generate_error_tolerances(
     absolute_potential_tolerance: float = 200,
     relative_density_tolerance: float = 0.2,
@@ -89,6 +90,7 @@ def _generate_error_tolerances(
         ),
     ]
     return errors
+
 
 class TestEquilibrationLayer:
 

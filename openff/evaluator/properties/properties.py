@@ -11,7 +11,7 @@ from openff.evaluator.layers.equilibration import (
     EquilibrationSchema,
 )
 from openff.evaluator.layers.preequilibrated_simulation import (
-    PreequilibratedSimulationSchema
+    PreequilibratedSimulationSchema,
 )
 from openff.evaluator.layers.reweighting import ReweightingSchema
 from openff.evaluator.layers.simulation import SimulationSchema
@@ -195,7 +195,7 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
             cls._default_equilibration_data_storage_query()
         )
         return calculation_schema
-    
+
     @classmethod
     def default_preequilibrated_simulation_schema(
         cls,
@@ -247,7 +247,7 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
             equilibration_error_on_failure=equilibration_error_on_failure,
             equilibration_max_iterations=equilibration_max_iterations,
             n_uncorrelated_samples=n_uncorrelated_samples,
-            max_iterations=max_iterations
+            max_iterations=max_iterations,
         )
         # mixture_data_replicator = mixture_data_replicators[0]
 
@@ -269,7 +269,7 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
                 analysis.AverageObservable(
                     f"extract_observable_component_{component_replicator.placeholder_id}"
                 ),
-                use_target_uncertainty, 
+                use_target_uncertainty,
                 id_suffix=f"_component_{component_replicator.placeholder_id}",
                 n_molecules=n_molecules,
                 equilibration_error_tolerances=equilibration_error_tolerances,
@@ -277,7 +277,7 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
                 equilibration_error_on_failure=equilibration_error_on_failure,
                 equilibration_max_iterations=equilibration_max_iterations,
                 n_uncorrelated_samples=n_uncorrelated_samples,
-                max_iterations=max_iterations
+                max_iterations=max_iterations,
             )
         )
         # specify simulation data path
@@ -297,8 +297,7 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
             component_n_molar_molecules,
         ) = cls._n_molecules_divisor(
             ProtocolPath(
-                "total_number_of_molecules",
-                component_protocols.unpack_stored_data.id
+                "total_number_of_molecules", component_protocols.unpack_stored_data.id
             ),
             f"_component_{component_replicator.placeholder_id}",
         )
@@ -307,12 +306,10 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
             mixture_n_molar_molecules,
         ) = cls._n_molecules_divisor(
             ProtocolPath(
-                "total_number_of_molecules",
-                mixture_protocols.unpack_stored_data.id
+                "total_number_of_molecules", mixture_protocols.unpack_stored_data.id
             ),
             "_mixture",
         )
-
 
         # Weight the component value by the mole fraction.
         weight_by_mole_fraction = miscellaneous.WeightByMoleFraction(
@@ -322,8 +319,7 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
             "value", component_protocols.analysis_protocol.id
         )
         weight_by_mole_fraction.full_substance = ProtocolPath(
-            "substance",
-            mixture_protocols.unpack_stored_data.id
+            "substance", mixture_protocols.unpack_stored_data.id
         )
         weight_by_mole_fraction.component = component_substance
 
@@ -403,9 +399,15 @@ class EstimableExcessProperty(PhysicalProperty, abc.ABC):
             cls._default_equilibration_data_storage_query()
         )
         calculation_schema.n_uncorrelated_samples = n_uncorrelated_samples
-        calculation_schema.equilibration_error_aggregration = equilibration_error_aggregration
-        calculation_schema.equilibration_error_on_failure = equilibration_error_on_failure
-        calculation_schema.equilibration_error_tolerances = equilibration_error_tolerances
+        calculation_schema.equilibration_error_aggregration = (
+            equilibration_error_aggregration
+        )
+        calculation_schema.equilibration_error_on_failure = (
+            equilibration_error_on_failure
+        )
+        calculation_schema.equilibration_error_tolerances = (
+            equilibration_error_tolerances
+        )
         calculation_schema.equilibration_max_iterations = equilibration_max_iterations
         calculation_schema.max_iterations = max_iterations
 

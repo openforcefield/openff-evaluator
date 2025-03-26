@@ -427,7 +427,9 @@ def generate_conditional_equilibration_protocols(
     )
 
     # Set up a conditional group to ensure convergence of uncertainty
-    conditional_group = groups.ConditionalGroup(f"conditional_group{conditional_id_suffix}")
+    conditional_group = groups.ConditionalGroup(
+        f"conditional_group{conditional_id_suffix}"
+    )
     conditional_group.max_iterations = max_iterations
     conditional_group.condition_aggregation_behavior = condition_aggregation_behavior
     conditional_group.error_on_failure = error_on_failure
@@ -512,7 +514,7 @@ def generate_conditional_equilibration_protocols(
         equilibration_simulation.total_number_of_iterations = ProtocolPath(
             "current_iteration", conditional_group.id
         )
-    
+
     # get the highest? statistical inefficiency for each protocol
     statistical_inefficiency_protocol = MaximumValue(
         f"get_maximum_statistical_inefficiency{id_suffix}"
@@ -532,7 +534,11 @@ def generate_conditional_equilibration_protocols(
         *multiplication_protocols,
         statistical_inefficiency_protocol,
     )
-    return conditional_group, equilibration_simulation, statistical_inefficiency_protocol
+    return (
+        conditional_group,
+        equilibration_simulation,
+        statistical_inefficiency_protocol,
+    )
 
 
 def generate_equilibration_protocols(
@@ -600,19 +606,17 @@ def generate_equilibration_protocols(
         "parameterized_system", assign_parameters.id
     )
 
-    (
-        conditional_group,
-        equilibration_simulation,
-        statistical_inefficiency_protocol
-    ) = generate_conditional_equilibration_protocols(
-        energy_minimisation=energy_minimisation,
-        assign_parameters=assign_parameters,
-        id_suffix=id_suffix,
-        conditional_id_suffix=id_suffix,
-        error_tolerances=error_tolerances,
-        condition_aggregation_behavior=condition_aggregation_behavior,
-        error_on_failure=error_on_failure,
-        max_iterations=max_iterations,
+    (conditional_group, equilibration_simulation, statistical_inefficiency_protocol) = (
+        generate_conditional_equilibration_protocols(
+            energy_minimisation=energy_minimisation,
+            assign_parameters=assign_parameters,
+            id_suffix=id_suffix,
+            conditional_id_suffix=id_suffix,
+            error_tolerances=error_tolerances,
+            condition_aggregation_behavior=condition_aggregation_behavior,
+            error_on_failure=error_on_failure,
+            max_iterations=max_iterations,
+        )
     )
 
     # Finally, extract uncorrelated data
@@ -680,9 +684,7 @@ def generate_preequilibrated_simulation_protocols(
     equilibration_max_iterations: int = 100,
     n_uncorrelated_samples: int = 200,
     max_iterations: int = 100,
-) -> Tuple[
-    PreequilibratedSimulationProtocols[S], ProtocolPath, StoredSimulationData
-]:
+) -> Tuple[PreequilibratedSimulationProtocols[S], ProtocolPath, StoredSimulationData]:
 
     # Unpack all the of the stored data.
     unpack_stored_data = storage.UnpackStoredEquilibrationData(
@@ -691,9 +693,7 @@ def generate_preequilibrated_simulation_protocols(
     unpack_stored_data.simulation_data_path = ProtocolPath("full_system_data", "global")
 
     assign_parameters = forcefield.BaseBuildSystem(f"assign_parameters{id_suffix}")
-    assign_parameters.force_field_path = ProtocolPath(
-        "force_field_path", "global"
-    )
+    assign_parameters.force_field_path = ProtocolPath("force_field_path", "global")
     assign_parameters.coordinate_file_path = ProtocolPath(
         "coordinate_file_path", unpack_stored_data.id
     )
@@ -711,17 +711,18 @@ def generate_preequilibrated_simulation_protocols(
         "parameterized_system", assign_parameters.id
     )
 
-    conditional_group_eq, equilibration_simulation, _ = generate_conditional_equilibration_protocols(
-        energy_minimisation=energy_minimisation,
-        assign_parameters=assign_parameters,
-        id_suffix=id_suffix,
-        conditional_id_suffix=f"_equilibration{id_suffix}",
-        error_tolerances=equilibration_error_tolerances,
-        condition_aggregation_behavior=equilibration_error_aggregration,
-        error_on_failure=equilibration_error_on_failure,
-        max_iterations=equilibration_max_iterations,
+    conditional_group_eq, equilibration_simulation, _ = (
+        generate_conditional_equilibration_protocols(
+            energy_minimisation=energy_minimisation,
+            assign_parameters=assign_parameters,
+            id_suffix=id_suffix,
+            conditional_id_suffix=f"_equilibration{id_suffix}",
+            error_tolerances=equilibration_error_tolerances,
+            condition_aggregation_behavior=equilibration_error_aggregration,
+            error_on_failure=equilibration_error_on_failure,
+            max_iterations=equilibration_max_iterations,
+        )
     )
-
 
     # Production
     production_simulation = openmm.OpenMMSimulation(f"production_simulation{id_suffix}")
@@ -745,7 +746,9 @@ def generate_preequilibrated_simulation_protocols(
     # Set up a conditional group to ensure convergence of uncertainty
     if conditional_group is None:
         conditional_group = groups.ConditionalGroup(f"conditional_group{id_suffix}")
-        conditional_group.condition_aggregation_behavior = ConditionAggregationBehavior.All
+        conditional_group.condition_aggregation_behavior = (
+            ConditionAggregationBehavior.All
+        )
         conditional_group.max_iterations = max_iterations
 
         has_conditions = False
@@ -827,9 +830,7 @@ def generate_preequilibrated_simulation_protocols(
     # Build the object which defines which pieces of simulation data to store.
     output_to_store = StoredSimulationData()
 
-    output_to_store.thermodynamic_state = ProtocolPath(
-        "thermodynamic_state", "global"
-    )
+    output_to_store.thermodynamic_state = ProtocolPath("thermodynamic_state", "global")
     output_to_store.property_phase = PropertyPhase.Liquid
 
     output_to_store.force_field_id = PlaceholderValue()
