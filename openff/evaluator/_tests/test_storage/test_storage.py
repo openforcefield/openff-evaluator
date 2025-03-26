@@ -115,7 +115,10 @@ def test_cached_simulation_data_storage():
         # test storing also caches the object
         storage_key = storage1.store_object(data_object, data_directory)
         assert len(storage1._cached_retrieved_objects) == 2
-        assert storage1._cached_retrieved_objects[storage_key][0].json() == data_object.json()
+        assert (
+            storage1._cached_retrieved_objects[storage_key][0].json()
+            == data_object.json()
+        )
         # test that the object key data is updated in cache
         new_object_key_data = storage1._cached_retrieved_objects[object_key_key][0]
         assert len(new_object_key_data.object_keys) == 1
@@ -129,7 +132,10 @@ def test_cached_simulation_data_storage():
         # test creating a new LFS from same directory reads objects into cache
         storage2 = LocalFileStorage(backend_directory, cache_objects_in_memory=True)
         assert len(storage2._cached_retrieved_objects) == 2
-        assert storage2._cached_retrieved_objects[storage_key][0].json() == data_object.json()
+        assert (
+            storage2._cached_retrieved_objects[storage_key][0].json()
+            == data_object.json()
+        )
 
 
 def test_base_simulation_data_query():
