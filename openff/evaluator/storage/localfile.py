@@ -1,10 +1,8 @@
 """
 A local file based storage backend.
 """
-
 import json
 import shutil
-from collections import defaultdict
 from os import makedirs, path
 
 from openff.evaluator.storage import StorageBackend
