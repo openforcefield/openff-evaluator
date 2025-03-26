@@ -82,6 +82,17 @@ class EquilibrationProperty(AttributeClass):
         optional=True,
     )
 
+    def __eq__(self, other):
+        if not isinstance(other, type(self)):
+            return False
+        
+        cls_attributes = self.get_attributes()
+        for attribute_name in cls_attributes:
+            if getattr(self, attribute_name) != getattr(other, attribute_name):
+                return False
+        return True
+
+
     def validate(self, attribute_type=None):
         if (
             self.absolute_tolerance != UNDEFINED
