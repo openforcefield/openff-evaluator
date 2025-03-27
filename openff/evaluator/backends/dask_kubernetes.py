@@ -5,7 +5,7 @@ from enum import Enum
 from openff.units import unit
 from openff.utilities.utilities import requires_package
 
-from dask.tokenize import tokenize
+from dask.base import tokenize
 from dask.utils import funcname
 from openff.evaluator._pydantic import BaseModel, Field
 from openff.evaluator.backends.backends import PodResources
