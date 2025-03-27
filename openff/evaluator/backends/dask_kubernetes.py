@@ -5,9 +5,13 @@ from enum import Enum
 from openff.units import unit
 from openff.utilities.utilities import requires_package
 
+from dask.tokenize import tokenize
+from dask.utils import funcname
 from openff.evaluator._pydantic import BaseModel, Field
 from openff.evaluator.backends.backends import PodResources
 from openff.evaluator.backends.dask import BaseDaskBackend, BaseDaskJobQueueBackend
+
+from openff.evaluator.workflow.schemas import ProtocolSchema
 
 logger = logging.getLogger(__name__)
 
@@ -225,10 +229,34 @@ class BaseDaskKubernetesBackend(BaseDaskBackend):
             assert isinstance(cluster_kwargs, dict)
             self._cluster_kwargs.update(cluster_kwargs)
 
+    def _get_function_key(self, function, args, kwargs) -> str:
+        """Returns a more useful function key
+        
+        Currently all functions passed through Dask are called `wrapped_function`.
+        This returns a key that is either the actual function name, or the
+        Protocol if the function is to execute a protocol.
+        """
+        funckey = funcname(function)
+        if len(args) >= 2:
+            # might be a protocol
+            try:
+                # TODO: might be slow...
+                schema = ProtocolSchema.parse_json(args[1])
+            except Exception:
+                pass
+            else:
+                funckey = f"{schema.type}-{schema.id}"
+        
+        tokenized = tokenize(function, kwargs, *args)
+        return f"{funckey}-{tokenized}"
+
+
     def submit_task(self, function, *args, **kwargs):
         from openff.evaluator.workflow.plugins import registered_workflow_protocols
 
         key = kwargs.pop("key", None)
+        if key is None:
+            key = self._get_function_key(function, args, kwargs)
 
         protocols_to_import = [
             protocol_class.__module__ + "." + protocol_class.__qualname__
@@ -252,7 +280,7 @@ class BaseDaskKubernetesBackend(BaseDaskBackend):
                     resources["GPU"] = 0
                     resources["notGPU"] = 1
             kwargs["resources"] = resources
-            logger.info(f"Annotating resources: {resources}")
+            logger.debug(f"Annotating resources: {resources}")
 
         return self._client.submit(
             BaseDaskJobQueueBackend._wrapped_function,
