@@ -39,7 +39,9 @@ class LocalFileStorage(StorageBackend):
         if not path.isdir(root_directory) and len(root_directory) > 0:
             makedirs(root_directory)
 
-        self._cached_retrieved_objects: dict[str, tuple[BaseStoredData, Optional[str]]] = {}
+        self._cached_retrieved_objects: dict[
+            str, tuple[BaseStoredData, Optional[str]]
+        ] = {}
         self._cache_objects_in_memory = cache_objects_in_memory
 
         super().__init__()
