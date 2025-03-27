@@ -2,15 +2,14 @@ import copy
 import logging
 from enum import Enum
 
+from dask.base import tokenize
+from dask.utils import funcname
 from openff.units import unit
 from openff.utilities.utilities import requires_package
 
-from dask.base import tokenize
-from dask.utils import funcname
 from openff.evaluator._pydantic import BaseModel, Field
 from openff.evaluator.backends.backends import PodResources
 from openff.evaluator.backends.dask import BaseDaskBackend, BaseDaskJobQueueBackend
-
 from openff.evaluator.workflow.schemas import ProtocolSchema
 
 logger = logging.getLogger(__name__)
@@ -231,7 +230,7 @@ class BaseDaskKubernetesBackend(BaseDaskBackend):
 
     def _get_function_key(self, function, args, kwargs) -> str:
         """Returns a more useful function key
-        
+
         Currently all functions passed through Dask are called `wrapped_function`.
         This returns a key that is either the actual function name, or the
         Protocol if the function is to execute a protocol.
@@ -246,10 +245,9 @@ class BaseDaskKubernetesBackend(BaseDaskBackend):
                 pass
             else:
                 funckey = f"{schema.type}-{schema.id}"
-        
+
         tokenized = tokenize(function, kwargs, *args)
         return f"{funckey}-{tokenized}"
-
 
     def submit_task(self, function, *args, **kwargs):
         from openff.evaluator.workflow.plugins import registered_workflow_protocols
