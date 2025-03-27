@@ -594,6 +594,8 @@ class EvaluatorServer:
 
             self._batch_ids_per_client_id[request_id] = []
 
+        logger.info(f"Submission {request_id} received")
+
         # Pass the id of the submitted requests back to the client
         # as well as any error which may have occurred.
         return_packet = json.dumps((request_id, error), cls=TypedJSONEncoder)
