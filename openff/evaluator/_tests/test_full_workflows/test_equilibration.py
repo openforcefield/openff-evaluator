@@ -74,6 +74,24 @@ def _create_equilibration_data_query(
     return query
 
 
+def _generate_error_tolerances(
+    absolute_potential_tolerance: float = 200,
+    relative_density_tolerance: float = 0.2,
+):
+    abstol = absolute_potential_tolerance * unit.kilojoules_per_mole
+    errors = [
+        EquilibrationProperty(
+            absolute_tolerance=abstol,
+            observable_type=ObservableType.PotentialEnergy,
+        ),
+        EquilibrationProperty(
+            relative_tolerance=relative_density_tolerance,
+            observable_type=ObservableType.Density,
+        ),
+    ]
+    return errors
+
+
 class TestEquilibrationLayer:
 
     @pytest.fixture(scope="function")
@@ -95,24 +113,6 @@ class TestEquilibrationLayer:
     def force_field_source(self):
         force_field_source = SmirnoffForceFieldSource.from_path("openff-2.1.0.offxml")
         return force_field_source
-
-    @staticmethod
-    def _generate_error_tolerances(
-        absolute_potential_tolerance: float = 200,
-        relative_density_tolerance: float = 0.2,
-    ):
-        abstol = absolute_potential_tolerance * unit.kilojoules_per_mole
-        errors = [
-            EquilibrationProperty(
-                absolute_tolerance=abstol,
-                observable_type=ObservableType.PotentialEnergy,
-            ),
-            EquilibrationProperty(
-                relative_tolerance=relative_density_tolerance,
-                observable_type=ObservableType.Density,
-            ),
-        ]
-        return errors
 
     @pytest.mark.parametrize(
         "potential_error, density_error, aggregation_behavior, error_on_nonconvergence, success",
@@ -261,7 +261,7 @@ class TestEquilibrationLayer:
         """
 
         equilibration_options = _get_equilibration_request_options(
-            error_tolerances=self._generate_error_tolerances(),
+            error_tolerances=_generate_error_tolerances(),
         )
         equilibration_options.batch_mode = BatchMode.NoBatch
 
@@ -354,7 +354,7 @@ class TestEquilibrationLayer:
             storage_path = pathlib.Path(storage_path)
             assert len(list(storage_path.rglob("*/output.pdb"))) == 3
 
-            errors = self._generate_error_tolerances()
+            errors = _generate_error_tolerances()
             _write_force_field()
 
             schema = EnthalpyOfMixing.default_equilibration_schema(
@@ -413,7 +413,7 @@ class TestEquilibrationLayer:
             )
 
             equilibration_options = _get_equilibration_request_options(
-                error_tolerances=self._generate_error_tolerances()
+                error_tolerances=_generate_error_tolerances()
             )
             equilibration_options.batch_mode = BatchMode.NoBatch
 
@@ -477,7 +477,7 @@ class TestEquilibrationLayer:
             )
 
             equilibration_options = _get_equilibration_request_options(
-                error_tolerances=self._generate_error_tolerances()
+                error_tolerances=_generate_error_tolerances()
             )
             equilibration_options.batch_mode = BatchMode.NoBatch
 
