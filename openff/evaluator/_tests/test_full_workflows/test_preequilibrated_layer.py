@@ -272,6 +272,6 @@ class TestPreequilibratedSimulationLayer:
 
                 assert exception is None
                 assert len(results.queued_properties) == 0
+                assert len(results.exceptions) == 0, results.exceptions[0].message
                 assert len(results.estimated_properties) == 2
                 assert len(results.unsuccessful_properties) == 0
-                assert len(results.exceptions) == 0
