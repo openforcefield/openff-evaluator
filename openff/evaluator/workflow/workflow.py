@@ -485,7 +485,8 @@ class Workflow:
 
         if new_id in [x.id for x in self._protocols]:
             raise ValueError(
-                "A protocol with the same id already exists in this workflow."
+                "A protocol with the same id already exists in this workflow: "
+                new_id
             )
 
         if isinstance(old_protocol, Protocol):
