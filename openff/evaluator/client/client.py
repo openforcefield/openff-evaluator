@@ -767,7 +767,7 @@ class EvaluatorClient:
                 and len(response.queued_properties) > 0
             ):
                 logger.info(
-                    f"{request_id} || "
+                    f"{request_id} --- "
                     f"# queued_properties: {len(response.queued_properties):4d} "
                     f"# estimated_properties: {len(response.estimated_properties):4d} "
                     f"# unsuccessful_properties: {len(response.unsuccessful_properties):4d} "
