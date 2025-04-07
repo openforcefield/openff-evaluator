@@ -119,6 +119,13 @@ class DielectricConstant(PhysicalProperty):
 
         calculation_schema.workflow_schema = schema
         return calculation_schema
+    
+    @staticmethod
+    def default_preequilibrated_simulation_schema(**kwargs):
+        raise NotImplementedError(
+            "The PreequilibratedSimulation workflow is not yet implemented for "
+            "this property. Please see Issue #648 for details."
+        )
 
     @staticmethod
     def default_reweighting_schema(
