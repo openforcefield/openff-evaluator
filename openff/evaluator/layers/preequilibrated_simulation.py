@@ -2,18 +2,10 @@
 from pre-equilibrated systems to estimate sets of physical properties.
 """
 
-import collections
 import copy
 import logging
-import os
 
-from openff.evaluator.attributes import (
-    UNDEFINED,
-    Attribute,
-    AttributeClass,
-    PlaceholderValue,
-)
-from openff.evaluator.datasets import PropertyPhase
+from openff.evaluator.attributes import UNDEFINED, Attribute
 from openff.evaluator.layers import calculation_layer
 from openff.evaluator.layers.equilibration import (
     ConditionAggregationBehavior,
@@ -21,7 +13,6 @@ from openff.evaluator.layers.equilibration import (
     EquilibrationProperty,
     default_storage_query,
 )
-from openff.evaluator.layers.layers import CalculationLayerResult
 from openff.evaluator.layers.workflow import (
     WorkflowCalculationLayer,
     WorkflowCalculationSchema,

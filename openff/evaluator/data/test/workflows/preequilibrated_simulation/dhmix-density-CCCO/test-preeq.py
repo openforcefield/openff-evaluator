@@ -124,7 +124,7 @@ with DaskLocalCluster(
 
         results, exception = request.results(synchronous=True, polling_interval=30)
 
-print(f"Simulation complete")
+print("Simulation complete")
 print(f"# estimated: {len(results.estimated_properties)}")
 print(f"# unsuccessful: {len(results.unsuccessful_properties)}")
 print(f"# exceptions: {len(results.exceptions)}")
