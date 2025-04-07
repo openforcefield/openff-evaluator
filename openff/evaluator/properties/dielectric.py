@@ -119,7 +119,7 @@ class DielectricConstant(PhysicalProperty):
 
         calculation_schema.workflow_schema = schema
         return calculation_schema
-    
+
     @staticmethod
     def default_preequilibrated_simulation_schema(**kwargs):
         raise NotImplementedError(
