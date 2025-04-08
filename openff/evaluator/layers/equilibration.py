@@ -82,6 +82,16 @@ class EquilibrationProperty(AttributeClass):
         optional=True,
     )
 
+    def __eq__(self, other):
+        if not isinstance(other, type(self)):
+            return False
+
+        cls_attributes = self.get_attributes()
+        for attribute_name in cls_attributes:
+            if getattr(self, attribute_name) != getattr(other, attribute_name):
+                return False
+        return True
+
     def validate(self, attribute_type=None):
         if (
             self.absolute_tolerance != UNDEFINED
@@ -212,6 +222,26 @@ class EquilibrationLayer(WorkflowCalculationLayer):
         )
         global_metadata["error_aggregation"] = calculation_schema.error_aggregration
 
+        EquilibrationLayer._update_metadata_with_template_queries(
+            global_metadata,
+            working_directory,
+            physical_property,
+            force_field_path,
+            storage_backend,
+            calculation_schema,
+        )
+
+        return global_metadata
+
+    @staticmethod
+    def _update_metadata_with_template_queries(
+        global_metadata,
+        working_directory,
+        physical_property,
+        force_field_path,
+        storage_backend,
+        calculation_schema,
+    ):
         # search storage for matching boxes already
         template_queries = calculation_schema.storage_queries
         for key in template_queries:
@@ -279,8 +309,6 @@ class EquilibrationLayer(WorkflowCalculationLayer):
                 stored_data_tuples = stored_data_tuples[0]
 
             global_metadata[key] = stored_data_tuples
-
-        return global_metadata
 
     @staticmethod
     def _update_query(query, physical_property, calculation_schema):
