@@ -11,13 +11,13 @@ from openff.evaluator.datasets import PhysicalProperty, PropertyPhase
 from openff.evaluator.datasets.thermoml import thermoml_property
 from openff.evaluator.layers import register_calculation_schema
 from openff.evaluator.layers.equilibration import (
+    EquilibrationLayer,
     EquilibrationProperty,
     EquilibrationSchema,
-    EquilibrationLayer
 )
 from openff.evaluator.layers.preequilibrated_simulation import (
+    PreequilibratedSimulationLayer,
     PreequilibratedSimulationSchema,
-    PreequilibratedSimulationLayer
 )
 from openff.evaluator.layers.reweighting import ReweightingLayer, ReweightingSchema
 from openff.evaluator.layers.simulation import SimulationLayer, SimulationSchema
@@ -314,7 +314,9 @@ register_calculation_schema(
     Density, EquilibrationLayer, Density.default_equilibration_schema
 )
 register_calculation_schema(
-    Density, PreequilibratedSimulationLayer, Density.default_preequilibrated_simulation_schema
+    Density,
+    PreequilibratedSimulationLayer,
+    Density.default_preequilibrated_simulation_schema,
 )
 register_calculation_schema(
     ExcessMolarVolume,
