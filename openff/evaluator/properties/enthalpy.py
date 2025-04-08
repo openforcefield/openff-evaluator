@@ -8,6 +8,8 @@ from openff.evaluator.attributes import UNDEFINED, PlaceholderValue
 from openff.evaluator.datasets import PhysicalProperty, PropertyPhase
 from openff.evaluator.datasets.thermoml import thermoml_property
 from openff.evaluator.layers import register_calculation_schema
+from openff.evaluator.layers.equilibration import EquilibrationLayer
+from openff.evaluator.layers.preequilibrated_simulation import PreequilibratedSimulationLayer
 from openff.evaluator.layers.reweighting import ReweightingLayer, ReweightingSchema
 from openff.evaluator.layers.simulation import SimulationLayer, SimulationSchema
 from openff.evaluator.properties.properties import EstimableExcessProperty
@@ -412,6 +414,14 @@ register_calculation_schema(
 )
 register_calculation_schema(
     EnthalpyOfMixing, ReweightingLayer, EnthalpyOfMixing.default_reweighting_schema
+)
+register_calculation_schema(
+    EnthalpyOfMixing, EquilibrationLayer, EnthalpyOfMixing.default_equilibration_schema
+)
+register_calculation_schema(
+    EnthalpyOfMixing,
+    PreequilibratedSimulationLayer,
+    EnthalpyOfMixing.default_preequilibrated_simulation_schema,
 )
 register_calculation_schema(
     EnthalpyOfVaporization,
