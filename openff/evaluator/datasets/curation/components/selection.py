@@ -5,9 +5,9 @@ from typing import TYPE_CHECKING, List, Set, Tuple, Union
 
 import numpy
 import pandas
+from pydantic import BaseModel, Field, PositiveInt, conlist, validator
 from typing_extensions import Literal
 
-from openff.evaluator._pydantic import BaseModel, Field, conlist, validator
 from openff.evaluator.datasets.curation.components import (
     CurationComponent,
     CurationComponentSchema,
@@ -28,15 +28,10 @@ from openff.evaluator.utils.exceptions import MissingOptionalDependency
 PropertyType = Tuple[str, int]
 
 if TYPE_CHECKING:
-    PositiveInt = int
-
     try:
         from openeye.oegraphsim import OEFingerPrint
     except ImportError:
         OEFingerPrint = None
-
-else:
-    from openff.evaluator._pydantic import PositiveInt
 
 
 class State(BaseModel):
