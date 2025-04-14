@@ -766,6 +766,14 @@ class EvaluatorClient:
                 isinstance(response, RequestResult)
                 and len(response.queued_properties) > 0
             ):
+                logger.info(
+                    f"{request_id} --- "
+                    f"# queued_properties: {len(response.queued_properties):4d} "
+                    f"# estimated_properties: {len(response.estimated_properties):4d} "
+                    f"# unsuccessful_properties: {len(response.unsuccessful_properties):4d} "
+                    f"# equilibrated_properties: {len(response.equilibrated_properties):4d} "
+                    f"# exceptions: {len(response.exceptions):4d}"
+                )
                 continue
 
             logger.info(f"The server has completed request {request_id}.")
