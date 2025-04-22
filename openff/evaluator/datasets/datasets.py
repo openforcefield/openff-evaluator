@@ -562,15 +562,6 @@ class PhysicalPropertyDataSet(TypedBaseModel):
         # Convert the data rows to property objects.
         physical_properties = []
 
-        # Drop data point if thermophysical data is not included (see #578)
-        data_frame = data_frame.dropna(
-            subset=[
-                "Pressure (kPa)",
-                "Temperature (K)",
-                "Phase",
-            ]
-        )
-
         for _, data_row in data_frame.iterrows():
             data_row = data_row.dropna()
 
