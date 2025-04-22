@@ -5,6 +5,7 @@ Units tests for openff.evaluator.datasets
 import numpy as np
 import pytest
 from openff.units import unit
+from openff.utilities.utilities import get_data_file_path
 
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.datasets import PhysicalProperty, PropertyPhase
@@ -235,6 +236,25 @@ def test_thermoml_mole_constraints(caplog):
 
     assert data_set is not None
     assert len(data_set) > 0
+
+
+def test_trim_missing_from_pandas():
+    """
+    Trim physical properties when some thermophysical data missing.
+
+    See #653 for more context.
+    """
+    import pandas
+
+    ThermoMLDataSet.from_pandas(
+        pandas.read_csv(
+            get_data_file_path(
+                "data/test/properties/osmotic_subset.csv",
+                "openff.evaluator",
+            ),
+            index_col=0,
+        )
+    )
 
 
 class TestPureOrMixtureData:
