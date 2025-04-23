@@ -15,7 +15,6 @@ import subprocess
 import tempfile
 import warnings
 from collections import defaultdict
-from distutils.spawn import find_executable
 from functools import reduce
 
 import numpy as np
@@ -47,7 +46,7 @@ def _find_packmol():
     """
 
     return (
-        find_executable("packmol") or shutil.which("packmol") or None
+        shutil.which("packmol") or None
         if "PACKMOL" not in os.environ
         else os.environ["PACKMOL"]
     )

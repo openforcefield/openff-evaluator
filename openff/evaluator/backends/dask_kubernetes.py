@@ -2,7 +2,7 @@ import copy
 import logging
 from enum import Enum
 
-from dask.base import tokenize
+from dask.tokenize import tokenize
 from dask.utils import funcname
 from openff.units import unit
 from openff.utilities.utilities import requires_package
