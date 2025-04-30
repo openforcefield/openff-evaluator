@@ -8,10 +8,35 @@ Releases follow the ``major.minor.micro`` scheme recommended by
 * ``minor`` increments add features but do not break API compatibility
 * ``micro`` increments represent bugfix releases or improvements in documentation
 
-Current development
--------------------
+0.5.0 - April 30, 2025
+----------------------
 
-* PR `#588 <https://github.com/openforcefield/openff-evaluator/pull/588>`_: Updates the default OpenMM simulation protocol to use ``openmm.LangevinMiddleIntegrator`` instead of ``openmmtools.integrators.LangevinIntegrator``.
+* PR `#583 <https://github.com/openforcefield/openff-evaluator/pull/583>`_: Drop Intel macOS from CI
+None
+* PR `#588 <https://github.com/openforcefield/openff-evaluator/pull/588>`_: Use ``openmm.LangevinMiddleIntegrator``
+* PR `#596 <https://github.com/openforcefield/openff-evaluator/pull/596>`_: Update Checkmol URL in error message
+* PR `#597 <https://github.com/openforcefield/openff-evaluator/pull/597>`_: Add Kubernetes backend
+* PR `#611 <https://github.com/openforcefield/openff-evaluator/pull/611>`_: Add easy way to create new substances for real numbers of molecules
+* PR `#614 <https://github.com/openforcefield/openff-evaluator/pull/614>`_: Add new conditions and tests
+* PR `#602 <https://github.com/openforcefield/openff-evaluator/pull/602>`_: Add ``NoBatch`` mode
+* PR `#615 <https://github.com/openforcefield/openff-evaluator/pull/615>`_: Migrate ``tmpdir`` fixture to new ``tmp_path``
+* PR `#606 <https://github.com/openforcefield/openff-evaluator/pull/606>`_: Add ``AttributeClass`` initialization
+* PR `#622 <https://github.com/openforcefield/openff-evaluator/pull/622>`_: Strip out ``openmm.CMMotionRemover`` force internally
+* PR `#604 <https://github.com/openforcefield/openff-evaluator/pull/604>`_: Fix relative tolerance
+None
+* PR `#626 <https://github.com/openforcefield/openff-evaluator/pull/626>`_: Fail individually on bad SMILES
+* PR `#608 <https://github.com/openforcefield/openff-evaluator/pull/608>`_: Add ``EquilibrationLayer``
+* PR `#641 <https://github.com/openforcefield/openff-evaluator/pull/641>`_: Migrates to new start/stop gha-runner actions
+* PR `#640 <https://github.com/openforcefield/openff-evaluator/pull/640>`_: Add caching to ``LocalFileStorage``
+* PR `#646 <https://github.com/openforcefield/openff-evaluator/pull/646>`_: Migrates to new start/stop gha-runner actions
+None
+* PR `#638 <https://github.com/openforcefield/openff-evaluator/pull/638>`_: Add ``PreequilibratedSimulationLayer``
+* PR `#649 <https://github.com/openforcefield/openff-evaluator/pull/649>`_: Register default methods
+* PR `#644 <https://github.com/openforcefield/openff-evaluator/pull/644>`_: Increase logging and improve naming for debugging
+* PR `#652 <https://github.com/openforcefield/openff-evaluator/pull/652>`_: Add CODEOWNERS file
+* PR `#654 <https://github.com/openforcefield/openff-evaluator/pull/654>`_: Do not alter precision when filtering duplicates
+* PR `#653 <https://github.com/openforcefield/openff-evaluator/pull/653>`_: Trim data where thermophysical data missing
+* PR `#650 <https://github.com/openforcefield/openff-evaluator/pull/650>`_: Bump Python versions used in tests
 
 0.4.10 - October 3, 2024
 ------------------------
