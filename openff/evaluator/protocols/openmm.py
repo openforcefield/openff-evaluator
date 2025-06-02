@@ -45,11 +45,34 @@ from openff.evaluator.workflow import workflow_protocol
 
 if TYPE_CHECKING:
     import openmm
+    import openmm.unit
     from mdtraj import Trajectory
     from openff.toolkit.topology import Topology
     from openff.toolkit.typing.engines.smirnoff import ForceField
 
 logger = logging.getLogger(__name__)
+
+
+def _fudge_openmm_box(
+    box: "openmm.unit.Quantity",
+    tol: float = 2e-6,
+) -> "openmm.unit.Quantity":
+    """
+    Repeat this fudging which happens internally in MDTraj, but at a slightly looser tolerance
+
+    https://github.com/mdtraj/mdtraj/blob/1.10.3/mdtraj/utils/unitcell.py#L94-L99
+    """
+    import openmm
+    import openmm.unit
+
+    # implicit nanometers, and need to convert Vec3 -> numpy.ndarray
+    a, b, c = [np.asarray(val) for val in box.value_in_unit(openmm.unit.nanometer)]
+
+    a[np.logical_and(a > -tol, a < tol)] = 0.0
+    b[np.logical_and(b > -tol, b < tol)] = 0.0
+    c[np.logical_and(c > -tol, c < tol)] = 0.0
+
+    return (openmm.Vec3(*a), openmm.Vec3(*b), openmm.Vec3(*c)) * openmm.unit.nanometer
 
 
 def _evaluate_energies(
@@ -107,7 +130,10 @@ def _evaluate_energies(
         box_vectors = None
 
         if enable_pbc:
-            box_vectors = trajectory.openmm_boxes(frame_index)
+            box_vectors = _fudge_openmm_box(
+                trajectory.openmm_boxes(frame_index),
+                tol=2e-6,
+            )
 
         update_context_with_positions(openmm_context, positions, box_vectors)
 
