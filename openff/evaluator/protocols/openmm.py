@@ -122,13 +122,17 @@ def _evaluate_energies(
                     f"\t{trajectory.unitcell_vectors=}"
                 )
 
-            v1, v2, v3 = trajectory.unitcell_lengths[frame_index]
+            (
+                a,
+                b,
+                c,
+            ) = trajectory.unitcell_lengths[frame_index]
 
             # ... we can set the box vectors from the known box lengths
             box_vectors = (
-                openmm.Vec3(*v1),
-                openmm.Vec3(*v2),
-                openmm.Vec3(*v3),
+                openmm.Vec3(a, 0, 0),
+                openmm.Vec3(0, b, 0),
+                openmm.Vec3(0, 0, c),
             ) * openmm.unit.nanometer
 
         update_context_with_positions(openmm_context, positions, box_vectors)
