@@ -107,7 +107,29 @@ def _evaluate_energies(
         box_vectors = None
 
         if enable_pbc:
-            box_vectors = trajectory.openmm_boxes(frame_index)
+            box_angles = trajectory.unitcell_angles[frame_index]
+
+            # Possible MDTraj/NumPy 2 bug related to DCD precision in which cubic boxes can
+            # be mis-identified as triclinic in box vector computation. More:
+            # https://github.com/mdtraj/mdtraj/issues/2032
+
+            # As long as protocols only use orthogonal boxes ...
+            if not np.all(box_angles == 90.0):
+                raise ValueError(
+                    f"Triclinic box detected at frame {frame_index}! More info:\n"
+                    f"\t{trajectory.unitcell_angles=}"
+                    f"\t{trajectory.unitcell_lengths=}"
+                    f"\t{trajectory.unitcell_vectors=}"
+                )
+
+            v1, v2, v3 = trajectory.unitcell_lengths[frame_index]
+
+            # ... we can set the box vectors from the known box lengths
+            box_vectors = (
+                openmm.Vec3(*v1),
+                openmm.Vec3(*v2),
+                openmm.Vec3(*v3),
+            ) * openmm.unit.nanometer
 
         update_context_with_positions(openmm_context, positions, box_vectors)
 
