@@ -11,6 +11,7 @@ import re
 from collections import defaultdict
 from typing import TYPE_CHECKING, List
 
+import mdtraj
 import numpy as np
 import pandas as pd
 from openff.units import unit
@@ -45,17 +46,46 @@ from openff.evaluator.workflow import workflow_protocol
 
 if TYPE_CHECKING:
     import openmm
-    from mdtraj import Trajectory
+    import openmm.unit
     from openff.toolkit.topology import Topology
     from openff.toolkit.typing.engines.smirnoff import ForceField
 
 logger = logging.getLogger(__name__)
 
 
+def _openmm_box_from_trajectory(
+    trajectory: mdtraj.Trajectory,
+    frame_index: int,
+) -> "openmm.unit.Quantity":
+    """
+    Repeat this fudging which happens internally in MDTraj, but at a slightly looser tolerance
+
+    https://github.com/mdtraj/mdtraj/blob/1.10.3/mdtraj/utils/unitcell.py#L94-L99
+    """
+    import openmm
+    import openmm.unit
+
+    tol: float = 2e-6  # MDTraj historically uses 1e-6
+
+    original_box_vectors = trajectory.openmm_boxes(frame_index)
+
+    # implicit nanometers, and need to convert Vec3 -> numpy.ndarray
+    a, b, c = [
+        np.asarray(val)
+        for val in original_box_vectors.value_in_unit(openmm.unit.nanometer)
+    ]
+
+    a[np.logical_and(a > -tol, a < tol)] = 0.0
+    b[np.logical_and(b > -tol, b < tol)] = 0.0
+    c[np.logical_and(c > -tol, c < tol)] = 0.0
+
+    return (openmm.Vec3(*a), openmm.Vec3(*b), openmm.Vec3(*c)) * openmm.unit.nanometer
+
+
 def _evaluate_energies(
     thermodynamic_state: ThermodynamicState,
     system: "openmm.System",
-    trajectory: "Trajectory",
+    trajectory: mdtraj.Trajectory,
     compute_resources: ComputeResources,
     enable_pbc: bool = True,
     high_precision: bool = True,
@@ -107,7 +137,10 @@ def _evaluate_energies(
         box_vectors = None
 
         if enable_pbc:
-            box_vectors = trajectory.openmm_boxes(frame_index)
+            box_vectors = _openmm_box_from_trajectory(
+                trajectory,
+                frame_index,
+            )
 
         update_context_with_positions(openmm_context, positions, box_vectors)
 
@@ -143,7 +176,7 @@ def _compute_gradients(
     force_field: "ForceField",
     thermodynamic_state: ThermodynamicState,
     topology: "Topology",
-    trajectory: "Trajectory",
+    trajectory: mdtraj.Trajectory,
     compute_resources: ComputeResources,
     enable_pbc: bool = True,
     perturbation_amount: float = 0.0001,
@@ -187,7 +220,9 @@ def _compute_gradients(
     if enable_pbc:
         # Make sure the PBC are set on the topology otherwise the cut-off will be
         # set incorrectly.
-        topology.box_vectors = from_openmm(trajectory.openmm_boxes(0))
+        topology.box_vectors = from_openmm(
+            _openmm_box_from_trajectory(trajectory, frame_index=0)
+        )
 
     for parameter_key in gradient_parameters:
         # Build the slightly perturbed systems.

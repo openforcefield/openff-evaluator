@@ -8,11 +8,15 @@ Releases follow the ``major.minor.micro`` scheme recommended by
 * ``minor`` increments add features but do not break API compatibility
 * ``micro`` increments represent bugfix releases or improvements in documentation
 
+Current development
+-------------------
+
+* PR `#669 <https://github.com/openforcefield/openff-evaluator/pull/669>`_: Work around a wart in MDTraj in which orthogonal boxes are sometimes reported as triclinic.
+
 0.5.0 - April 30, 2025
 ----------------------
 
 * PR `#583 <https://github.com/openforcefield/openff-evaluator/pull/583>`_: Drop Intel macOS from CI
-None
 * PR `#588 <https://github.com/openforcefield/openff-evaluator/pull/588>`_: Use ``openmm.LangevinMiddleIntegrator``
 * PR `#596 <https://github.com/openforcefield/openff-evaluator/pull/596>`_: Update Checkmol URL in error message
 * PR `#597 <https://github.com/openforcefield/openff-evaluator/pull/597>`_: Add Kubernetes backend
