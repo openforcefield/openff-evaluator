@@ -38,7 +38,7 @@ def reorder_data_frame(data_frame: "pandas.DataFrame") -> "pandas.DataFrame":
 
         component_headers = [f"Component {i + 1}" for i in range(n_components)]
 
-        # this was an array in pandas 1.4, but a DataFrame in pandas 2
+        # this was a dataframe in pandas 1, but an array in pandas 2
         component_order = numpy.argsort(component_frame[component_headers], axis=1)
 
         substance_headers = ["Component", "Role", "Mole Fraction", "Exact Amount"]
