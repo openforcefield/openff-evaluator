@@ -37,12 +37,14 @@ def reorder_data_frame(data_frame: "pandas.DataFrame") -> "pandas.DataFrame":
         ordered_frame = data_frame[data_frame["N Components"] == n_components].copy()
 
         component_headers = [f"Component {i + 1}" for i in range(n_components)]
+
+        # this was a dataframe in pandas 1, but an array in pandas 2
         component_order = numpy.argsort(component_frame[component_headers], axis=1)
 
         substance_headers = ["Component", "Role", "Mole Fraction", "Exact Amount"]
 
         for component_index in range(n_components):
-            indices = component_order[f"Component {component_index + 1}"]
+            indices = component_order[:, component_index]
 
             for substance_header in substance_headers:
                 component_header = f"{substance_header} {component_index + 1}"

@@ -34,4 +34,4 @@ dependencies:
   - pydantic >=1.10.17,<3
   - taproom
   - dataclasses
-  - pandas =1
+  - pandas =2
