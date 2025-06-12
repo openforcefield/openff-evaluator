@@ -8,10 +8,12 @@ Releases follow the ``major.minor.micro`` scheme recommended by
 * ``minor`` increments add features but do not break API compatibility
 * ``micro`` increments represent bugfix releases or improvements in documentation
 
-Current development
--------------------
+0.5.1 - June 11, 2025
+---------------------
 
-* PR `#669 <https://github.com/openforcefield/openff-evaluator/pull/669>`_: Work around a wart in MDTraj in which orthogonal boxes are sometimes reported as triclinic.
+* PR `#669 <https://github.com/openforcefield/openff-evaluator/pull/669>`_: Work around a wart in MDTraj in which orthogonal boxes are sometimes reported as triclinic
+* PR `#662 <https://github.com/openforcefield/openff-evaluator/pull/662>`_: Use Pandas 2
+* PR `#663 <https://github.com/openforcefield/openff-evaluator/pull/663>`_: Drop `importlib.metadata` backport
 
 0.5.0 - April 30, 2025
 ----------------------
