@@ -2,11 +2,7 @@ name: tests
 
 on:
   push:
-    branches:
-      - "main"
-  pull_request:
-    branches:
-      - "main"
+  workflow_dispatch:
   schedule:
     - cron: "0 0 * * *"
 
@@ -18,14 +14,13 @@ jobs:
 
   test:
 
-    name: 💻 ${{ matrix.os }}, 🐍 ${{ matrix.python-version }}, 👀 ${{ matrix.openeye }}, pymbar ${{ matrix.pymbar-version }}, Pydantic ${{ matrix.pydantic-version }}, OpenMM ${{ matrix.openmm-version }}
+    name: 💻 ${{ matrix.os }}, 🐍 ${{ matrix.python-version }}, 👀 ${{ matrix.openeye }}, pymbar ${{ matrix.pymbar-version }}, OpenMM ${{ matrix.openmm-version }}
     runs-on: ${{ matrix.os }}
 
     env:
       OE_LICENSE: ${{ github.workspace }}/oe_license.txt
 
     strategy:
-      fail-fast: false
       matrix:
         os:
           - ubuntu-latest
@@ -34,8 +29,6 @@ jobs:
           - "3.11"
         pymbar-version:
           - "3.1"
-        pydantic-version:
-          - "2"
         openmm-version:
           - "8"
         openeye:
@@ -52,7 +45,6 @@ jobs:
           create-args: >-
             python=${{ matrix.python-version }}
             pymbar=${{ matrix.pymbar-version }}
-            pydantic=${{ matrix.pydantic-version }}
             openmm=${{ matrix.openmm-version }}
 
       - name: Install OpenEye
@@ -85,7 +77,7 @@ jobs:
         run: python -m pip install . utilities/test_plugins/
 
       - name: Run tests
-        run: python -m pytest -v --cov=openff openff/evaluator/_tests/ --cov-report=xml --color=yes
+        run: python -m pytest -vx --cov=openff openff/evaluator/_tests/ --cov-report=xml --color=yes
 
       - name: Run (non-GPU) tutorials
         if: ${{ matrix.pymbar-version == 3.1 }}
