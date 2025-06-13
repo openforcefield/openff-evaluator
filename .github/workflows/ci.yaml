@@ -32,6 +32,8 @@ jobs:
           - macos-latest
         python-version:
           - "3.11"
+          - "3.12"
+          - "3.13"
         pymbar-version:
           - "3.1"
         pydantic-version:
