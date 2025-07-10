@@ -684,6 +684,7 @@ def generate_preequilibrated_simulation_protocols(
     equilibration_max_iterations: int = 100,
     n_uncorrelated_samples: int = 200,
     max_iterations: int = 100,
+    error_on_failure: bool = True,
 ) -> Tuple[PreequilibratedSimulationProtocols[S], ProtocolPath, StoredSimulationData]:
 
     # Unpack all the of the stored data.
@@ -750,6 +751,7 @@ def generate_preequilibrated_simulation_protocols(
             ConditionAggregationBehavior.All
         )
         conditional_group.max_iterations = max_iterations
+        conditional_group.error_on_failure = error_on_failure
 
         has_conditions = False
 
