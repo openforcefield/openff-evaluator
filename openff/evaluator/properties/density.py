@@ -123,7 +123,7 @@ class Density(PhysicalProperty):
         equilibration_max_iterations: int = 100,
         n_uncorrelated_samples: int = 200,
         max_iterations: int = 100,
-        error_on_failure: bool = False,
+        error_on_failure: bool = True,
     ) -> PreequilibratedSimulationSchema:
 
         assert absolute_tolerance == UNDEFINED or relative_tolerance == UNDEFINED
