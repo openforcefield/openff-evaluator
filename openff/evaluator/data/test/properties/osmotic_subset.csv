@@ -1,0 +1,3 @@
+,Id,Temperature (K),Pressure (kPa),Phase,N Components,Component 1,Role 1,Mole Fraction 1,Exact Amount 1,Component 2,Role 2,Mole Fraction 2,Exact Amount 2,Component 3,Role 3,Mole Fraction 3,Exact Amount 3,Density Value (g / ml),Density Uncertainty (g / ml),Source
+0,670cda59343a479fba5e506b4d21d75b,298.15,101.0,Liquid,3,NCC(=O)O,Solvent,0.008848257766444224,,[Cl-].[Na+],Solvent,0.008848257766444224,,O,Solvent,0.9823034844671115,,,,10.1016/j.jct.2013.08.018
+1,11bc3f8750624123b26ad0ed939e2d9e,298.15,,Liquid + Gas,2,CC[N+](C)(CC)CC.[I-],Solvent,0.000860391575765,,O,Solvent,0.999139608424235,,,,,,,,10.1016/j.fluid.2006.09.025

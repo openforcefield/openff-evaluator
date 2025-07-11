@@ -1,0 +1,61 @@
+replicas: 20
+spec:
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: nvidia.com/cuda.runtime.major
+            operator: In
+            values:
+            - '12'
+          - key: nvidia.com/cuda.runtime.minor
+            operator: In
+            values:
+            - '4'
+  containers:
+  - args:
+    - dask-worker
+    - --name
+    - $(DASK_WORKER_NAME)
+    - --dashboard
+    - --dashboard-address
+    - '8788'
+    env:
+    - name: OE_LICENSE
+      value: /secrets/oe_license.txt
+    - name: DASK_DISTRIBUTED__WORKER__DAEMON
+      value: 'False'
+    - name: DASK_LOGGING__DISTRIBUTED
+      value: debug
+    - name: DASK__TEMPORARY_DIRECTORY
+      value: /evaluator-storage
+    image: ghcr.io/lilyminium/openff-images:evaluator-0.4.10-kubernetes-dask-v0
+    name: worker
+    ports:
+    - containerPort: 8788
+      name: http-dashboard
+      protocol: TCP
+    resources:
+      limits:
+        cpu: '1'
+        ephemeral-storage: 20.000Gi
+        memory: 4.000Gi
+      requests:
+        cpu: '1'
+        ephemeral-storage: 20.000Gi
+        memory: 4.000Gi
+    volumeMounts:
+    - mountPath: /evaluator-storage
+      name: evaluator-storage
+      readOnly: false
+    - mountPath: /secrets/oe_license.txt
+      name: openeye-license
+      readOnly: true
+      subPath: oe_license.txt
+  volumes:
+  - emptyDir: {}
+    name: evaluator-storage
+  - name: openeye-license
+    secret:
+      secretName: oe-license-feb-2024

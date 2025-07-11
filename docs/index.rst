@@ -178,6 +178,7 @@ See the :doc:`physical properties overview page <properties/properties>` for mor
 
   Overview <backends/calculationbackend>
   backends/daskbackends
+  backends/daskkubernetesbackend
 
 .. toctree::
   :maxdepth: 2

@@ -219,6 +219,142 @@ class QueueWorkerResources(ComputeResources):
         return not self.__eq__(other)
 
 
+class PodResources(ComputeResources):
+    """A class to represent the resources available to a single worker in a Dask Kubernetes cluster."""
+
+    _additional_attrs = (
+        "memory_limit",
+        "ephemeral_storage_limit",
+        "additional_limit_specifications",
+        "affinity_specification",
+        "minimum_number_of_workers",
+        "maximum_number_of_workers",
+    )
+
+    def __init__(
+        self,
+        number_of_threads=1,
+        number_of_gpus=0,
+        preferred_gpu_toolkit=ComputeResources.GPUToolkit.auto,
+        preferred_gpu_precision=None,
+        memory_limit=4 * unit.gigabytes,
+        ephemeral_storage_limit=20 * unit.gigabytes,
+        additional_limit_specifications=None,
+        affinity_specification: dict = None,
+        minimum_number_of_workers: int = 1,
+        maximum_number_of_workers: int = 1,
+    ):
+        """Constructs a new ComputeResources object.
+
+        Parameters
+        ----------
+        number_of_threads: int
+            The number of threads available to a calculation worker.
+        number_of_gpus: int
+            The number of GPUs available to a calculation worker.
+        preferred_gpu_toolkit: ComputeResources.GPUToolkit, optional
+            The preferred toolkit to use when running on GPUs.
+        preferred_gpu_precision: ComputeResources.GPUPrecision, optional
+            The preferred GPU precision
+        memory_limit: unit.Quantity
+            The memory limit for each worker.
+        ephemeral_storage_limit: unit.Quantity
+            The storage limit for each worker.
+        additional_limit_specifications: dict, optional
+            Additional limit specifications to pass to Kubernetes.
+        affinity_specification: dict, optional
+            The affinity specification to pass to Kubernetes.
+            Can be used for CUDA.
+        minimum_number_of_workers: int, optional
+            The minimum number of workers to start with.
+        maximum_number_of_workers: int, optional
+            The maximum number of workers to start with.
+        """
+        super().__init__(
+            number_of_threads=number_of_threads,
+            number_of_gpus=number_of_gpus,
+            preferred_gpu_toolkit=preferred_gpu_toolkit,
+            preferred_gpu_precision=preferred_gpu_precision,
+        )
+
+        assert minimum_number_of_workers <= maximum_number_of_workers
+
+        self._memory_limit = memory_limit
+        self._ephemeral_storage_limit = ephemeral_storage_limit
+        self._additional_limit_specifications = {}
+        self._affinity_specification = {}
+        self._minimum_number_of_workers = minimum_number_of_workers
+        self._maximum_number_of_workers = maximum_number_of_workers
+        if additional_limit_specifications is not None:
+            assert isinstance(additional_limit_specifications, dict)
+            self._additional_limit_specifications.update(
+                additional_limit_specifications
+            )
+        if affinity_specification is not None:
+            assert isinstance(affinity_specification, dict)
+            self._affinity_specification = affinity_specification
+
+        if number_of_gpus > 0:
+            resources = {"GPU": number_of_gpus, "notGPU": 0}
+        else:
+            resources = {"GPU": 0, "notGPU": 1}
+        self._resources = resources
+
+    def __getstate__(self):
+        state = super().__getstate__()
+
+        for attr in type(self)._additional_attrs:
+            state[attr] = getattr(self, f"_{attr}")
+
+        return state
+
+    def __setstate__(self, state):
+        super().__setstate__(state)
+        for attr in type(self)._additional_attrs:
+            setattr(self, f"_{attr}", state[attr])
+
+    def __eq__(self, other):
+        equals = (type(other) is type(self)) and super().__eq__(other)
+        for attr in type(self)._additional_attrs:
+            equals &= getattr(self, f"_{attr}") == getattr(other, f"_{attr}")
+        return equals
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def _to_kubernetes_resource_limits(self) -> dict[str, str]:
+        """Converts this object into a dictionary of Kubernetes resource limits."""
+        memory_gb = self._memory_limit.to(unit.gigabytes).m
+        ephemeral_storage_gb = self._ephemeral_storage_limit.to(unit.gigabytes).m
+        resource_limits = {
+            "cpu": str(self._number_of_threads),
+            "memory": f"{memory_gb:.3f}Gi",
+            "ephemeral-storage": f"{ephemeral_storage_gb:.3f}Gi",
+        }
+
+        if self._number_of_gpus > 0:
+            resource_limits["nvidia.com/gpu"] = str(self._number_of_gpus)
+
+        resource_limits.update(
+            {k: str(v) for k, v in self._additional_limit_specifications.items()}
+        )
+        return resource_limits
+
+    def _to_dask_worker_resources(self) -> list[str]:
+        """Append the resources to the list of resources for a Dask worker."""
+        if not self._resources:
+            return []
+        resources = ",".join([f"{k}={v}" for k, v in self._resources.items()])
+        return ["--resources", resources]
+
+    def _update_worker_with_resources(self, worker_spec: dict) -> dict:
+        worker_container = worker_spec["containers"][0]
+        worker_command = list(worker_container["args"])
+        worker_command.extend(self._to_dask_worker_resources())
+        worker_container["args"] = worker_command
+        return worker_spec
+
+
 class CalculationBackend(abc.ABC):
     """An abstract base representation of an openff-evaluator calculation backend. A backend is
     responsible for coordinating, distributing and running calculations on the

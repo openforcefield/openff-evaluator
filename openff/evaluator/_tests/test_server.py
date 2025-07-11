@@ -2,15 +2,18 @@
 Units tests for the openff.evaluator.server module.
 """
 
+import os
 import tempfile
 from time import sleep
 
+import pytest
 from openff.units import unit
 
 from openff.evaluator._tests.utils import create_dummy_property
 from openff.evaluator.backends.dask import DaskLocalCluster
 from openff.evaluator.client import EvaluatorClient, RequestOptions
 from openff.evaluator.datasets import PhysicalPropertyDataSet
+from openff.evaluator.forcefield import SmirnoffForceFieldSource
 from openff.evaluator.layers import (
     CalculationLayer,
     CalculationLayerResult,
@@ -18,7 +21,7 @@ from openff.evaluator.layers import (
     calculation_layer,
 )
 from openff.evaluator.properties import Density, EnthalpyOfVaporization
-from openff.evaluator.server.server import Batch, EvaluatorServer
+from openff.evaluator.server.server import Batch, BatchMode, EvaluatorServer
 from openff.evaluator.substances import Substance
 from openff.evaluator.thermodynamics import ThermodynamicState
 from openff.evaluator.utils.utils import temporarily_change_directory
@@ -106,7 +109,8 @@ def test_launch_batch():
                 assert len(batch.unsuccessful_properties) == 1
 
 
-def test_same_component_batching():
+@pytest.fixture
+def c_o_dataset():
     thermodynamic_state = ThermodynamicState(
         temperature=1.0 * unit.kelvin, pressure=1.0 * unit.atmosphere
     )
@@ -134,16 +138,28 @@ def test_same_component_batching():
             value=0.0 * unit.kilojoule / unit.mole,
         ),
     )
+    return data_set
 
+
+@pytest.fixture
+def dataset_submission(c_o_dataset):
     options = RequestOptions()
 
     submission = EvaluatorClient._Submission()
-    submission.dataset = data_set
+    submission.dataset = c_o_dataset
     submission.options = options
+    submission.force_field_source = SmirnoffForceFieldSource.from_path(
+        "openff-2.1.0.offxml"
+    )
 
+    return submission
+
+
+def test_same_component_batching(dataset_submission, tmp_path):
+    os.chdir(tmp_path)
     with DaskLocalCluster() as calculation_backend:
         server = EvaluatorServer(calculation_backend)
-        batches = server._batch_by_same_component(submission, "")
+        batches = server._batch_by_same_component(dataset_submission, "")
 
     assert len(batches) == 2
 
@@ -151,44 +167,37 @@ def test_same_component_batching():
     assert len(batches[1].queued_properties) == 2
 
 
-def test_shared_component_batching():
-    thermodynamic_state = ThermodynamicState(
-        temperature=1.0 * unit.kelvin, pressure=1.0 * unit.atmosphere
-    )
-
-    data_set = PhysicalPropertyDataSet()
-    data_set.add_properties(
-        Density(
-            thermodynamic_state=thermodynamic_state,
-            substance=Substance.from_components("O", "C"),
-            value=0.0 * unit.kilogram / unit.meter**3,
-        ),
-        EnthalpyOfVaporization(
-            thermodynamic_state=thermodynamic_state,
-            substance=Substance.from_components("O", "C"),
-            value=0.0 * unit.kilojoule / unit.mole,
-        ),
-        Density(
-            thermodynamic_state=thermodynamic_state,
-            substance=Substance.from_components("O", "CO"),
-            value=0.0 * unit.kilogram / unit.meter**3,
-        ),
-        EnthalpyOfVaporization(
-            thermodynamic_state=thermodynamic_state,
-            substance=Substance.from_components("O", "CO"),
-            value=0.0 * unit.kilojoule / unit.mole,
-        ),
-    )
-
-    options = RequestOptions()
-
-    submission = EvaluatorClient._Submission()
-    submission.dataset = data_set
-    submission.options = options
-
+def test_shared_component_batching(dataset_submission, tmp_path):
+    os.chdir(tmp_path)
     with DaskLocalCluster() as calculation_backend:
         server = EvaluatorServer(calculation_backend)
-        batches = server._batch_by_shared_component(submission, "")
+        batches = server._batch_by_shared_component(dataset_submission, "")
 
     assert len(batches) == 1
     assert len(batches[0].queued_properties) == 4
+
+
+def test_nobatching(dataset_submission, tmp_path):
+    os.chdir(tmp_path)
+    with DaskLocalCluster() as calculation_backend:
+        server = EvaluatorServer(calculation_backend)
+        batches = server._no_batch(dataset_submission, "")
+
+    assert len(batches) == 1
+    assert len(batches[0].queued_properties) == 4
+    assert batches[0].id == "batch_0000"
+
+
+def test_prepare_batches_nobatch(dataset_submission, tmp_path):
+    os.chdir(tmp_path)
+    dataset_submission.options.batch_mode = BatchMode.NoBatch
+    with DaskLocalCluster() as calculation_backend:
+        server = EvaluatorServer(calculation_backend)
+        server._batch_ids_per_client_id["request_id"] = []
+        batches = server._prepare_batches(dataset_submission, "request_id")
+
+        assert len(batches) == 1
+        assert len(batches[0].queued_properties) == 4
+        assert batches[0].id == "batch_0000"
+        assert server._queued_batches["batch_0000"] is batches[0]
+        assert server._batch_ids_per_client_id["request_id"] == ["batch_0000"]

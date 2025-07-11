@@ -67,6 +67,41 @@ def test_conditional_protocol_group_fail():
             protocol_group.execute(directory, ComputeResources())
 
 
+@pytest.mark.parametrize(
+    "left, right, condition_type, outcome",
+    [
+        (1, 1, ConditionalGroup.Condition.Type.EqualTo, True),
+        (1, 1, ConditionalGroup.Condition.Type.GreaterThan, False),
+        (1, 1, ConditionalGroup.Condition.Type.GreaterThanOrEqualTo, True),
+        (1, 1, ConditionalGroup.Condition.Type.LessThan, False),
+        (1, 1, ConditionalGroup.Condition.Type.LessThanOrEqualTo, True),
+        (1, 2, ConditionalGroup.Condition.Type.EqualTo, False),
+        (1, 2, ConditionalGroup.Condition.Type.GreaterThan, False),
+        (1, 2, ConditionalGroup.Condition.Type.GreaterThanOrEqualTo, False),
+        (1, 2, ConditionalGroup.Condition.Type.LessThan, True),
+        (1, 2, ConditionalGroup.Condition.Type.LessThanOrEqualTo, True),
+        (2, 1, ConditionalGroup.Condition.Type.EqualTo, False),
+        (2, 1, ConditionalGroup.Condition.Type.GreaterThan, True),
+        (2, 1, ConditionalGroup.Condition.Type.GreaterThanOrEqualTo, True),
+        (2, 1, ConditionalGroup.Condition.Type.LessThan, False),
+        (2, 1, ConditionalGroup.Condition.Type.LessThanOrEqualTo, False),
+    ],
+)
+def test_evaluate_condition(left, right, condition_type, outcome):
+    """Tests that the conditions of a conditional group
+    are correctly evaluated."""
+
+    group = ConditionalGroup("conditional_group")
+
+    condition = ConditionalGroup.Condition()
+    condition.left_hand_value = left
+    condition.right_hand_value = right
+    condition.type = ConditionalGroup.Condition.Type(condition_type)
+
+    evaluated = group._evaluate_condition(condition)
+    assert evaluated == outcome
+
+
 def test_conditional_group_self_reference():
     """Tests that protocols within a conditional group
     can access the outputs of its parent, such as the

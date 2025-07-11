@@ -5,6 +5,7 @@ Units tests for openff.evaluator.datasets
 import numpy as np
 import pytest
 from openff.units import unit
+from openff.utilities.utilities import get_data_file_path
 
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.datasets import PhysicalProperty, PropertyPhase
@@ -193,12 +194,21 @@ def test_thermoml_molality_constraints():
     assert len(data_set.properties[0].substance) > 1
 
 
-def test_thermoml_mole_constraints():
+def test_thermoml_mole_constraints(caplog):
     """A collection of tests to ensure that the Mole fraction constraint is
     implemented correctly alongside solvent constraints."""
 
     # Mole fraction
-    data_set = ThermoMLDataSet.from_file(get_data_filename("test/properties/mole.xml"))
+    # This file contains a bad smiles to test Issue #620
+    # Test that the file a) gets parsed
+    # and b) logs a warning about parsing radicals
+
+    with caplog.at_level("WARNING"):
+        data_set = ThermoMLDataSet.from_file(
+            get_data_filename("test/properties/mole.xml")
+        )
+    assert "An error occurred while parsing a compound" in caplog.text
+    assert "radical" in caplog.text
 
     assert data_set is not None
     assert len(data_set) > 0
@@ -226,6 +236,25 @@ def test_thermoml_mole_constraints():
 
     assert data_set is not None
     assert len(data_set) > 0
+
+
+def test_trim_missing_from_pandas():
+    """
+    Trim physical properties when some thermophysical data missing.
+
+    See #653 for more context.
+    """
+    import pandas
+
+    ThermoMLDataSet.from_pandas(
+        pandas.read_csv(
+            get_data_file_path(
+                "data/test/properties/osmotic_subset.csv",
+                "openff.evaluator",
+            ),
+            index_col=0,
+        )
+    )
 
 
 class TestPureOrMixtureData:

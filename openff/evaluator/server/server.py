@@ -95,6 +95,13 @@ class Batch(AttributeClass):
         type_hint=list,
         default_value=[],
     )
+
+    equilibrated_properties = Attribute(
+        docstring="The set of properties which have been successfully equilibrated.",
+        type_hint=list,
+        default_value=[],
+    )
+
     exceptions = Attribute(
         docstring="The set of properties which have yet to be, or "
         "are currently being estimated.",
@@ -109,6 +116,9 @@ class Batch(AttributeClass):
         assert all(isinstance(x, PhysicalProperty) for x in self.estimated_properties)
         assert all(
             isinstance(x, PhysicalProperty) for x in self.unsuccessful_properties
+        )
+        assert all(
+            isinstance(x, PhysicalProperty) for x in self.equilibrated_properties
         )
         assert all(isinstance(x, EvaluatorException) for x in self.exceptions)
         assert all(
@@ -260,12 +270,38 @@ class EvaluatorServer:
             request_results.unsuccessful_properties.add_properties(
                 *batch.unsuccessful_properties
             )
+            request_results.equilibrated_properties.add_properties(
+                *batch.equilibrated_properties
+            )
             request_results.estimated_properties.add_properties(
                 *batch.estimated_properties
             )
             request_results.exceptions.extend(batch.exceptions)
 
         return request_results, None
+
+    def _no_batch(self, submission, force_field_id):
+        """Returns a single Batch."""
+
+        reserved_batch_ids = {
+            *self._queued_batches.keys(),
+            *self._finished_batches.keys(),
+        }
+        batch = Batch()
+        batch.force_field_id = force_field_id
+        batch.enable_data_caching = self._enable_data_caching
+        batch.queued_properties = list(submission.dataset.properties)
+        batch.options = RequestOptions.parse_json(submission.options.json())
+        batch.parameter_gradient_keys = copy.deepcopy(
+            submission.parameter_gradient_keys
+        )
+
+        n_batchs = len(reserved_batch_ids)
+        batch.id = f"batch_{n_batchs:04d}"
+        while batch.id in reserved_batch_ids:
+            n_batchs += 1
+            batch.id = f"batch_{n_batchs:04d}"
+        return [batch]
 
     def _batch_by_same_component(self, submission, force_field_id):
         """Batches a set of requested properties based on which substance they were
@@ -434,6 +470,8 @@ class EvaluatorServer:
             batches = self._batch_by_same_component(submission, force_field_id)
         elif batch_mode == BatchMode.SharedComponents:
             batches = self._batch_by_shared_component(submission, force_field_id)
+        elif batch_mode == BatchMode.NoBatch:
+            batches = self._no_batch(submission, force_field_id)
         else:
             raise NotImplementedError()
 
@@ -555,6 +593,8 @@ class EvaluatorServer:
                 request_id = str(uuid.uuid4()).replace("-", "")
 
             self._batch_ids_per_client_id[request_id] = []
+
+        logger.info(f"Submission {request_id} received")
 
         # Pass the id of the submitted requests back to the client
         # as well as any error which may have occurred.

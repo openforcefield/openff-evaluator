@@ -423,7 +423,7 @@ def test_system_subset_virtual_site_water(add_nonwater):
 @pytest.mark.parametrize(
     "smirks, all_zeros", [("[#6X4:1]", True), ("[#8:1]", False), (None, False)]
 )
-def test_compute_gradients(tmpdir, smirks, all_zeros):
+def test_compute_gradients(tmp_path, smirks, all_zeros):
     # Load a short trajectory.
     coordinate_path = get_data_filename("test/trajectories/water.pdb")
     trajectory_path = get_data_filename("test/trajectories/water.dcd")
@@ -505,7 +505,7 @@ def test_update_context_with_positions(box_vectors):
     )
 
 
-def test_update_context_with_pdb(tmpdir):
+def test_update_context_with_pdb(tmp_path):
     force_field = hydrogen_chloride_force_field(True, False, True)
 
     topology: Topology = Molecule.from_mapped_smiles("[Cl:1][H:2]").to_topology()
@@ -517,7 +517,7 @@ def test_update_context_with_pdb(tmpdir):
 
     positions = numpy.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]]) * openmm_unit.angstrom
 
-    pdb_path = os.path.join(tmpdir, "tmp.pdb")
+    pdb_path = os.path.join(tmp_path, "tmp.pdb")
     topology.to_file(pdb_path, positions)
 
     pdb_file = PDBFile(pdb_path)

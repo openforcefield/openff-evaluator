@@ -22,6 +22,19 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _strip_cmm_force(system: openmm.System):
+    """Removes the first `openmm.CMMotionRemover` force from the system."""
+
+    for force_index in range(system.getNumForces()):
+        force = system.getForce(force_index)
+
+        if isinstance(force, openmm.CMMotionRemover):
+            system.removeForce(force_index)
+            break
+
+    return system
+
+
 def setup_platform_with_resources(compute_resources, high_precision=False):
     """Creates an OpenMM `Platform` object which requests a set
     amount of compute resources (e.g with a certain number of cpus).
@@ -258,7 +271,7 @@ def system_subset(
 
     # Create the parameterized sub-system.
 
-    system = force_field_subset.create_openmm_system(topology)
+    system = _strip_cmm_force(force_field_subset.create_openmm_system(topology))
     return system, parameter_value
 
 

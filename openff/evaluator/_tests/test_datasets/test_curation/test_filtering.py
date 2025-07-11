@@ -43,6 +43,10 @@ from openff.evaluator.datasets.curation.components.filtering import (
     FilterDuplicates,
     FilterDuplicatesSchema,
 )
+from openff.evaluator.datasets.curation.workflow import (
+    CurationWorkflow,
+    CurationWorkflowSchema,
+)
 from openff.evaluator.datasets.utilities import data_frame_to_substances
 from openff.evaluator.properties import Density, EnthalpyOfMixing
 from openff.evaluator.substances import Component, MoleFraction, Substance
@@ -1153,3 +1157,50 @@ def test_filter_by_environment_per_component():
     assert {*pure_data["Component 1"].unique()} == {"O", "C"}
 
     assert len(binary_data) == 2
+
+
+def test_curation_does_not_alter_precision():
+    """See issue #629"""
+    # most faithful in-memory representation of how pandas sees missing data in CSVs
+    nan = numpy.nan
+
+    # copy-pasted from dataset.csv in linked issue
+    data_frame = pandas.DataFrame.from_dict(
+        {
+            "Unnamed: 0": {0: 267, 1: 268},
+            "Id": {
+                0: "4031d37fd75649b7b143b42e62ca3338",
+                1: "eeaf958a3e8d4ee1931bfb8a5258ef49",
+            },
+            "Temperature (K)": {0: 298.15, 1: 298.15},
+            "Pressure (kPa)": {0: 101.0, 1: 101.0},
+            "Phase": {0: "Liquid", 1: "Liquid"},
+            "N Components": {0: 2, 1: 2},
+            "Component 1": {0: "NCCO", 1: "NCCO"},
+            "Role 1": {0: "Solvent", 1: "Solvent"},
+            "Mole Fraction 1": {0: 0.7912, 1: 0.2112},
+            "Density Value (g / ml)": {0: 1.002592, 1: 0.9825660000000004},
+            "Density Uncertainty (g / ml)": {0: 0.000101, 1: 0.0001015},
+            "Source": {0: "10.1021/je400184t", 1: "10.1021/je400184t"},
+            "Component 2": {0: "c1ccncc1", 1: "c1ccncc1"},
+            "Role 2": {0: "Solvent", 1: "Solvent"},
+            "Mole Fraction 2": {0: 0.2088, 1: 0.7888},
+            "EnthalpyOfMixing Value (kJ / mol)": {0: nan, 1: nan},
+            "EnthalpyOfMixing Uncertainty (kJ / mol)": {0: nan, 1: nan},
+            "Exact Amount 1": {0: nan, 1: nan},
+            "Exact Amount 2": {0: nan, 1: nan},
+        }
+    )
+
+    filtered = CurationWorkflow.apply(
+        data_frame,
+        CurationWorkflowSchema(
+            component_schemas=[
+                FilterDuplicatesSchema(
+                    mole_fraction_precision=2,
+                ),
+            ]
+        ),
+    )
+
+    assert list(data_frame["Mole Fraction 1"]) == list(filtered["Mole Fraction 1"])

@@ -7,7 +7,7 @@ import pytest
 from openff.toolkit.topology import Topology
 from openff.toolkit.typing.engines.smirnoff import ForceField
 from openff.units import unit
-from openff.utilities.utilities import get_data_dir_path
+from openff.utilities.utilities import get_data_dir_path, temporary_cd
 from openmm.openmm import System as OpenMMSystem
 
 from openff.evaluator.datasets import PropertyPhase
@@ -77,7 +77,9 @@ class TestEnthalpyOfMixing:
         ],
     )
     def test_mole_fractions_direct_simulation(
-        self, input_mole_fractions, output_mole_fractions, tmpdir
+        self,
+        input_mole_fractions,
+        output_mole_fractions,
     ):
         """
         This test *only* checks the part where mole fractions are weighted.
@@ -106,7 +108,7 @@ class TestEnthalpyOfMixing:
             )
 
         physical_property = _get_dummy_enthalpy_of_mixing(substance)
-        with tmpdir.as_cwd():
+        with temporary_cd():
             here = pathlib.Path(".")
 
             # generate force field and metadata
@@ -191,7 +193,7 @@ class TestEnthalpyOfMixing:
                     output_mole_fractions[i] * 10,
                 )
 
-    def test_expected_output_from_production_simulation(self, tmpdir):
+    def test_expected_output_from_production_simulation(self):
         """
         This is an integration test of sorts,
         constructed to test expected mole fractions. See Issue #575.
@@ -245,7 +247,7 @@ class TestEnthalpyOfMixing:
         )
 
         abs_path = data_directory.resolve()
-        with tmpdir.as_cwd():
+        with temporary_cd():
             tmp_path = pathlib.Path(".")
             # copy data files over from data_directory
             for path in abs_path.iterdir():

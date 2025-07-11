@@ -2,7 +2,7 @@
 Units tests for the openff.evaluator.plugins module.
 """
 
-import sys
+from importlib.metadata import entry_points
 
 from openff.evaluator.layers import (
     registered_calculation_layers,
@@ -10,12 +10,6 @@ from openff.evaluator.layers import (
 )
 from openff.evaluator.plugins import register_default_plugins, register_external_plugins
 from openff.evaluator.workflow import registered_workflow_protocols
-
-if sys.version_info[1] < 10:
-    # Backport only for Python 3.9 - drop April 2024
-    from importlib_metadata import entry_points
-else:
-    from importlib.metadata import entry_points
 
 
 def test_register_default_plugins():

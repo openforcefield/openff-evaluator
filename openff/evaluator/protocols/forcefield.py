@@ -29,6 +29,7 @@ from openff.evaluator.forcefield import (
 from openff.evaluator.forcefield.forcefield import FoyerForceFieldSource
 from openff.evaluator.forcefield.system import ParameterizedSystem
 from openff.evaluator.substances import Substance
+from openff.evaluator.utils.openmm import _strip_cmm_force
 from openff.evaluator.utils.utils import (
     get_data_filename,
     has_openeye,
@@ -577,8 +578,8 @@ class BuildSmirnoffSystem(BaseBuildSystem):
             except AssertionError:
                 combine_nonbonded_forces = False
 
-        system = interchange.to_openmm(
-            combine_nonbonded_forces=combine_nonbonded_forces
+        system = _strip_cmm_force(
+            interchange.to_openmm(combine_nonbonded_forces=combine_nonbonded_forces)
         )
 
         if system is None:
@@ -1197,7 +1198,9 @@ class BuildFoyerSystem(TemplateBuildSystem):
 
         interchange.box = [10, 10, 10] * unit.nanometers
 
-        openmm_system = interchange.to_openmm(combine_nonbonded_forces=False)
+        openmm_system = _strip_cmm_force(
+            interchange.to_openmm(combine_nonbonded_forces=False)
+        )
 
         return openmm_system
 

@@ -11,6 +11,7 @@ import re
 from collections import defaultdict
 from typing import TYPE_CHECKING, List
 
+import mdtraj
 import numpy as np
 import pandas as pd
 from openff.units import unit
@@ -45,17 +46,46 @@ from openff.evaluator.workflow import workflow_protocol
 
 if TYPE_CHECKING:
     import openmm
-    from mdtraj import Trajectory
+    import openmm.unit
     from openff.toolkit.topology import Topology
     from openff.toolkit.typing.engines.smirnoff import ForceField
 
 logger = logging.getLogger(__name__)
 
 
+def _openmm_box_from_trajectory(
+    trajectory: mdtraj.Trajectory,
+    frame_index: int,
+) -> "openmm.unit.Quantity":
+    """
+    Repeat this fudging which happens internally in MDTraj, but at a slightly looser tolerance
+
+    https://github.com/mdtraj/mdtraj/blob/1.10.3/mdtraj/utils/unitcell.py#L94-L99
+    """
+    import openmm
+    import openmm.unit
+
+    tol: float = 2e-6  # MDTraj historically uses 1e-6
+
+    original_box_vectors = trajectory.openmm_boxes(frame_index)
+
+    # implicit nanometers, and need to convert Vec3 -> numpy.ndarray
+    a, b, c = [
+        np.asarray(val)
+        for val in original_box_vectors.value_in_unit(openmm.unit.nanometer)
+    ]
+
+    a[np.logical_and(a > -tol, a < tol)] = 0.0
+    b[np.logical_and(b > -tol, b < tol)] = 0.0
+    c[np.logical_and(c > -tol, c < tol)] = 0.0
+
+    return (openmm.Vec3(*a), openmm.Vec3(*b), openmm.Vec3(*c)) * openmm.unit.nanometer
+
+
 def _evaluate_energies(
     thermodynamic_state: ThermodynamicState,
     system: "openmm.System",
-    trajectory: "Trajectory",
+    trajectory: mdtraj.Trajectory,
     compute_resources: ComputeResources,
     enable_pbc: bool = True,
     high_precision: bool = True,
@@ -107,7 +137,10 @@ def _evaluate_energies(
         box_vectors = None
 
         if enable_pbc:
-            box_vectors = trajectory.openmm_boxes(frame_index)
+            box_vectors = _openmm_box_from_trajectory(
+                trajectory,
+                frame_index,
+            )
 
         update_context_with_positions(openmm_context, positions, box_vectors)
 
@@ -143,7 +176,7 @@ def _compute_gradients(
     force_field: "ForceField",
     thermodynamic_state: ThermodynamicState,
     topology: "Topology",
-    trajectory: "Trajectory",
+    trajectory: mdtraj.Trajectory,
     compute_resources: ComputeResources,
     enable_pbc: bool = True,
     perturbation_amount: float = 0.0001,
@@ -187,7 +220,9 @@ def _compute_gradients(
     if enable_pbc:
         # Make sure the PBC are set on the topology otherwise the cut-off will be
         # set incorrectly.
-        topology.box_vectors = from_openmm(trajectory.openmm_boxes(0))
+        topology.box_vectors = from_openmm(
+            _openmm_box_from_trajectory(trajectory, frame_index=0)
+        )
 
     for parameter_key in gradient_parameters:
         # Build the slightly perturbed systems.
@@ -367,8 +402,7 @@ class OpenMMSimulation(BaseSimulation):
     """Performs a molecular dynamics simulation in a given ensemble using
     an OpenMM backend.
 
-    This protocol employs the Langevin integrator implemented in the ``openmmtools``
-    package to propagate the state of the system using the default BAOAB splitting [1]_.
+    This protocol employs the LangevinMiddleIntegrator implemented in openmm.
     Further, simulations which are run in the NPT simulation will have a Monte Carlo
     barostat (openmm.MonteCarloBarostat) applied every 25 steps (the OpenMM
     default).
@@ -558,7 +592,9 @@ class OpenMMSimulation(BaseSimulation):
             self.enable_pbc,
         )
 
-    def _setup_simulation_objects(self, temperature, pressure, available_resources):
+    def _setup_simulation_objects(
+        self, temperature, pressure, available_resources
+    ) -> tuple["openmm.Context", "openmm.LangevinMiddleIntegrator"]:
         """Initializes the objects needed to perform the simulation.
         This comprises of a context, and an integrator.
 
@@ -576,8 +612,8 @@ class OpenMMSimulation(BaseSimulation):
         openmm.Context
             The created openmm context which takes advantage
             of the available compute resources.
-        openmmtools.integrators.LangevinIntegrator
-            The Langevin integrator which will propogate
+        openmm.LangevinMiddleIntegrator
+            The LangevinMiddleIntegrator which will propogate
             the simulation.
         """
 
@@ -618,10 +654,10 @@ class OpenMMSimulation(BaseSimulation):
         thermostat_friction = to_openmm(self.thermostat_friction)
         timestep = to_openmm(self.timestep)
 
-        integrator = openmmtools.integrators.LangevinIntegrator(
-            temperature=temperature,
-            collision_rate=thermostat_friction,
-            timestep=timestep,
+        integrator = openmm.LangevinMiddleIntegrator(
+            temperature,
+            thermostat_friction,
+            timestep,
         )
 
         # Create the simulation context.

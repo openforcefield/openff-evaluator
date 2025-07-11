@@ -103,7 +103,7 @@ See the `dask documentation <https://docs.dask.org/en/latest/configuration.html>
 
 Selecting GPU Platform
 ----------------------
-The calculation backends alos allows the user to specify the GPU platform and precision level. Users can specify
+The calculation backends also allows the user to specify the GPU platform and precision level. Users can specify
 either ``auto``, ``CUDA`` or ``OpenCL`` as the `preferred_gpu_toolkit` using the ``GPUToolkit`` enum class. The
 default precision level is set to ``mixed`` but can be overridden by specifying `preferred_gpu_precision` using the
 ``GPUPrecision`` enum class::

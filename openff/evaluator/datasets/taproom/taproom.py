@@ -248,7 +248,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
 
     @staticmethod
     def _unnest_restraint_specs(
-        restraint_specs: List[Dict[str, Any]]
+        restraint_specs: List[Dict[str, Any]],
     ) -> List[Dict[str, Any]]:
         """A helper method to un-nest restraint lists parsed from a taproom
         yaml file.
@@ -432,13 +432,7 @@ class TaproomDataSet(PhysicalPropertyDataSet):
             Whether to add the metadata required for an APR based calculation
             using the ``paprika`` based workflow.
         """
-        import sys
-
-        if sys.version_info[1] < 10:
-            # Backport only for Python 3.9 - drop April 2024
-            from importlib_metadata import entry_points
-        else:
-            from importlib.metadata import entry_points
+        from importlib.metadata import entry_points
 
         installed_benchmarks = {}
 

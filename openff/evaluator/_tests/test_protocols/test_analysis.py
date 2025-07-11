@@ -113,12 +113,12 @@ def test_average_free_energies_protocol():
     )
 
 
-def test_compute_dipole_moments(tmpdir):
+def test_compute_dipole_moments(tmp_path):
     coordinate_path = get_data_filename("test/trajectories/water.pdb")
     trajectory_path = get_data_filename("test/trajectories/water.dcd")
 
     # Build a system object for water
-    force_field_path = os.path.join(tmpdir, "ff.json")
+    force_field_path = os.path.join(tmp_path, "ff.json")
 
     with open(force_field_path, "w") as file:
         file.write(build_tip3p_smirnoff_force_field().json())
@@ -127,13 +127,13 @@ def test_compute_dipole_moments(tmpdir):
     assign_parameters.force_field_path = force_field_path
     assign_parameters.coordinate_file_path = coordinate_path
     assign_parameters.substance = Substance.from_components("O")
-    assign_parameters.execute(str(tmpdir))
+    assign_parameters.execute(str(tmp_path))
 
     # TODO - test gradients when TIP3P library charges added.
     protocol = ComputeDipoleMoments("")
     protocol.parameterized_system = assign_parameters.parameterized_system
     protocol.trajectory_path = trajectory_path
-    protocol.execute(str(tmpdir))
+    protocol.execute(str(tmp_path))
 
     assert len(protocol.dipole_moments) == 10
     assert protocol.dipole_moments.value.shape[1] == 3
