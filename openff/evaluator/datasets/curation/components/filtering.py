@@ -714,12 +714,13 @@ class FilterBySmilesSchema(CurationComponentSchema):
         "This option only applies when `smiles_to_include` is set.",
     )
 
-    @model_validator
-    def _validate_mutually_exclusive(self):
-        assert self.smiles_to_include is not None or self.smiles_to_exclude is not None
-        assert self.smiles_to_include is None or self.smiles_to_exclude is None
+    @model_validator(mode="after")
+    @classmethod
+    def _validate_mutually_exclusive(cls, data):
+        assert data.smiles_to_include is not None or data.smiles_to_exclude is not None
+        assert data.smiles_to_include is None or data.smiles_to_exclude is None
 
-        return self
+        return cls
 
 
 class FilterBySmiles(CurationComponent):
@@ -791,7 +792,8 @@ class FilterBySmirksSchema(CurationComponentSchema):
         "when `smirks_to_include` is set.",
     )
 
-    @model_validator
+    @model_validator(mode="before")
+    @classmethod
     def _validate_mutually_exclusive(cls, values):
         smirks_to_include = values.get("smirks_to_include")
         smirks_to_exclude = values.get("smirks_to_exclude")
@@ -965,7 +967,8 @@ class FilterBySubstancesSchema(CurationComponentSchema):
         "This option is mutually exclusive with `substances_to_include`.",
     )
 
-    @model_validator
+    @model_validator(mode="before")
+    @classmethod
     def _validate_mutually_exclusive(cls, values):
         substances_to_include = values.get("substances_to_include")
         substances_to_exclude = values.get("substances_to_exclude")
@@ -1084,10 +1087,11 @@ class FilterByEnvironmentsSchema(CurationComponentSchema):
         assert all(len(y) == x for x, y in value.items())
         return value
 
-    @model_validator
+    @model_validator(mode="after")
+    @classmethod
     def _validate_mutually_exclusive(cls, values):
-        at_least_one_environment = values.get("at_least_one_environment")
-        strictly_specified_environments = values.get("strictly_specified_environments")
+        at_least_one_environment = values.at_least_one_environment
+        strictly_specified_environments = values.strictly_specified_environments
 
         assert (
             at_least_one_environment is True or strictly_specified_environments is True
@@ -1097,8 +1101,8 @@ class FilterByEnvironmentsSchema(CurationComponentSchema):
             or strictly_specified_environments is False
         )
 
-        per_component_environments = values.get("per_component_environments")
-        environments = values.get("environments")
+        per_component_environments = values.per_component_environments
+        environments = values.environments
 
         assert per_component_environments is not None or environments is not None
         assert per_component_environments is None or environments is None

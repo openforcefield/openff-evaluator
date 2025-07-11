@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, List, Set, Tuple, Union
 
 import numpy
 import pandas
-from pydantic import BaseModel, Field, PositiveInt, conlist, validator
+from pydantic import BaseModel, Field, PositiveInt, validator
 from typing_extensions import Literal
 
 from openff.evaluator.datasets.curation.components import (
@@ -69,10 +69,11 @@ class FingerPrintType(Enum):
 class SelectSubstancesSchema(CurationComponentSchema):
     type: Literal["SelectSubstances"] = "SelectSubstances"
 
-    target_environments: conlist(ChemicalEnvironment, min_items=1) = Field(
+    target_environments: list[ChemicalEnvironment] = Field(
         ...,
         description="The chemical environments which selected substances should "
         "contain.",
+        min_length=1,
     )
 
     n_per_environment: PositiveInt = Field(
