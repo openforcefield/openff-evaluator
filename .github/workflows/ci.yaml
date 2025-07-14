@@ -25,7 +25,6 @@ jobs:
       OE_LICENSE: ${{ github.workspace }}/oe_license.txt
 
     strategy:
-      fail-fast: false
       matrix:
         os:
           - ubuntu-latest
