@@ -123,6 +123,7 @@ class Density(PhysicalProperty):
         equilibration_max_iterations: int = 100,
         n_uncorrelated_samples: int = 200,
         max_iterations: int = 100,
+        error_on_failure: bool = True,
     ) -> PreequilibratedSimulationSchema:
 
         assert absolute_tolerance == UNDEFINED or relative_tolerance == UNDEFINED
@@ -159,6 +160,7 @@ class Density(PhysicalProperty):
                 equilibration_max_iterations=equilibration_max_iterations,
                 n_uncorrelated_samples=n_uncorrelated_samples,
                 max_iterations=max_iterations,
+                error_on_failure=error_on_failure,
             )
         )
         protocols.analysis_protocol.observable = ProtocolPath(
