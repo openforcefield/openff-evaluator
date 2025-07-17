@@ -3,24 +3,16 @@ density) into another (e.g excess molar volume)"""
 
 import functools
 import logging
-from typing import TYPE_CHECKING, Union
+from typing import Union
 
 import pandas
+from pydantic import Field, conint
 from typing_extensions import Literal
 
-from openff.evaluator._pydantic import Field
 from openff.evaluator.datasets.curation.components import (
     CurationComponent,
     CurationComponentSchema,
 )
-
-if TYPE_CHECKING:
-    conint = int
-    PositiveInt = int
-    PositiveFloat = float
-
-else:
-    from openff.evaluator._pydantic import conint
 
 logger = logging.getLogger(__name__)
 
