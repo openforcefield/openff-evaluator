@@ -25,7 +25,7 @@ jobs:
           aws-region: us-east-1
       - name: Create cloud runner
         id: aws-start
-        uses: omsf/start-aws-gha-runner@v1.0.0
+        uses: omsf/start-aws-gha-runner@v1.1.0
         with:
           aws_image_id: ami-0d5079d9be06933e5
           aws_instance_type: g4dn.xlarge
