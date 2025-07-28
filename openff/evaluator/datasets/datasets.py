@@ -204,10 +204,8 @@ class PhysicalProperty(AttributeClass, abc.ABC):
             self.substance,
             self.phase.value,
             self.thermodynamic_state,
-            (
-                str(self.value),
-                str(self.uncertainty),
-            ),
+            self.value,
+            self.uncertainty,
             self.source,
         )
         return hash(attrs)
