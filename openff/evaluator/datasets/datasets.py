@@ -210,7 +210,7 @@ class PhysicalProperty(AttributeClass, abc.ABC):
             ),
             self.source
         )
-        return str(hash(attrs))
+        return hash(attrs)
 
     def validate(self, attribute_type=None):
         super(PhysicalProperty, self).validate(attribute_type)
