@@ -198,6 +198,20 @@ class PhysicalProperty(AttributeClass, abc.ABC):
 
         super(PhysicalProperty, self).__setstate__(state)
 
+    def __hash__(self):
+        """Returns a hash of the property based on its attributes."""
+        attrs = (
+            self.substance,
+            self.phase.value,
+            self.thermodynamic_state,
+            (
+                str(self.value),
+                str(self.uncertainty),
+            ),
+            self.source
+        )
+        return str(hash(attrs))
+
     def validate(self, attribute_type=None):
         super(PhysicalProperty, self).validate(attribute_type)
 
