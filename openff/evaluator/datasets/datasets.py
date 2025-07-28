@@ -208,7 +208,7 @@ class PhysicalProperty(AttributeClass, abc.ABC):
                 str(self.value),
                 str(self.uncertainty),
             ),
-            self.source
+            self.source,
         )
         return hash(attrs)
 
