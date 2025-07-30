@@ -8,6 +8,7 @@ import hashlib
 import json
 import re
 import uuid
+import sys
 from enum import IntFlag, unique
 
 import numpy
@@ -200,6 +201,25 @@ class PhysicalProperty(AttributeClass, abc.ABC):
 
         super(PhysicalProperty, self).__setstate__(state)
 
+    def _get_raw_hash(self) -> int:
+        
+
+        type_ = type(self)
+        clsname = f"{type_.__module__}.{type_.__qualname__}"
+
+        obj = {
+            "type": clsname,
+            "substance": self.substance,
+            "phase": self.phase,
+            "thermodynamic_state": self.thermodynamic_state,
+            "value": self.value,
+            "uncertainty": self.uncertainty,
+            "source": self.source,
+            "metadata": self.metadata,
+        }
+        serialized = json.dumps(obj, sort_keys=True, cls=TypedJSONEncoder)
+        return int(hashlib.sha256(serialized.encode("utf-8")).hexdigest(), 16)
+    
     def _get_hash(self) -> int:
         """
         Returns a hash of the property based on attributes that are expected to
@@ -217,27 +237,30 @@ class PhysicalProperty(AttributeClass, abc.ABC):
         - the id of the property (which is expected to be unique)
         - the gradients
 
+        Note: as with the default __hash__ method in Python,
+        the hash is truncated to the size of a Py_ssize_t, which is
+        platform-dependent.
+
         Returns
         -------
         int
             The hash value of the property.
         """
+        
 
-        type_ = type(self)
-        clsname = f"{type_.__module__}.{type_.__qualname__}"
+        # hash() truncates the value returned from an object’s custom __hash__()
+        # method to the size of a Py_ssize_t.
+        
+        raw_hash = self._get_raw_hash()
 
-        obj = {
-            "type": clsname,
-            "substance": self.substance,
-            "phase": self.phase,
-            "thermodynamic_state": self.thermodynamic_state,
-            "value": self.value,
-            "uncertainty": self.uncertainty,
-            "source": self.source,
-            "metadata": self.metadata,
-        }
-        serialized = json.dumps(obj, sort_keys=True, cls=TypedJSONEncoder)
-        return int(hashlib.sha256(serialized.encode("utf-8")).hexdigest(), 16)
+        # here we mimic the Python hash function for ease of comparison
+        # and uses Mersenne primes for truncation
+        if sys.hash_info.width == 64:
+            mod = (1 << 61) - 1  # Mersenne prime for 64-bit hash
+        else:
+            mod = (1 << 31) - 1
+        return raw_hash % mod
+
 
     def validate(self, attribute_type=None):
         super(PhysicalProperty, self).validate(attribute_type)
