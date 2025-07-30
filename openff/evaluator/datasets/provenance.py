@@ -58,6 +58,7 @@ class MeasurementSource(Source):
         self.doi = state["doi"]
         self.reference = state["reference"]
 
+
 class CalculationSource(Source):
     """Contains any metadata about how a physical property was calculated.
 

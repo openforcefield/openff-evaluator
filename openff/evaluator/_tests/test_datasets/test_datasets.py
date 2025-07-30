@@ -51,12 +51,13 @@ def test_physical_property_state_methods():
         (EnthalpyOfMixing, 124670852208320956),
         (EnthalpyOfVaporization, 1791723383476457715),
         (ExcessMolarVolume, 108713061001274650),
-    ]
+    ],
 )
 def test_consistent_hash_function_dummy(property_class, expected_hash):
     dummy_property = create_dummy_property(property_class)
     property_hash = dummy_property._get_hash()
     assert property_hash == expected_hash
+
 
 def test_consistent_hash_nondummy_density():
     substance = create_dummy_substance(3)

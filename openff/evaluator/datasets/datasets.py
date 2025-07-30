@@ -18,8 +18,7 @@ from openff.evaluator.attributes import UNDEFINED, Attribute, AttributeClass
 from openff.evaluator.datasets import CalculationSource, MeasurementSource, Source
 from openff.evaluator.substances import Component, ExactAmount, MoleFraction, Substance
 from openff.evaluator.thermodynamics import ThermodynamicState
-from openff.evaluator.utils.serialization import TypedBaseModel
-from openff.evaluator.utils.serialization import TypedJSONEncoder
+from openff.evaluator.utils.serialization import TypedBaseModel, TypedJSONEncoder
 
 
 @unique
