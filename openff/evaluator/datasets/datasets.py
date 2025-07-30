@@ -202,7 +202,16 @@ class PhysicalProperty(AttributeClass, abc.ABC):
         super(PhysicalProperty, self).__setstate__(state)
 
     def _get_raw_hash(self) -> int:
-        
+        """
+        Get the raw hash of a property based on its attributes.
+
+        This method serializes the property attributes into a JSON string,
+        sorts the keys, and computes a SHA-256 hash of the resulting string.
+        The hash is then converted to an integer.
+
+        Note: unlike `_get_hash`, this method does not truncate the hash value,
+        so the number can be quite large.
+        """
 
         type_ = type(self)
         clsname = f"{type_.__module__}.{type_.__qualname__}"
