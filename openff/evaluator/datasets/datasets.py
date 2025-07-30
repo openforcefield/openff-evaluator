@@ -7,8 +7,8 @@ import abc
 import hashlib
 import json
 import re
-import uuid
 import sys
+import uuid
 from enum import IntFlag, unique
 
 import numpy
@@ -228,7 +228,7 @@ class PhysicalProperty(AttributeClass, abc.ABC):
         }
         serialized = json.dumps(obj, sort_keys=True, cls=TypedJSONEncoder)
         return int(hashlib.sha256(serialized.encode("utf-8")).hexdigest(), 16)
-    
+
     def _get_hash(self) -> int:
         """
         Returns a hash of the property based on attributes that are expected to
@@ -255,14 +255,13 @@ class PhysicalProperty(AttributeClass, abc.ABC):
         int
             The hash value of the property.
         """
-        
 
         # hash() truncates the value returned from an object’s custom __hash__()
         # method to the size of a Py_ssize_t.
 
         # see https://docs.python.org/3/library/functions.html#hash
         # and https://github.com/python/cpython/blob/main/Include/cpython/pyhash.h#L8-L17
-        
+
         raw_hash = self._get_raw_hash()
 
         # here we mimic the Python hash function for ease of comparison
@@ -273,7 +272,6 @@ class PhysicalProperty(AttributeClass, abc.ABC):
             mod = (1 << 31) - 1
 
         return raw_hash % mod
-
 
     def validate(self, attribute_type=None):
         super(PhysicalProperty, self).validate(attribute_type)
