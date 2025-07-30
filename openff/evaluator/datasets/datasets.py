@@ -250,6 +250,9 @@ class PhysicalProperty(AttributeClass, abc.ABC):
 
         # hash() truncates the value returned from an object’s custom __hash__()
         # method to the size of a Py_ssize_t.
+
+        # see https://docs.python.org/3/library/functions.html#hash
+        # and https://github.com/python/cpython/blob/main/Include/cpython/pyhash.h#L8-L17
         
         raw_hash = self._get_raw_hash()
 
@@ -259,6 +262,7 @@ class PhysicalProperty(AttributeClass, abc.ABC):
             mod = (1 << 61) - 1  # Mersenne prime for 64-bit hash
         else:
             mod = (1 << 31) - 1
+
         return raw_hash % mod
 
 
