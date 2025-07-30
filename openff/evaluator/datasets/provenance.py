@@ -58,10 +58,6 @@ class MeasurementSource(Source):
         self.doi = state["doi"]
         self.reference = state["reference"]
 
-    def __hash__(self):
-        return hash((self.doi, self.reference))
-
-
 class CalculationSource(Source):
     """Contains any metadata about how a physical property was calculated.
 
@@ -100,6 +96,3 @@ class CalculationSource(Source):
     def __setstate__(self, state):
         self.fidelity = state["fidelity"]
         self.provenance = state["provenance"]
-
-    def __hash__(self):
-        return hash((self.fidelity, frozenset(self.provenance.items())))

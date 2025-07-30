@@ -4,6 +4,8 @@ property data.
 """
 
 import abc
+import hashlib
+import json
 import re
 import uuid
 from enum import IntFlag, unique
@@ -17,6 +19,7 @@ from openff.evaluator.datasets import CalculationSource, MeasurementSource, Sour
 from openff.evaluator.substances import Component, ExactAmount, MoleFraction, Substance
 from openff.evaluator.thermodynamics import ThermodynamicState
 from openff.evaluator.utils.serialization import TypedBaseModel
+from openff.evaluator.utils.serialization import TypedJSONEncoder
 
 
 @unique
@@ -198,17 +201,44 @@ class PhysicalProperty(AttributeClass, abc.ABC):
 
         super(PhysicalProperty, self).__setstate__(state)
 
-    def __hash__(self):
-        """Returns a hash of the property based on its attributes."""
-        attrs = (
-            self.substance,
-            self.phase.value,
-            self.thermodynamic_state,
-            self.value,
-            self.uncertainty,
-            self.source,
-        )
-        return hash(attrs)
+    def _get_hash(self) -> int:
+        """
+        Returns a hash of the property based on attributes that are expected to
+        have a meaningful value for the property. Hashes will change based on:
+
+        - the property type
+        - the value and uncertainty of the property
+        - thermodynamic state
+        - phase
+        - substance
+        - source
+        - metadata
+
+        The hash value will not depend on:
+        - the id of the property (which is expected to be unique)
+        - the gradients
+
+        Returns
+        -------
+        int
+            The hash value of the property.
+        """
+
+        type_ = type(self)
+        clsname = f"{type_.__module__}.{type_.__qualname__}"
+
+        obj = {
+            "type": clsname,
+            "substance": self.substance,
+            "phase": self.phase,
+            "thermodynamic_state": self.thermodynamic_state,
+            "value": self.value,
+            "uncertainty": self.uncertainty,
+            "source": self.source,
+            "metadata": self.metadata,
+        }
+        serialized = json.dumps(obj, sort_keys=True, cls=TypedJSONEncoder)
+        return int(hashlib.sha256(serialized.encode("utf-8")).hexdigest(), 16)
 
     def validate(self, attribute_type=None):
         super(PhysicalProperty, self).validate(attribute_type)

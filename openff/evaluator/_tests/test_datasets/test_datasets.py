@@ -8,7 +8,7 @@ import numpy
 import pytest
 from openff.units import unit
 
-from openff.evaluator._tests.utils import create_dummy_property
+from openff.evaluator._tests.utils import create_dummy_property, create_dummy_substance
 from openff.evaluator.attributes import UNDEFINED
 from openff.evaluator.datasets import (
     CalculationSource,
@@ -41,6 +41,48 @@ def test_physical_property_state_methods():
     recreated_json = json.dumps(recreated_state, cls=TypedJSONEncoder)
 
     assert original_json == recreated_json
+
+
+@pytest.mark.parametrize(
+    "property_class, expected_hash",
+    [
+        (Density, 2281209504174709769),
+        (DielectricConstant, 954314343247231723),
+        (EnthalpyOfMixing, 124670852208320956),
+        (EnthalpyOfVaporization, 1791723383476457715),
+        (ExcessMolarVolume, 108713061001274650),
+    ]
+)
+def test_consistent_hash_function_dummy(property_class, expected_hash):
+    dummy_property = create_dummy_property(property_class)
+    property_hash = dummy_property._get_hash()
+    assert property_hash == expected_hash
+
+def test_consistent_hash_nondummy_density():
+    substance = create_dummy_substance(3)
+    dummy_property = Density(
+        thermodynamic_state=ThermodynamicState(
+            temperature=298 * unit.kelvin, pressure=1 * unit.atmosphere
+        ),
+        phase=PropertyPhase.Liquid,
+        substance=substance,
+        value=10.0 * Density.default_unit(),
+        uncertainty=1.0 * Density.default_unit(),
+    )
+
+    assert dummy_property._get_hash() == 595691476218156154
+
+    # test that calculation source is included in hash
+    dummy_property.source = CalculationSource(fidelity="dummy", provenance={})
+    assert dummy_property._get_hash() == 51179418276873104
+
+    # test that metadata is included in hash
+    dummy_property.metadata = {"receptor_mol2": "unknown_path.mol2"}
+    assert dummy_property._get_hash() == 873080487834384550
+
+    # test id does not affect hash
+    dummy_property.id = "dummy_id"
+    assert dummy_property._get_hash() == 873080487834384550
 
 
 def test_physical_property_id_generation():
