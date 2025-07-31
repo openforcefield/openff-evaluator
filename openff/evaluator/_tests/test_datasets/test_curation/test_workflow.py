@@ -11,7 +11,9 @@ from openff.evaluator.datasets import (
 from openff.evaluator.datasets.curation.components.filtering import (
     FilterByPressureSchema,
     FilterByTemperatureSchema,
+    FilterBySubstancesSchema
 )
+from openff.evaluator.datasets.curation.components.selection import SelectDataPointsSchema
 from openff.evaluator.datasets.curation.workflow import (
     CurationWorkflow,
     CurationWorkflowSchema,
@@ -19,6 +21,7 @@ from openff.evaluator.datasets.curation.workflow import (
 from openff.evaluator.properties import Density
 from openff.evaluator.substances import Substance
 from openff.evaluator.thermodynamics import ThermodynamicState
+from openff.evaluator.datasets.curation.components.selection import State, TargetState
 
 
 @pytest.fixture(scope="module")
@@ -71,12 +74,29 @@ def data_set(data_frame: pandas.DataFrame) -> PhysicalPropertyDataSet:
 def test_workflow_data_frame(data_frame):
     """Test that a simple curation workflow can be applied to a data frame."""
 
+    TARGET_STATES = [
+        TargetState(
+            property_types=[
+                ("Density", 1),
+            ],
+            states=[
+                State(
+                    temperature=298.15,
+                    pressure=101.325,
+                    mole_fractions=(1.0,),
+                ),
+            ],
+        ),
+    ]
+
     schema = CurationWorkflowSchema(
         component_schemas=[
             FilterByTemperatureSchema(
                 minimum_temperature=290.0, maximum_temperature=300.0
             ),
             FilterByPressureSchema(minimum_pressure=101.3, maximum_pressure=101.4),
+            SelectDataPointsSchema(target_states=TARGET_STATES),
+            FilterBySubstancesSchema(substances_to_exclude=[("O",)])
         ]
     )
 
