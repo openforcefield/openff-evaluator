@@ -10,10 +10,14 @@ from openff.evaluator.datasets import (
 )
 from openff.evaluator.datasets.curation.components.filtering import (
     FilterByPressureSchema,
+    FilterBySubstancesSchema,
     FilterByTemperatureSchema,
-    FilterBySubstancesSchema
 )
-from openff.evaluator.datasets.curation.components.selection import SelectDataPointsSchema
+from openff.evaluator.datasets.curation.components.selection import (
+    SelectDataPointsSchema,
+    State,
+    TargetState,
+)
 from openff.evaluator.datasets.curation.workflow import (
     CurationWorkflow,
     CurationWorkflowSchema,
@@ -21,7 +25,6 @@ from openff.evaluator.datasets.curation.workflow import (
 from openff.evaluator.properties import Density
 from openff.evaluator.substances import Substance
 from openff.evaluator.thermodynamics import ThermodynamicState
-from openff.evaluator.datasets.curation.components.selection import State, TargetState
 
 
 @pytest.fixture(scope="module")
@@ -96,7 +99,7 @@ def test_workflow_data_frame(data_frame):
             ),
             FilterByPressureSchema(minimum_pressure=101.3, maximum_pressure=101.4),
             SelectDataPointsSchema(target_states=TARGET_STATES),
-            FilterBySubstancesSchema(substances_to_exclude=[("O",)])
+            FilterBySubstancesSchema(substances_to_exclude=[("O",)]),
         ]
     )
 
