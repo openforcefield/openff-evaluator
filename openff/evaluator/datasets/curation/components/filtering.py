@@ -793,8 +793,8 @@ class FilterBySmirksSchema(CurationComponentSchema):
 
     @model_validator(mode="after")
     def _validate_mutually_exclusive(cls, values):
-        smirks_to_include = values.get("smirks_to_include")
-        smirks_to_exclude = values.get("smirks_to_exclude")
+        smirks_to_include = values.smirks_to_include
+        smirks_to_exclude = values.smirks_to_exclude
 
         assert smirks_to_include is not None or smirks_to_exclude is not None
         assert smirks_to_include is None or smirks_to_exclude is None
@@ -965,10 +965,10 @@ class FilterBySubstancesSchema(CurationComponentSchema):
         "This option is mutually exclusive with `substances_to_include`.",
     )
 
-    @model_validator(mode="before")
+    @model_validator(mode="after")
     def _validate_mutually_exclusive(cls, values):
-        substances_to_include = values.get("substances_to_include")
-        substances_to_exclude = values.get("substances_to_exclude")
+        substances_to_include = values.substances_to_include
+        substances_to_exclude = values.substances_to_exclude
 
         assert substances_to_include is not None or substances_to_exclude is not None
         assert substances_to_include is None or substances_to_exclude is None
