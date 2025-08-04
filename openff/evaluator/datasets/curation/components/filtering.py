@@ -715,6 +715,7 @@ class FilterBySmilesSchema(CurationComponentSchema):
     )
 
     @model_validator(mode="after")
+    @classmethod
     def _validate_mutually_exclusive(cls, data):
         assert data.smiles_to_include is not None or data.smiles_to_exclude is not None
         assert data.smiles_to_include is None or data.smiles_to_exclude is None
@@ -792,6 +793,7 @@ class FilterBySmirksSchema(CurationComponentSchema):
     )
 
     @model_validator(mode="after")
+    @classmethod
     def _validate_mutually_exclusive(cls, values):
         smirks_to_include = values.smirks_to_include
         smirks_to_exclude = values.smirks_to_exclude
