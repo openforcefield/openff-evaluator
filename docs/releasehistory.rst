@@ -8,6 +8,11 @@ Releases follow the ``major.minor.micro`` scheme recommended by
 * ``minor`` increments add features but do not break API compatibility
 * ``micro`` increments represent bugfix releases or improvements in documentation
 
+Current development
+-------------------
+
+* PR `#685 <https://github.com/openforcefield/openff-evaluator/pull/685>`_: Fixes some bugs in Pydantic validators of some filtering schemas.
+
 0.5.1 - June 11, 2025
 ---------------------
 

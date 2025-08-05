@@ -10,6 +10,7 @@ from openff.evaluator.datasets import (
 )
 from openff.evaluator.datasets.curation.components.filtering import (
     FilterByPressureSchema,
+    FilterBySubstancesSchema,
     FilterByTemperatureSchema,
 )
 from openff.evaluator.datasets.curation.workflow import (
@@ -77,6 +78,7 @@ def test_workflow_data_frame(data_frame):
                 minimum_temperature=290.0, maximum_temperature=300.0
             ),
             FilterByPressureSchema(minimum_pressure=101.3, maximum_pressure=101.4),
+            FilterBySubstancesSchema(substances_to_exclude=[("O",)]),
         ]
     )
 
