@@ -201,7 +201,7 @@ class PhysicalProperty(AttributeClass, abc.ABC):
 
         super(PhysicalProperty, self).__setstate__(state)
 
-    def _get_raw_hash(self) -> int:
+    def _get_raw_property_hash(self) -> int:
         """
         Get the raw hash of a property based on its attributes.
 
@@ -209,7 +209,7 @@ class PhysicalProperty(AttributeClass, abc.ABC):
         sorts the keys, and computes a SHA-256 hash of the resulting string.
         The hash is then converted to an integer.
 
-        Note: unlike `_get_hash`, this method does not truncate the hash value,
+        Note: unlike `_get_property_hash`, this method does not truncate the hash value,
         so the number can be quite large.
         """
 
@@ -229,7 +229,7 @@ class PhysicalProperty(AttributeClass, abc.ABC):
         serialized = json.dumps(obj, sort_keys=True, cls=TypedJSONEncoder)
         return int(hashlib.sha256(serialized.encode("utf-8")).hexdigest(), 16)
     
-    def get_hash(self) -> int:
+    def get_property_hash(self) -> int:
         """
         Returns a hash of the property based on attributes that are expected to
         have a meaningful value for the property. Hashes will change based on:
@@ -262,7 +262,7 @@ class PhysicalProperty(AttributeClass, abc.ABC):
         # see https://docs.python.org/3/library/functions.html#hash
         # and https://github.com/python/cpython/blob/main/Include/cpython/pyhash.h#L8-L17
 
-        raw_hash = self._get_raw_hash()
+        raw_property_hash = self._get_raw_property_hash()
 
         # here we mimic the Python hash function for ease of comparison
         # and uses Mersenne primes for truncation
@@ -271,7 +271,7 @@ class PhysicalProperty(AttributeClass, abc.ABC):
         else:
             mod = (1 << 31) - 1
 
-        return raw_hash % mod
+        return raw_property_hash % mod
 
     def validate(self, attribute_type=None):
         super(PhysicalProperty, self).validate(attribute_type)

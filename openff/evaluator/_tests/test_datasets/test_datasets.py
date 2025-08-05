@@ -56,7 +56,7 @@ def test_physical_property_state_methods():
 def test_consistent_hash_function_dummy(property_class, expected_hash):
     """This tests that property type changes the property hash"""
     dummy_property = create_dummy_property(property_class)
-    property_hash = dummy_property.get_hash()
+    property_hash = dummy_property.get_property_hash()
     assert property_hash == expected_hash
 
 
@@ -72,34 +72,34 @@ def test_consistent_hash_nondummy_density():
         uncertainty=1.0 * Density.default_unit(),
     )
 
-    assert dummy_property.get_hash() == 595691476218156154
+    assert dummy_property.get_property_hash() == 595691476218156154
 
     # test that calculation source is included in hash
     dummy_property.source = CalculationSource(fidelity="dummy", provenance={})
-    assert dummy_property.get_hash() == 51179418276873104
+    assert dummy_property.get_property_hash() == 51179418276873104
 
     # test that metadata is included in hash
     dummy_property.metadata = {"receptor_mol2": "unknown_path.mol2"}
-    assert dummy_property.get_hash() == 873080487834384550
+    assert dummy_property.get_property_hash() == 873080487834384550
 
     # test value and uncertainty are included in hash
     dummy_property.value = 20.0 * Density.default_unit()
-    assert dummy_property.get_hash() == 312503602877784687
+    assert dummy_property.get_property_hash() == 312503602877784687
 
     dummy_property.uncertainty = 2.0 * Density.default_unit()
-    assert dummy_property.get_hash() == 1160532109019373210
+    assert dummy_property.get_property_hash() == 1160532109019373210
 
     # test substance
     dummy_property.substance = Substance.from_components("C", "O")
-    assert dummy_property.get_hash() == 1596570475594629041
+    assert dummy_property.get_property_hash() == 1596570475594629041
 
     # test id does not affect hash
     dummy_property.id = "dummy_id"
-    assert dummy_property.get_hash() == 1596570475594629041
+    assert dummy_property.get_property_hash() == 1596570475594629041
 
     # test gradients are not included in hash
     dummy_property.gradients = [-1]
-    assert dummy_property.get_hash() == 1596570475594629041
+    assert dummy_property.get_property_hash() == 1596570475594629041
 
 
 def test_physical_property_id_generation():
