@@ -228,7 +228,7 @@ class PhysicalProperty(AttributeClass, abc.ABC):
         }
         serialized = json.dumps(obj, sort_keys=True, cls=TypedJSONEncoder)
         return int(hashlib.sha256(serialized.encode("utf-8")).hexdigest(), 16)
-    
+
     def get_property_hash(self) -> int:
         """
         Returns a hash of the property based on attributes that are expected to
