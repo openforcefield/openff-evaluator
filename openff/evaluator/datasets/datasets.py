@@ -4,7 +4,10 @@ property data.
 """
 
 import abc
+import hashlib
+import json
 import re
+import sys
 import uuid
 from enum import IntFlag, unique
 
@@ -16,7 +19,7 @@ from openff.evaluator.attributes import UNDEFINED, Attribute, AttributeClass
 from openff.evaluator.datasets import CalculationSource, MeasurementSource, Source
 from openff.evaluator.substances import Component, ExactAmount, MoleFraction, Substance
 from openff.evaluator.thermodynamics import ThermodynamicState
-from openff.evaluator.utils.serialization import TypedBaseModel
+from openff.evaluator.utils.serialization import TypedBaseModel, TypedJSONEncoder
 
 
 @unique
@@ -197,6 +200,78 @@ class PhysicalProperty(AttributeClass, abc.ABC):
             state["id"] = str(uuid.uuid4()).replace("-", "")
 
         super(PhysicalProperty, self).__setstate__(state)
+
+    def _get_raw_property_hash(self) -> int:
+        """
+        Get the raw hash of a property based on its attributes.
+
+        This method serializes the property attributes into a JSON string,
+        sorts the keys, and computes a SHA-256 hash of the resulting string.
+        The hash is then converted to an integer.
+
+        Note: unlike `_get_property_hash`, this method does not truncate the hash value,
+        so the number can be quite large.
+        """
+
+        type_ = type(self)
+        clsname = f"{type_.__module__}.{type_.__qualname__}"
+
+        obj = {
+            "type": clsname,
+            "substance": self.substance,
+            "phase": self.phase,
+            "thermodynamic_state": self.thermodynamic_state,
+            "value": self.value,
+            "uncertainty": self.uncertainty,
+            "source": self.source,
+            "metadata": self.metadata,
+        }
+        serialized = json.dumps(obj, sort_keys=True, cls=TypedJSONEncoder)
+        return int(hashlib.sha256(serialized.encode("utf-8")).hexdigest(), 16)
+
+    def get_property_hash(self) -> int:
+        """
+        Returns a hash of the property based on attributes that are expected to
+        have a meaningful value for the property. Hashes will change based on:
+
+        - the property type
+        - the value and uncertainty of the property
+        - thermodynamic state
+        - phase
+        - substance
+        - source
+        - metadata
+
+        The hash value will not depend on:
+        - the id of the property (which is expected to be unique)
+        - the gradients
+
+        Note: as with the default __hash__ method in Python,
+        the hash is truncated to the size of a Py_ssize_t, which is
+        platform-dependent.
+
+        Returns
+        -------
+        int
+            The hash value of the property.
+        """
+
+        # hash() truncates the value returned from an object’s custom __hash__()
+        # method to the size of a Py_ssize_t.
+
+        # see https://docs.python.org/3/library/functions.html#hash
+        # and https://github.com/python/cpython/blob/main/Include/cpython/pyhash.h#L8-L17
+
+        raw_property_hash = self._get_raw_property_hash()
+
+        # here we mimic the Python hash function for ease of comparison
+        # and uses Mersenne primes for truncation
+        if sys.hash_info.width == 64:
+            mod = (1 << 61) - 1  # Mersenne prime for 64-bit hash
+        else:
+            mod = (1 << 31) - 1
+
+        return raw_property_hash % mod
 
     def validate(self, attribute_type=None):
         super(PhysicalProperty, self).validate(attribute_type)
