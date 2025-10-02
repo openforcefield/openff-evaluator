@@ -3,12 +3,12 @@ channels:
     - conda-forge
 dependencies:
     # Base depends
-    - python >=3.8
+    - python =3.11
     - setuptools
     - pip
 
     # Standard dependencies
-    - openff-toolkit >=0.11.0
+    - openff-toolkit-base >=0.11.0
     - openmm =7
     - packmol
     - pymbar >=3.0.5,<4.0.0
