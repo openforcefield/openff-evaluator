@@ -14,6 +14,7 @@ dependencies:
   - nbval
   - requests-mock # For testing http requests.
   - foyer
+  - smirnoff99frosst
 
     # Shim
   - pint >=0.21,<0.25
