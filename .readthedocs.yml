@@ -1,18 +1,21 @@
+# https://docs.readthedocs.io/en/stable/config-file/v2.html
 version: 2
 
-build:
-  os: "ubuntu-24.04"
-  tools:
-    python: "miniconda3-3.12-24.9"
-
 sphinx:
-   configuration: docs/conf.py
-   fail_on_warning: true
+  configuration: docs/conf.py
+
+build:
+  os: ubuntu-20.04
+  tools:
+    python: "mambaforge-4.10"
+
+python:
+  install:
+  - method: setuptools
+    path: .
 
 conda:
   environment: devtools/conda-envs/docs_env.yaml
 
-python:
-  install:
-    - method: pip
-      path: .
+formats:
+  - pdf
