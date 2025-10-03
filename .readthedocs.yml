@@ -11,7 +11,7 @@ build:
 
 python:
   install:
-  - method: setuptools
+  - method: pip
     path: .
 
 conda:
