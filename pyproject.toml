@@ -1,0 +1,42 @@
+[build-system]
+build-backend = "setuptools.build_meta"
+
+requires = [
+  "setuptools>=77.0.3",
+  "setuptools-scm>=8",
+]
+
+[project]
+name = "openff-evaluator"
+description = "A physical property evaluation toolkit from the Open Forcefield Consortium."
+readme = "README.md"
+license = "MIT"
+license-files = [ "LICENSE" ]
+authors = [ { name = "Open Force Field Initiative", email = "info@openforcefield.org" } ]
+requires-python = ">=3.11"
+classifiers = [
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+]
+dynamic = [ "version" ]
+
+[tool.setuptools.packages]
+find = {}
+
+[tool.setuptools_scm]
+fallback_version = "0.0.0"
+
+[tool.coverage.run]
+omit = [
+  "*/*/_tests/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+  "pragma: no cover",
+  "if TYPE_CHECKING:",
+  "raise NotImplementedError",
+  "@overload",
+]
