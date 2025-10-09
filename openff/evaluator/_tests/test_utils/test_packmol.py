@@ -3,7 +3,9 @@ Units tests for openff.evaluator.utils.packmol
 """
 
 import numpy as np
+import openmm.app
 import pytest
+from openff.toolkit import Molecule, Topology
 from openff.units import unit
 
 from openff.evaluator.utils import packmol
@@ -11,7 +13,6 @@ from openff.evaluator.utils.packmol import PackmolRuntimeException
 
 
 def test_packmol_box_size():
-    from openff.toolkit.topology import Molecule
 
     molecules = [Molecule.from_smiles("O")]
 
@@ -32,7 +33,6 @@ def test_packmol_box_size():
 
 
 def test_packmol_bad_input():
-    from openff.toolkit.topology import Molecule
 
     molecules = [Molecule.from_smiles("O")]
 
@@ -41,7 +41,6 @@ def test_packmol_bad_input():
 
 
 def test_packmol_failed():
-    from openff.toolkit.topology import Molecule
 
     molecules = [Molecule.from_smiles("O")]
 
@@ -50,7 +49,6 @@ def test_packmol_failed():
 
 
 def test_packmol_water():
-    from openff.toolkit.topology import Molecule
 
     molecules = [Molecule.from_smiles("O")]
 
@@ -71,7 +69,6 @@ def test_packmol_water():
 
 
 def test_packmol_ions():
-    from openff.toolkit.topology import Molecule
 
     molecules = [
         Molecule.from_smiles("[Na+]"),
@@ -100,7 +97,6 @@ def test_packmol_ions():
 
 
 def test_packmol_paracetamol():
-    from openff.toolkit.topology import Molecule
 
     # Test something a bit more tricky than water
     molecules = [Molecule.from_smiles("CC(=O)NC1=CC=C(C=C1)O")]
@@ -117,34 +113,33 @@ def test_packmol_paracetamol():
     assert trajectory.topology.n_bonds == 20
 
 
-def test_amino_acids():
-    amino_residues = {
-        "C[C@H](N)C(=O)O": "ALA",
-        # Undefined stereochemistry error.
-        # "N=C(N)NCCC[C@H](N)C(=O)O": "ARG",
-        "NC(=O)C[C@H](N)C(=O)O": "ASN",
-        "N[C@@H](CC(=O)O)C(=O)O": "ASP",
-        "N[C@@H](CS)C(=O)O": "CYS",
-        "N[C@@H](CCC(=O)O)C(=O)O": "GLU",
-        "NC(=O)CC[C@H](N)C(=O)O": "GLN",
-        "NCC(=O)O": "GLY",
-        "N[C@@H](Cc1c[nH]cn1)C(=O)O": "HIS",
-        "CC[C@H](C)[C@H](N)C(=O)O": "ILE",
-        "CC(C)C[C@H](N)C(=O)O": "LEU",
-        "NCCCC[C@H](N)C(=O)O": "LYS",
-        "CSCC[C@H](N)C(=O)O": "MET",
-        "N[C@@H](Cc1ccccc1)C(=O)O": "PHE",
-        "O=C(O)[C@@H]1CCCN1": "PRO",
-        "N[C@@H](CO)C(=O)O": "SER",
-        "C[C@@H](O)[C@H](N)C(=O)O": "THR",
-        "N[C@@H](Cc1c[nH]c2ccccc12)C(=O)O": "TRP",
-        "N[C@@H](Cc1ccc(O)cc1)C(=O)O": "TYR",
-        "CC(C)[C@H](N)C(=O)O": "VAL",
-    }
+amino_residues = {
+    "C[C@H](N)C(=O)O": "ALA",
+    # Undefined stereochemistry error.
+    # "N=C(N)NCCC[C@H](N)C(=O)O": "ARG",
+    "NC(=O)C[C@H](N)C(=O)O": "ASN",
+    "N[C@@H](CC(=O)O)C(=O)O": "ASP",
+    "N[C@@H](CS)C(=O)O": "CYS",
+    "N[C@@H](CCC(=O)O)C(=O)O": "GLU",
+    "NC(=O)CC[C@H](N)C(=O)O": "GLN",
+    "NCC(=O)O": "GLY",
+    "N[C@@H](Cc1c[nH]cn1)C(=O)O": "HIS",
+    "CC[C@H](C)[C@H](N)C(=O)O": "ILE",
+    "CC(C)C[C@H](N)C(=O)O": "LEU",
+    "NCCCC[C@H](N)C(=O)O": "LYS",
+    "CSCC[C@H](N)C(=O)O": "MET",
+    "N[C@@H](Cc1ccccc1)C(=O)O": "PHE",
+    "O=C(O)[C@@H]1CCCN1": "PRO",
+    "N[C@@H](CO)C(=O)O": "SER",
+    "C[C@@H](O)[C@H](N)C(=O)O": "THR",
+    "N[C@@H](Cc1c[nH]c2ccccc12)C(=O)O": "TRP",
+    "N[C@@H](Cc1ccc(O)cc1)C(=O)O": "TYR",
+    "CC(C)[C@H](N)C(=O)O": "VAL",
+}
 
+
+def test_amino_acid_residue_information():
     smiles = [*amino_residues]
-
-    from openff.toolkit.topology import Molecule
 
     molecules = [Molecule.from_smiles(x) for x in smiles]
     counts = [1] * len(smiles)
@@ -160,3 +155,10 @@ def test_amino_acids():
 
     for index, smiles in enumerate(smiles):
         assert trajectory.top.residue(index).name == amino_residues[smiles]
+
+    trajectory.save_pdb("test.pdb")
+
+    # Check that the trajectory can later be read into OpenFF (via OpenMM)
+    Topology.from_openmm(
+        openmm.app.PDBFile("test.pdb").topology, unique_molecules=molecules
+    )
