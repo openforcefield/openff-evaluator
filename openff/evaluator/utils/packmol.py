@@ -19,9 +19,8 @@ from functools import reduce
 
 import mdtraj
 import numpy as np
-from openff.toolkit import Topology
+from openff.toolkit import Quantity, Topology, unit
 from openff.toolkit.utils.rdkit_wrapper import RDKitToolkitWrapper
-from openff.units import unit
 
 from openff.evaluator.substances import Component
 from openff.evaluator.utils.utils import temporarily_change_directory
@@ -169,7 +168,7 @@ def _approximate_box_size_by_density(
     return box_size
 
 
-def _generate_residue_name(residue, smiles):
+def _generate_residue_name(residue, smiles) -> str:
     """Generates residue name for a particular residue which
     corresponds to a particular smiles pattern.
 
@@ -262,8 +261,9 @@ def _generate_residue_name(residue, smiles):
     openff_molecule = Molecule.from_smiles(smiles, allow_undefined_stereo=True)
 
     if openff_molecule.n_atoms == 1:
-        residue.name = _ion_residue_name(openff_molecule)
-        residue.atom(0).name = residue.name
+        openff_molecule.atom(0).name = openff_molecule.atom(0).metadata['residue_name'] = _ion_residue_name(openff_molecule)
+
+        openff_molecule.perceive_residues()
 
         return
 
@@ -288,7 +288,7 @@ def _generate_residue_name(residue, smiles):
         element_counter[atom.element.symbol] += 1
 
 
-def _ion_residue_name(molecule):
+def _ion_residue_name(molecule) -> str:
     """Generates a residue name for a monatomic ion.
 
     Parameters
@@ -774,9 +774,12 @@ def pack_box(
         shutil.rmtree(working_directory)
 
         output_file_name = "packmol_output.pdb"
-    return (
-        Topology.from_openmm(
-            trajectory.topology.to_openmm(), unique_molecules=molecules
-        ),
-        assigned_residue_names,
+
+    topology = Topology.from_openmm(
+        trajectory.topology.to_openmm(), unique_molecules=molecules
     )
+
+    # box vectors don't survive MDTraj -> OpenMM -> Topology conversion
+    topology.box_vectors = Quantity(box_size, "nanometer")
+
+    return topology, assigned_residue_names

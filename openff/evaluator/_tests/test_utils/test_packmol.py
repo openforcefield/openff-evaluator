@@ -15,20 +15,18 @@ def test_packmol_box_size():
 
     molecules = [Molecule.from_smiles("O")]
 
-    trajectory, _ = packmol.pack_box(
-        molecules, [10], box_size=([20] * 3) * unit.angstrom
-    )
+    topology, _ = packmol.pack_box(molecules, [10], box_size=([20] * 3) * unit.angstrom)
 
-    assert trajectory is not None
+    assert topology is not None
 
-    assert trajectory.n_chains == 1
-    assert trajectory.n_residues == 10
-    assert trajectory.n_atoms == 30
-    assert trajectory.topology.n_bonds == 20
+    assert len(topology.chains) == 10  # should be 1 ...
+    assert len(topology.residues) == 10
+    assert topology.n_atoms == 30
+    assert topology.n_bonds == 20
 
-    assert all(x.name == "HOH" for x in trajectory.top.residues)
+    assert all(x.residue_name == "HOH" for x in topology.residues)
 
-    assert np.allclose(trajectory.unitcell_lengths, 2.2)
+    assert np.allclose(topology.box_vectors.m_as("nanometer").diagonal(), 2.2)
 
 
 def test_packmol_bad_input():
@@ -51,20 +49,20 @@ def test_packmol_water():
 
     molecules = [Molecule.from_smiles("O")]
 
-    trajectory, _ = packmol.pack_box(
+    topology, _ = packmol.pack_box(
         molecules,
         [10],
         mass_density=1.0 * unit.grams / unit.milliliters,
     )
 
-    assert trajectory is not None
+    assert topology is not None
 
-    assert trajectory.n_chains == 1
-    assert trajectory.n_residues == 10
-    assert trajectory.n_atoms == 30
-    assert trajectory.topology.n_bonds == 20
+    assert len(topology.chains) == 10  # should be 1 ...
+    assert len(topology.residues) == 10
+    assert topology.n_atoms == 30
+    assert topology.n_bonds == 20
 
-    assert all(x.name == "HOH" for x in trajectory.top.residues)
+    assert all(residue.residue_name == "HOH" for residue in topology.residues)
 
 
 def test_packmol_ions():
@@ -75,24 +73,24 @@ def test_packmol_ions():
         Molecule.from_smiles("[K+]"),
     ]
 
-    trajectory, _ = packmol.pack_box(
+    topology, _ = packmol.pack_box(
         molecules, [1, 1, 1], box_size=([20] * 3) * unit.angstrom
     )
 
-    assert trajectory is not None
+    assert topology is not None
 
-    assert trajectory.n_chains == 3
-    assert trajectory.n_residues == 3
-    assert trajectory.n_atoms == 3
-    assert trajectory.topology.n_bonds == 0
+    assert len(topology.chains) == 3
+    assert len(topology.residues) == 3
+    assert topology.n_atoms == 3
+    assert topology.n_bonds == 0
 
-    assert trajectory.top.residue(0).name == "Na+"
-    assert trajectory.top.residue(1).name == "Cl-"
-    assert trajectory.top.residue(2).name == "K+"
+    assert topology.residues[0].residue_name == "Na+"
+    assert topology.residues[1].residue_name == "Cl-"
+    assert topology.residues[2].residue_name == "K+"
 
-    assert trajectory.top.atom(0).name == "Na+"
-    assert trajectory.top.atom(1).name == "Cl-"
-    assert trajectory.top.atom(2).name == "K+"
+    assert topology.atom(0).name == "Na+"
+    assert topology.atom(1).name == "Cl-"
+    assert topology.atom(2).name == "K+"
 
 
 def test_packmol_paracetamol():
@@ -100,16 +98,14 @@ def test_packmol_paracetamol():
     # Test something a bit more tricky than water
     molecules = [Molecule.from_smiles("CC(=O)NC1=CC=C(C=C1)O")]
 
-    trajectory, _ = packmol.pack_box(
-        molecules, [1], box_size=([20] * 3) * unit.angstrom
-    )
+    topology, _ = packmol.pack_box(molecules, [1], box_size=([20] * 3) * unit.angstrom)
 
-    assert trajectory is not None
+    assert topology is not None
 
-    assert trajectory.n_chains == 1
-    assert trajectory.n_residues == 1
-    assert trajectory.n_atoms == 20
-    assert trajectory.topology.n_bonds == 20
+    assert len(topology.chains) == 1
+    assert len(topology.residues) == 1
+    assert topology.n_atoms == 20
+    assert topology.n_bonds == 20
 
 
 amino_residues = {
