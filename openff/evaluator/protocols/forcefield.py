@@ -53,7 +53,7 @@ class BaseBuildSystem(Protocol, abc.ABC):
         default_value=UNDEFINED,
     )
     coordinate_file_path = InputAttribute(
-        docstring="The file path to the PDB coordinate file which defines the "
+        docstring="The file path to the JSON file which defines the "
         "topology of the system to which the force field parameters "
         "will be assigned.",
         type_hint=str,
@@ -443,8 +443,8 @@ class TemplateBuildSystem(BaseBuildSystem, abc.ABC):
         force_field_source = ForceFieldSource.from_json(self.force_field_path)
         cutoff = to_openmm(force_field_source.cutoff)
 
-        # Load in the systems topology
-        openmm_pdb_file = app.PDBFile(self.coordinate_file_path)
+        topology = Topology.from_json(open(self.coordinate_file_path).read())
+        openmm_topology = topology.to_openmm()
 
         # Create an OFF topology for better insight into the layout of the system
         # topology.
@@ -465,7 +465,7 @@ class TemplateBuildSystem(BaseBuildSystem, abc.ABC):
             if smiles in ["O", "[H]O[H]", "[H][O][H]"]:
                 component_system = self._build_tip3p_system(
                     cutoff,
-                    openmm_pdb_file.topology.getUnitCellDimensions(),
+                    openmm_topology.getUnitCellDimensions(),
                 )
 
             else:
@@ -480,9 +480,8 @@ class TemplateBuildSystem(BaseBuildSystem, abc.ABC):
             system_templates[smiles] = component_system
 
         # Apply the parameters to the topology.
-        topology = Topology.from_openmm(
-            openmm_pdb_file.topology, unique_molecules.values()
-        )
+        if False:
+            topology = Topology.from_openmm(openmm_topology, unique_molecules.values())
 
         # Create the full system object from the component templates.
         system = self._create_empty_system(cutoff)
@@ -508,9 +507,9 @@ class TemplateBuildSystem(BaseBuildSystem, abc.ABC):
 
                 self._append_system(system, system_template, cutoff, index_map)
 
-        if openmm_pdb_file.topology.getPeriodicBoxVectors() is not None:
+        if openmm_topology.getPeriodicBoxVectors() is not None:
             system.setDefaultPeriodicBoxVectors(
-                *openmm_pdb_file.topology.getPeriodicBoxVectors()
+                *openmm_topology.getPeriodicBoxVectors()
             )
 
         # Serialize the system object.
@@ -536,7 +535,7 @@ class BuildSmirnoffSystem(BaseBuildSystem):
     def _execute(self, directory, available_resources):
         from openff.toolkit.topology import Molecule, Topology
 
-        pdb_file = app.PDBFile(self.coordinate_file_path)
+        topology = Topology.from_json(open(self.coordinate_file_path).read())
 
         force_field_source = ForceFieldSource.from_json(self.force_field_path)
 
@@ -557,12 +556,6 @@ class BuildSmirnoffSystem(BaseBuildSystem):
                 raise ValueError(f"{component} could not be converted to a Molecule")
 
             unique_molecules.append(molecule)
-
-        # Create the topology to parameterize from the input coordinates and the
-        # expected molecule species.
-        topology = Topology.from_openmm(
-            pdb_file.topology, unique_molecules=unique_molecules
-        )
 
         interchange = Interchange.from_smirnoff(
             topology=topology, force_field=force_field

@@ -28,20 +28,9 @@ class ParameterizedSystem(TypedBaseModel):
 
     @property
     def topology(self) -> "Topology":
-        from openff.toolkit.topology import Molecule, Topology
-        from openmm import app
+        from openff.toolkit.topology import Topology
 
-        pdb_file = app.PDBFile(self._topology_path)
-
-        topology = Topology.from_openmm(
-            pdb_file.topology,
-            unique_molecules=[
-                Molecule.from_smiles(smiles=component.smiles)
-                for component in self._substance.components
-            ],
-        )
-
-        return topology
+        return Topology.from_json(open(self._topology_path).read())
 
     @property
     def system_path(self) -> str:

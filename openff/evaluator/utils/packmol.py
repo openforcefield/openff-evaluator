@@ -17,7 +17,9 @@ import warnings
 from collections import defaultdict
 from functools import reduce
 
+import mdtraj
 import numpy as np
+from openff.toolkit import Topology
 from openff.toolkit.utils.rdkit_wrapper import RDKitToolkitWrapper
 from openff.units import unit
 
@@ -335,8 +337,6 @@ def _create_trajectory(molecule):
     mdtraj.Trajectory
         The created trajectory.
     """
-    import mdtraj
-
     # Check whether the molecule has a configuration defined, and if not,
     # define one.
     if molecule.n_conformers <= 0:
@@ -349,7 +349,9 @@ def _create_trajectory(molecule):
         # Toolkit's PDB writer is untrustworthy (for non-biopolymers) with OpenEyeToolktiWrapper
         # See https://github.com/openforcefield/openff-toolkit/issues/1307 and linked issues
         molecule.to_file(
-            file.name, file_format="PDB", toolkit_registry=RDKitToolkitWrapper()
+            file.name,
+            file_format="PDB",
+            toolkit_registry=RDKitToolkitWrapper(),
         )
         # Load the pdb into an mdtraj object.
         mdtraj_trajectory = mdtraj.load_pdb(file.name)
@@ -359,6 +361,10 @@ def _create_trajectory(molecule):
     # e.g. C(CO)N is not Gly) and save the altered object as a pdb.
     for residue in mdtraj_trajectory.topology.residues:
         _generate_residue_name(residue, molecule.to_smiles())
+
+    # need to set the residue name on the Molecule object as well to ensure it's written to PDB
+    for atom in molecule.atoms:
+        atom.metadata["residue_name"] = mdtraj_trajectory.topology.residue(0).name
 
     return mdtraj_trajectory
 
@@ -479,8 +485,6 @@ def _correct_packmol_output(
     mdtraj.Trajectory
         A trajectory containing the packed system with full connectivity.
     """
-    import mdtraj
-
     with warnings.catch_warnings():
         if structure_to_solvate is not None:
             # Catch the known warning which is fixed in the next section.
@@ -570,7 +574,7 @@ def pack_box(
     verbose=False,
     working_directory=None,
     retain_working_files=False,
-):
+) -> tuple[Topology, list[str]]:
     """Run packmol to generate a box containing a mixture of molecules.
 
     Parameters
@@ -683,11 +687,20 @@ def pack_box(
             pdb_file_name = f"{index}.pdb"
             pdb_file_names.append(pdb_file_name)
 
-            mdtraj_trajectory.save_pdb(pdb_file_name)
+            molecule.to_file(
+                pdb_file_name, file_format="PDB", toolkit_registry=RDKitToolkitWrapper()
+            )
             mdtraj_topologies.append(mdtraj_trajectory.topology)
 
             residue_name = mdtraj_trajectory.topology.residue(0).name
             assigned_residue_names.append(residue_name)
+            print(80 * "=")
+            print("PRINTING PDB FILE AS IT'S PASSED TO PACKMOL FROM INSIDE EVALUATOR")
+            print(f"Determined residue name is {residue_name}")
+            print(f"{pdb_file_name=}")
+            print(80 * "=")
+            os.system(f"cat {pdb_file_name}")
+            print(80 * "=" + "\n")
 
         # Generate the input file.
         output_file_name = "packmol_output.pdb"
@@ -714,6 +727,14 @@ def pack_box(
                 logger.info(result)
 
             packmol_succeeded = result.find("Success!") > 0
+
+        print(80 * "=")
+        print("PRINTING THE RAW PDB OUTPUT THAT PACKMOL GAVE US")
+        print(f"{output_file_name=}")
+        print(80 * "=")
+        os.system(f"cat {output_file_name}")
+        print(80 * "=")
+        print(80 * "=" + "\n")
 
         if not retain_working_files:
             os.unlink(input_file_path)
@@ -752,4 +773,10 @@ def pack_box(
     if temporary_directory and not retain_working_files:
         shutil.rmtree(working_directory)
 
-    return trajectory, assigned_residue_names
+        output_file_name = "packmol_output.pdb"
+    return (
+        Topology.from_openmm(
+            trajectory.topology.to_openmm(), unique_molecules=molecules
+        ),
+        assigned_residue_names,
+    )

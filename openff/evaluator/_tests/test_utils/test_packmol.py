@@ -3,9 +3,8 @@ Units tests for openff.evaluator.utils.packmol
 """
 
 import numpy as np
-import openmm.app
 import pytest
-from openff.toolkit import Molecule, Topology
+from openff.toolkit import ForceField, Molecule
 from openff.units import unit
 
 from openff.evaluator.utils import packmol
@@ -144,21 +143,16 @@ def test_amino_acid_residue_information():
     molecules = [Molecule.from_smiles(x) for x in smiles]
     counts = [1] * len(smiles)
 
-    trajectory, _ = packmol.pack_box(
+    topology, _ = packmol.pack_box(
         molecules, counts, box_size=([1000] * 3) * unit.angstrom
     )
 
-    assert trajectory is not None
+    for residue, smiles in zip(
+        topology.residues,
+        smiles,
+    ):
+        assert residue.residue_name == amino_residues[smiles]
 
-    assert trajectory.n_chains == len(smiles)
-    assert trajectory.n_residues == len(smiles)
-
-    for index, smiles in enumerate(smiles):
-        assert trajectory.top.residue(index).name == amino_residues[smiles]
-
-    trajectory.save_pdb("test.pdb")
-
-    # Check that the trajectory can later be read into OpenFF (via OpenMM)
-    Topology.from_openmm(
-        openmm.app.PDBFile("test.pdb").topology, unique_molecules=molecules
-    )
+    # dummy check to make sure enough chemical information is present to parametrize,
+    # even though this force field is not necessarily designed for amino acids
+    ForceField("openff_unconstrained-2.3.0-rc2.offxml").create_openmm_system(topology)
