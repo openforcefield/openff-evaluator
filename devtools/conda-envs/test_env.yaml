@@ -32,7 +32,7 @@ dependencies:
   - pyyaml
   - requests
   - python-dateutil
-  - pydantic =2
+  - pydantic =2,<2.12
   - taproom
   - dataclasses
   - pandas =2
