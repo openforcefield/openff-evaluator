@@ -261,7 +261,9 @@ def _generate_residue_name(residue, smiles) -> str:
     openff_molecule = Molecule.from_smiles(smiles, allow_undefined_stereo=True)
 
     if openff_molecule.n_atoms == 1:
-        openff_molecule.atom(0).name = openff_molecule.atom(0).metadata['residue_name'] = _ion_residue_name(openff_molecule)
+        openff_molecule.atom(0).name = openff_molecule.atom(0).metadata[
+            "residue_name"
+        ] = _ion_residue_name(openff_molecule)
 
         openff_molecule.perceive_residues()
 
