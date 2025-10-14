@@ -8,6 +8,7 @@ from enum import Enum
 from os import path
 
 import numpy as np
+from openff.toolkit import Topology
 from openff.units import unit
 from openmm import app
 
@@ -227,23 +228,20 @@ class BuildCoordinatesPackmol(Protocol):
 
         return output_substance
 
-    def _save_results(self, directory, trajectory):
+    def _save_results(self, directory: str, topology: Topology):
         """Save the results of running PACKMOL in the working directory
 
         Parameters
         ----------
-        directory: str
+        directory
             The directory to save the results in.
-        trajectory : mdtraj.Trajectory
-            The trajectory of the created system.
+        topology
+            The topology of the created system.
         """
+        self.coordinate_file_path = path.join(directory, "output.json")
 
-        # Fix mdtraj #1611
-        for atom in trajectory.topology.atoms:
-            atom.serial = None
-
-        self.coordinate_file_path = path.join(directory, "output.pdb")
-        trajectory.save_pdb(self.coordinate_file_path)
+        with open(self.coordinate_file_path, "w+") as file:
+            file.write(topology.to_json())
 
     def _execute(self, directory, available_resources):
         molecules, number_of_molecules, exception = self._build_molecule_arrays()
@@ -254,7 +252,7 @@ class BuildCoordinatesPackmol(Protocol):
         packmol_directory = path.join(directory, "packmol_files")
 
         # Create packed box
-        trajectory, residue_names = packmol.pack_box(
+        topology, residue_names = packmol.pack_box(
             molecules=molecules,
             number_of_copies=number_of_molecules,
             mass_density=self.mass_density,
@@ -270,10 +268,10 @@ class BuildCoordinatesPackmol(Protocol):
         for component, residue_name in zip(self.substance, residue_names):
             self.assigned_residue_names[component.identifier] = residue_name
 
-        if trajectory is None:
+        if topology is None:
             raise RuntimeError("Packmol failed to complete.")
 
-        self._save_results(directory, trajectory)
+        self._save_results(directory, topology)
 
 
 @workflow_protocol()
@@ -300,7 +298,7 @@ class SolvateExistingStructure(BuildCoordinatesPackmol):
         packmol_directory = path.join(directory, "packmol_files")
 
         # Create packed box
-        trajectory, residue_names = packmol.pack_box(
+        topology, residue_names = packmol.pack_box(
             molecules=molecules,
             number_of_copies=number_of_molecules,
             structure_to_solvate=self.solute_coordinate_file,
@@ -313,7 +311,7 @@ class SolvateExistingStructure(BuildCoordinatesPackmol):
             retain_working_files=self.retain_packmol_files,
         )
 
-        if trajectory is None:
+        if topology is None:
             raise RuntimeError("Packmol failed to complete.")
 
         self.assigned_residue_names = dict()
@@ -321,7 +319,7 @@ class SolvateExistingStructure(BuildCoordinatesPackmol):
         for component, residue_name in zip(self.substance, residue_names):
             self.assigned_residue_names[component.identifier] = residue_name
 
-        self._save_results(directory, trajectory)
+        self._save_results(directory, topology)
 
 
 @workflow_protocol()

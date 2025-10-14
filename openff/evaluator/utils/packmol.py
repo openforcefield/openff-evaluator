@@ -14,12 +14,12 @@ import string
 import subprocess
 import tempfile
 import warnings
-from collections import defaultdict
 from functools import reduce
 
+import mdtraj
 import numpy as np
+from openff.toolkit import Quantity, Topology, unit
 from openff.toolkit.utils.rdkit_wrapper import RDKitToolkitWrapper
-from openff.units import unit
 
 from openff.evaluator.substances import Component
 from openff.evaluator.utils.utils import temporarily_change_directory
@@ -167,7 +167,7 @@ def _approximate_box_size_by_density(
     return box_size
 
 
-def _generate_residue_name(residue, smiles):
+def _generate_residue_name(smiles: str) -> tuple[str, list[str] | None]:
     """Generates residue name for a particular residue which
     corresponds to a particular smiles pattern.
 
@@ -176,10 +176,15 @@ def _generate_residue_name(residue, smiles):
 
     Parameters
     ----------
-    residue: mdtraj.core.topology.Residue
-        The residue to assign the name to.
     smiles: str
         The SMILES pattern to generate a resiude name for.
+
+    Returns
+    -------
+    residue_name
+        The generated residue name.
+    atom names
+        A list of atom names if they need to be renamed, otherwise None.
     """
     from mdtraj.core import residue_names
     from openff.toolkit.topology import Molecule
@@ -236,34 +241,19 @@ def _generate_residue_name(residue, smiles):
 
     # Check for amino acids.
     if standardized_smiles in amino_residue_mappings:
-        residue.name = amino_residue_mappings[standardized_smiles]
-        return
+        return amino_residue_mappings[standardized_smiles], None
 
     # Check for water
     if standardized_smiles == "O":
-        residue.name = "HOH"
-
-        # Re-assign the water atom names. These need to be set to get
-        # correct CONECT statements.
-        h_counter = 1
-
-        for atom in residue.atoms:
-            if atom.element.symbol == "O":
-                atom.name = "O1"
-            else:
-                atom.name = f"H{h_counter}"
-                h_counter += 1
-
-        return
+        # TODO: May need to also rename atoms to O1, H1, H2
+        return "HOH", None
 
     # Check for ions
     openff_molecule = Molecule.from_smiles(smiles, allow_undefined_stereo=True)
 
     if openff_molecule.n_atoms == 1:
-        residue.name = _ion_residue_name(openff_molecule)
-        residue.atom(0).name = residue.name
-
-        return
+        ion_name = _ion_residue_name(openff_molecule)
+        return ion_name, [ion_name]
 
     # Randomly generate a name
     random_residue_name = "".join(
@@ -276,17 +266,11 @@ def _generate_residue_name(residue, smiles):
             [random.choice(string.ascii_uppercase) for _ in range(3)]
         )
 
-    residue.name = random_residue_name
-
-    # Assign unique atom names.
-    element_counter = defaultdict(int)
-
-    for atom in residue.atoms:
-        atom.name = f"{atom.element.symbol}{element_counter[atom.element.symbol] + 1}"
-        element_counter[atom.element.symbol] += 1
+    # TODO: May need to assign random atom names as well
+    return random_residue_name, None
 
 
-def _ion_residue_name(molecule):
+def _ion_residue_name(molecule) -> str:
     """Generates a residue name for a monatomic ion.
 
     Parameters
@@ -335,8 +319,6 @@ def _create_trajectory(molecule):
     mdtraj.Trajectory
         The created trajectory.
     """
-    import mdtraj
-
     # Check whether the molecule has a configuration defined, and if not,
     # define one.
     if molecule.n_conformers <= 0:
@@ -349,7 +331,9 @@ def _create_trajectory(molecule):
         # Toolkit's PDB writer is untrustworthy (for non-biopolymers) with OpenEyeToolktiWrapper
         # See https://github.com/openforcefield/openff-toolkit/issues/1307 and linked issues
         molecule.to_file(
-            file.name, file_format="PDB", toolkit_registry=RDKitToolkitWrapper()
+            file.name,
+            file_format="PDB",
+            toolkit_registry=RDKitToolkitWrapper(),
         )
         # Load the pdb into an mdtraj object.
         mdtraj_trajectory = mdtraj.load_pdb(file.name)
@@ -359,6 +343,10 @@ def _create_trajectory(molecule):
     # e.g. C(CO)N is not Gly) and save the altered object as a pdb.
     for residue in mdtraj_trajectory.topology.residues:
         _generate_residue_name(residue, molecule.to_smiles())
+
+    # need to set the residue name on the Molecule object as well to ensure it's written to PDB
+    for atom in molecule.atoms:
+        atom.metadata["residue_name"] = mdtraj_trajectory.topology.residue(0).name
 
     return mdtraj_trajectory
 
@@ -479,8 +467,6 @@ def _correct_packmol_output(
     mdtraj.Trajectory
         A trajectory containing the packed system with full connectivity.
     """
-    import mdtraj
-
     with warnings.catch_warnings():
         if structure_to_solvate is not None:
             # Catch the known warning which is fixed in the next section.
@@ -570,7 +556,7 @@ def pack_box(
     verbose=False,
     working_directory=None,
     retain_working_files=False,
-):
+) -> tuple[Topology, list[str]]:
     """Run packmol to generate a box containing a mixture of molecules.
 
     Parameters
@@ -678,16 +664,34 @@ def pack_box(
         mdtraj_topologies = []
 
         for index, molecule in enumerate(molecules):
-            mdtraj_trajectory = _create_trajectory(molecule)
+            residue_name, atom_names = _generate_residue_name(molecule.to_smiles())
+            assigned_residue_names.append(residue_name)
+
+            for atom in molecule.atoms:
+                atom.metadata["residue_name"] = residue_name
+
+            if atom_names is not None:
+                for atom, new_name in zip(molecule.atoms, atom_names):
+                    atom.name = new_name
+
+            molecule.add_default_hierarchy_schemes()
 
             pdb_file_name = f"{index}.pdb"
             pdb_file_names.append(pdb_file_name)
 
-            mdtraj_trajectory.save_pdb(pdb_file_name)
-            mdtraj_topologies.append(mdtraj_trajectory.topology)
+            molecule.to_file(
+                pdb_file_name,
+                file_format="PDB",
+                toolkit_registry=RDKitToolkitWrapper(),
+            )
 
-            residue_name = mdtraj_trajectory.topology.residue(0).name
-            assigned_residue_names.append(residue_name)
+            print(80 * "=")
+            print("PRINTING PDB FILE AS IT'S PASSED TO PACKMOL FROM INSIDE EVALUATOR")
+            print(f"Determined residue name is {residue_name}")
+            print(f"{pdb_file_name=}")
+            print(80 * "=")
+            os.system(f"cat {pdb_file_name}")
+            print(80 * "=" + "\n")
 
         # Generate the input file.
         output_file_name = "packmol_output.pdb"
@@ -714,6 +718,14 @@ def pack_box(
                 logger.info(result)
 
             packmol_succeeded = result.find("Success!") > 0
+
+        print(80 * "=")
+        print("PRINTING THE RAW PDB OUTPUT THAT PACKMOL GAVE US")
+        print(f"{output_file_name=}")
+        print(80 * "=")
+        os.system(f"cat {output_file_name}")
+        print(80 * "=")
+        print(80 * "=" + "\n")
 
         if not retain_working_files:
             os.unlink(input_file_path)
@@ -752,4 +764,13 @@ def pack_box(
     if temporary_directory and not retain_working_files:
         shutil.rmtree(working_directory)
 
-    return trajectory, assigned_residue_names
+        output_file_name = "packmol_output.pdb"
+
+    topology = Topology.from_openmm(
+        trajectory.topology.to_openmm(), unique_molecules=molecules
+    )
+
+    # box vectors don't survive MDTraj -> OpenMM -> Topology conversion
+    topology.box_vectors = Quantity(box_size, "nanometer")
+
+    return topology, assigned_residue_names
