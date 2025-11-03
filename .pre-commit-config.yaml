@@ -9,7 +9,7 @@ repos:
   - id: black-jupyter
     files: ^docs/tutorials
 - repo: https://github.com/PyCQA/isort
-  rev: 6.1.0
+  rev: 7.0.0
   hooks:
   - id: isort
 - repo: https://github.com/PyCQA/flake8
@@ -31,6 +31,6 @@ repos:
     - id: nbstripout
       files: ^docs/tutorial
 - repo: https://github.com/tox-dev/pyproject-fmt
-  rev: v2.7.0
+  rev: v2.11.0
   hooks:
     - id: pyproject-fmt
