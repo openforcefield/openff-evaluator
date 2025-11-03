@@ -32,6 +32,7 @@ jobs:
         python-version:
           - "3.13"
         pymbar-version:
+          - "3.1"
           - "4"
         openmm-version:
           - "8"
