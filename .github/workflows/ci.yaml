@@ -89,7 +89,11 @@ jobs:
         run: python -m pip install . utilities/test_plugins/
 
       - name: Run tests
-        run: python -m pytest --cov=openff openff/evaluator/_tests/ --cov-report=xml --color=yes
+        run: |
+          python -c "from openff.units import *"
+          python -c "from openff.toolkit import *"
+          python -c "from openff.interchange import *"
+          python -m pytest --cov=openff openff/evaluator/_tests/ --cov-report=xml --color=yes
 
       - name: Run (non-GPU) tutorials
         if: ${{ matrix.pymbar-version == 3.1 }}
