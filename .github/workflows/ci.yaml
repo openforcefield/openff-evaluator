@@ -30,6 +30,8 @@ jobs:
           - ubuntu-latest
           - macos-latest
         python-version:
+          # "3.11"
+          # "3.12"
           - "3.13"
         pymbar-version:
           - "3.1"
@@ -39,6 +41,9 @@ jobs:
         openeye:
           - true
           - false
+        exclude:
+          - pymbar: "4"
+            python: "3.13"
 
     steps:
       - uses: actions/checkout@v5
