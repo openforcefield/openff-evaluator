@@ -42,8 +42,8 @@ jobs:
           - true
           - false
         exclude:
-          - pymbar: 4
-            python: 3.13
+          - pymbar-version: 4
+            python-version: 3.13
 
     steps:
       - uses: actions/checkout@v5
