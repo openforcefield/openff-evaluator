@@ -20,8 +20,8 @@ dependencies:
   - pint >=0.21,<0.25
 
     # Standard dependencies
-  - openff-toolkit ~=0.16.0
-  - openff-interchange ~=0.4.0
+  - openff-toolkit
+  - openff-interchange
   - openmm
   - pymbar
   - dask >=2.7.0
