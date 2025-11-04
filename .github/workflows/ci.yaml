@@ -31,15 +31,22 @@ jobs:
           - ubuntu-latest
           - macos-latest
         python-version:
-          - "3.11"
-          - "3.12"
+          - 3.11
+          - 3.12
+          - 3.13
         pymbar-version:
           - "3.1"
+          - "4"
         openmm-version:
           - "8"
         openeye:
           - true
           - false
+        exclude:
+          - pymbar-version: 3.1
+            python-version: 3.13
+          - openeye: true
+            python-version: 3.13
 
     steps:
       - uses: actions/checkout@v5
