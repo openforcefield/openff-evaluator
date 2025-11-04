@@ -44,6 +44,8 @@ jobs:
         exclude:
           - pymbar-version: 3.1
             python-version: 3.13
+          - openeye: true
+            python-version: 3.13
 
     steps:
       - uses: actions/checkout@v5
