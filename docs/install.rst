@@ -46,7 +46,7 @@ Create a custom conda environment which contains the required dependencies and a
     conda env create --name openff-evaluator --file devtools/conda-envs/test_env.yaml
     conda activate openff-evaluator
 
-Finally, install the estimator itself::
+Finally, install the package itself::
 
-    python setup.py develop
+    python -m pip install -e .
 

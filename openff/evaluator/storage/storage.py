@@ -313,7 +313,7 @@ class StorageBackend(abc.ABC):
         raise NotImplementedError()
 
     def retrieve_object(self, storage_key, expected_type=None):
-        """Retrieves a stored object for the estimators storage system.
+        """Retrieves a stored object for the storage system.
 
         Parameters
         ----------
