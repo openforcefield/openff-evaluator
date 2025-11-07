@@ -363,7 +363,7 @@ class CalculationBackend(abc.ABC):
 
     Notes
     -----
-    All estimator backend classes must inherit from this class, and must implement the
+    All Evaluator backend classes must inherit from this class, and must implement the
     `start`, `stop`, and `submit_task` method.
     """
 

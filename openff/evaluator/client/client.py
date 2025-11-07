@@ -309,7 +309,7 @@ class EvaluatorClient:
     server can be connect to be creating an `EvaluatorClient`:
 
     >>> from openff.evaluator.client import EvaluatorClient
-    >>> property_estimator = EvaluatorClient()
+    >>> client = EvaluatorClient()
 
     If the `EvaluatorServer` is not running on the local machine, you will
     need to specify its address and the port that it is listening on:
@@ -318,7 +318,7 @@ class EvaluatorClient:
     >>>
     >>> connection_options = ConnectionOptions(server_address='server_address',
     >>>                                        server_port=8000)
-    >>> property_estimator = EvaluatorClient(connection_options)
+    >>> client = EvaluatorClient(connection_options)
 
     To asynchronously submit a request to the running server using the default
     estimation options:
@@ -342,7 +342,7 @@ class EvaluatorClient:
     >>> force_field_source = SmirnoffForceFieldSource.from_path('smirnoff99Frosst-1.1.0.offxml')
     >>>
     >>> # Submit the estimation request to a running server.
-    >>> request = property_estimator.request_estimate(data_set, force_field_source)
+    >>> request = client.request_estimate(data_set, force_field_source)
 
     The status of the request can be asynchronously queried by calling
 
@@ -367,7 +367,7 @@ class EvaluatorClient:
     >>>     "SimulationLayer"
     >>> ])
     >>>
-    >>> request = property_estimator.request_estimate(data_set, force_field_source, options)
+    >>> request = client.request_estimate(data_set, force_field_source, options)
 
     Options for how properties should be estimated can be set on a per property, and per layer
     basis by providing a calculation schema to the options object.
@@ -386,7 +386,7 @@ class EvaluatorClient:
     >>>     'Dielectric': {'SimulationLayer': dielectric_reweighting_schema}
     >>> }
     >>>
-    >>> property_estimator.request_estimate(
+    >>> client.request_estimate(
     >>>     data_set,
     >>>     force_field_source,
     >>>     options,
@@ -405,7 +405,7 @@ class EvaluatorClient:
     >>>     ParameterGradientKey('Angles', '[*:1]-[#8:2]-[*:3]', 'angle')
     >>> ]
     >>>
-    >>> property_estimator.request_estimate(
+    >>> client.request_estimate(
     >>>     data_set,
     >>>     force_field_source,
     >>>     options,
@@ -654,7 +654,7 @@ class EvaluatorClient:
         force_field_source : ForceFieldSource or openff.toolkit.typing.engines.smirnoff.ForceField
             The force field parameters to estimate the properties using.
         options : RequestOptions, optional
-            A set of estimator options. If `None` default options
+            A set of evaluator options. If `None` default options
             will be used (see `default_request_options`).
         parameter_gradient_keys: list of ParameterGradientKey, optional
             A list of the parameters that the physical properties should

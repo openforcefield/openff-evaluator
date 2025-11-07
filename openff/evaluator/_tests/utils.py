@@ -223,8 +223,7 @@ def create_filterable_data_set():
 
 def build_tip3p_smirnoff_force_field():
     """Combines the smirnoff99Frosst and tip3p offxml files
-    into a single one which can be consumed by the property
-    estimator.
+    into a single one which can be consumed by the framework.
 
     Returns
     -------
