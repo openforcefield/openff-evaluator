@@ -49,7 +49,7 @@ jobs:
             python-version: 3.13
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Setup Conda Environment
         uses: mamba-org/setup-micromamba@v2
