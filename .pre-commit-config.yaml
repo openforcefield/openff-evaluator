@@ -3,7 +3,7 @@ ci:
 files: (^pyproject.toml|openff|^utilities|^integration-tests)
 repos:
 - repo: https://github.com/psf/black-pre-commit-mirror
-  rev: 25.9.0
+  rev: 25.11.0
   hooks:
   - id: black
   - id: black-jupyter
@@ -26,11 +26,11 @@ repos:
     - id: nbqa-isort
       files: ^docs/tutorial
 - repo: https://github.com/kynan/nbstripout
-  rev: 0.8.1
+  rev: 0.8.2
   hooks:
     - id: nbstripout
       files: ^docs/tutorial
 - repo: https://github.com/tox-dev/pyproject-fmt
-  rev: v2.11.0
+  rev: v2.11.1
   hooks:
     - id: pyproject-fmt
