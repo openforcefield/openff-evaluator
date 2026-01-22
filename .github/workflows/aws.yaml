@@ -48,7 +48,7 @@ jobs:
       - name: Setup Conda Environment
         uses: mamba-org/setup-micromamba@v2
         with:
-          environment-file: devtools/conda-envs/test_env.yaml
+          environment-file: devtools/conda-envs/aws.yaml
 
       - name: Install Package and test plugins
         run: python -m pip install . utilities/test_plugins/
