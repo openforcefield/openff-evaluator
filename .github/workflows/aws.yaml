@@ -1,4 +1,4 @@
-name: Test Self-Hosted Runner
+name: Run integration tests on GPU-enabled AWS image
 on:
   workflow_dispatch:
   pull_request:
