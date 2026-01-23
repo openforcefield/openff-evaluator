@@ -29,6 +29,7 @@ jobs:
         with:
           aws_image_id: ami-0d5079d9be06933e5
           aws_instance_type: g4dn.xlarge
+          aws_root_device_size: 125
           aws_home_dir: /home/ubuntu
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
