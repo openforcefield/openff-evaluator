@@ -13,9 +13,9 @@ Releases follow the ``major.minor.micro`` scheme recommended by
 
 * PR `#584 <https://github.com/openforcefield/openff-evaluator/pull/584>`_: Use Pydantic v2 at runtime
 * PR `#685 <https://github.com/openforcefield/openff-evaluator/pull/685>`_: Fix some bugs in Pydantic validators of some filtering schemas
-* PR `#676 <https://github.com/openforcefield/openff-evaluator/pull/676>`_: Add `error_on_failure` keyword argument
+* PR `#676 <https://github.com/openforcefield/openff-evaluator/pull/676>`_: Add ``error_on_failure`` keyword argument
 * PR `#678 <https://github.com/openforcefield/openff-evaluator/pull/678>`_: Test on Python 3.13
-* PR `#682 <https://github.com/openforcefield/openff-evaluator/pull/682>`_: Prototype new hashing function for ``PhysicalProperty``s
+* PR `#682 <https://github.com/openforcefield/openff-evaluator/pull/682>`_: Prototype new hashing function for ``PhysicalProperty`` 
 * PR `#703 <https://github.com/openforcefield/openff-evaluator/pull/703>`_: Update project configuration
 * PR `#712 <https://github.com/openforcefield/openff-evaluator/pull/712>`_: Update installation documentaiton
 
