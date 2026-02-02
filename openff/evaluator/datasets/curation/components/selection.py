@@ -705,6 +705,7 @@ class SelectDataPoints(CurationComponent):
         selected_data = pandas.concat(selected_data, ignore_index=True, sort=False)
         return selected_data
 
+
 class SelectNumRepresentationSchema(CurationComponentSchema):
     type: Literal["SelectNumRepresentation"] = "SelectNumRepresentation"
 
@@ -731,11 +732,13 @@ class SelectNumRepresentationSchema(CurationComponentSchema):
         "will be considered the same as a mixture of 2 components with 1:2 mole fraction.",
     )
 
+
 class SelectNumRepresentation(CurationComponent):
     """
     A component for selecting components or substances which are represented
     at least a specified number of times in the data set.
     """
+
     @classmethod
     def _apply(
         cls,
@@ -746,16 +749,22 @@ class SelectNumRepresentation(CurationComponent):
         import math
 
         if schema.per_component:
+
             def update_counter_per_row(row, counter):
                 n_components = row["N Components"]
                 for index in range(n_components):
                     smiles = row[f"Component {index + 1}"]
                     counter[smiles] += 1
+
         else:
+
             def update_counter_per_row(row, counter):
                 smiles = tuple(
                     sorted(
-                        [row[f"Component {index + 1}"] for index in range(row["N Components"])]
+                        [
+                            row[f"Component {index + 1}"]
+                            for index in range(row["N Components"])
+                        ]
                     )
                 )
                 counter[smiles] += 1
@@ -763,7 +772,7 @@ class SelectNumRepresentation(CurationComponent):
         max_repr = schema.maximum_representation
         if schema.maximum_representation < 0:
             max_repr = math.inf
-        
+
         counter = collections.Counter()
         for _, row in data_frame.iterrows():
             update_counter_per_row(row, counter)
@@ -772,8 +781,9 @@ class SelectNumRepresentation(CurationComponent):
         for smiles, count in counter.items():
             if count >= schema.minimum_representation and count <= max_repr:
                 allowed_smiles.add(smiles)
-        
+
         if schema.per_component:
+
             def filter_function(row):
                 n_components = row["N Components"]
                 for index in range(n_components):
@@ -781,11 +791,16 @@ class SelectNumRepresentation(CurationComponent):
                     if smiles not in allowed_smiles:
                         return False
                 return True
+
         else:
+
             def filter_function(row):
                 smiles = tuple(
                     sorted(
-                        [row[f"Component {index + 1}"] for index in range(row["N Components"])]
+                        [
+                            row[f"Component {index + 1}"]
+                            for index in range(row["N Components"])
+                        ]
                     )
                 )
                 return smiles in allowed_smiles
@@ -793,4 +808,7 @@ class SelectNumRepresentation(CurationComponent):
         filtered_data = data_frame[data_frame.apply(filter_function, axis=1)]
         return filtered_data
 
-SelectionComponentSchema = Union[SelectSubstancesSchema, SelectDataPointsSchema, SelectNumRepresentationSchema]
+
+SelectionComponentSchema = Union[
+    SelectSubstancesSchema, SelectDataPointsSchema, SelectNumRepresentationSchema
+]
