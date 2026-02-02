@@ -606,7 +606,7 @@ def generate_equilibration_protocols(
         "parameterized_system", assign_parameters.id
     )
 
-    (conditional_group, equilibration_simulation, statistical_inefficiency_protocol) = (
+    conditional_group, equilibration_simulation, statistical_inefficiency_protocol = (
         generate_conditional_equilibration_protocols(
             energy_minimisation=energy_minimisation,
             assign_parameters=assign_parameters,
