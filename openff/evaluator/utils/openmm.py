@@ -235,11 +235,29 @@ def system_subset(
 
     handler = force_field_subset.get_parameter_handler(parameter_key.tag)
 
-    parameter = (
-        handler
-        if parameter_key.smirks is None
-        else handler.parameters[parameter_key.smirks]
-    )
+    if parameter_key.tag == "VirtualSites":
+        # treat `smirks` as actually `smirks/type/name/match`
+        matches = [
+            vsite
+            for vsite in handler.parameters
+            if all(
+                [
+                    getattr(vsite, attr) == value
+                    for attr, value in zip(
+                        ["smirks", "type", "name", "match"],
+                        parameter_key.smirks.split("/"),
+                    )
+                ]
+            )
+        ]
+        assert len(matches) == 1, "Expected exactly one matching virtual site."
+        parameter = matches[0]
+    else:
+        parameter = (
+            handler
+            if parameter_key.smirks is None
+            else handler.parameters[parameter_key.smirks]
+        )
 
     parameter_value = getattr(parameter, parameter_key.attribute)
     is_quantity = isinstance(parameter_value, unit.Quantity)
