@@ -223,6 +223,10 @@ def system_subset(
             },
         )
 
+    if parameter_key.tag in {"Bonds", "Angles", "ProperTorsions", "ImproperTorsions", "Constraints"}:
+        # Also need to include vdW interactions to get particles
+        handlers_to_register.add("vdW")
+
     registered_handlers = force_field.registered_parameter_handlers
 
     for handler_to_register in handlers_to_register:
