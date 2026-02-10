@@ -4,7 +4,7 @@ channels:
 dependencies:
     # Base depends
     - python =3.11
-    - setuptools
+    - setuptools =81
     - pip
 
     # Standard dependencies
