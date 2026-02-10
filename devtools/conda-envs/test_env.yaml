@@ -4,6 +4,7 @@ channels:
 dependencies:
     # Base depends
   - python
+  - setuptools =81
   - pip
 
     # Testing and development
