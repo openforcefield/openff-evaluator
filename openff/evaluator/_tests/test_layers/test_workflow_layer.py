@@ -56,7 +56,7 @@ def test_workflow_layer():
 
             # Set-up a simple storage backend and add a force field to it.
             force_field = SmirnoffForceFieldSource.from_path(
-                "smirnoff99Frosst-1.1.0.offxml"
+                "openff-2.2.1.offxml"
             )
 
             storage_backend = LocalFileStorage()

@@ -50,7 +50,7 @@ def test_force_field_storage():
     retrieved using the local storage backend."""
 
     force_field_source = SmirnoffForceFieldSource.from_path(
-        "smirnoff99Frosst-1.1.0.offxml"
+        "openff-2.2.1.offxml"
     )
 
     with tempfile.TemporaryDirectory() as temporary_directory:
