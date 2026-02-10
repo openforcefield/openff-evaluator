@@ -14,10 +14,10 @@ from openff.evaluator.datasets.curation.components.selection import (
     FingerPrintType,
     SelectDataPoints,
     SelectDataPointsSchema,
-    SelectSubstances,
-    SelectSubstancesSchema,
     SelectNumRepresentation,
     SelectNumRepresentationSchema,
+    SelectSubstances,
+    SelectSubstancesSchema,
     State,
     TargetState,
 )
@@ -349,8 +349,7 @@ def test_select_num_representation():
 
     # test minimum and maximum for mixtures
     schema = SelectNumRepresentationSchema(
-        minimum_representation=2, maximum_representation=2,
-        per_component=False
+        minimum_representation=2, maximum_representation=2, per_component=False
     )
     selected_data_frame = SelectNumRepresentation.apply(data_frame, schema, 1)
     assert len(selected_data_frame) == 2
@@ -360,8 +359,7 @@ def test_select_num_representation():
 
     # test no maximum
     schema = SelectNumRepresentationSchema(
-        minimum_representation=2,
-        per_component=False
+        minimum_representation=2, per_component=False
     )
     selected_data_frame = SelectNumRepresentation.apply(data_frame, schema, 1)
     assert len(selected_data_frame) == 8
@@ -369,24 +367,17 @@ def test_select_num_representation():
     assert all(selected_data_frame["Component 2"].isin(["CCN", "CCF"]))
 
     # test per_component
-    schema = SelectNumRepresentationSchema(
-        minimum_representation=3,
-        per_component=True
-    )
+    schema = SelectNumRepresentationSchema(minimum_representation=3, per_component=True)
     selected_data_frame = SelectNumRepresentation.apply(data_frame, schema, 1)
     assert len(selected_data_frame) == 9
     assert not any(selected_data_frame["Component 1"] == "CCO")
     assert not any(selected_data_frame["Component 2"] == "CCO")
 
-    schema = SelectNumRepresentationSchema(
-        maximum_representation=2,
-        per_component=True
-    )
+    schema = SelectNumRepresentationSchema(maximum_representation=2, per_component=True)
     selected_data_frame = SelectNumRepresentation.apply(data_frame, schema, 1)
     assert len(selected_data_frame) == 1
     assert selected_data_frame["Component 1"].iloc[0] == "CCO"
     assert selected_data_frame["N Components"].iloc[0] == 1
-
 
 
 @pytest.mark.skipif(
