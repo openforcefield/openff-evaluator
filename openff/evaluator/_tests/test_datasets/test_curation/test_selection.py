@@ -16,6 +16,8 @@ from openff.evaluator.datasets.curation.components.selection import (
     SelectDataPointsSchema,
     SelectSubstances,
     SelectSubstancesSchema,
+    SelectNumRepresentation,
+    SelectNumRepresentationSchema,
     State,
     TargetState,
 )
@@ -327,6 +329,64 @@ def test_select_substances_per_property():
         len(selected_data_frame[selected_data_frame["Enthalpy Value (g / ml)"].notna()])
         == 1
     )
+
+
+def test_select_num_representation():
+    data_rows = [
+        {"N Components": 1, "Component 1": "C"},
+        {"N Components": 1, "Component 1": "CCO"},
+        {"N Components": 1, "Component 1": "CCN"},
+        {"N Components": 1, "Component 1": "CCN"},
+        {"N Components": 1, "Component 1": "CCN"},
+        {"N Components": 2, "Component 1": "C", "Component 2": "CCO"},
+        {"N Components": 2, "Component 1": "C", "Component 2": "CCN"},
+        {"N Components": 2, "Component 1": "C", "Component 2": "CCN"},
+        {"N Components": 2, "Component 1": "C", "Component 2": "CCF"},
+        {"N Components": 2, "Component 1": "C", "Component 2": "CCF"},
+        {"N Components": 2, "Component 1": "C", "Component 2": "CCF"},
+    ]
+    data_frame = pandas.DataFrame(data_rows)
+
+    # test minimum and maximum for mixtures
+    schema = SelectNumRepresentationSchema(
+        minimum_representation=2, maximum_representation=2,
+        per_component=False
+    )
+    selected_data_frame = SelectNumRepresentation.apply(data_frame, schema, 1)
+    assert len(selected_data_frame) == 2
+    assert all(selected_data_frame["N Components"] == 2)
+    assert all(selected_data_frame["Component 2"] == "CCN")
+    assert all(selected_data_frame["Component 1"] == "C")
+
+    # test no maximum
+    schema = SelectNumRepresentationSchema(
+        minimum_representation=2,
+        per_component=False
+    )
+    selected_data_frame = SelectNumRepresentation.apply(data_frame, schema, 1)
+    assert len(selected_data_frame) == 8
+    assert all(selected_data_frame["Component 1"].isin(["C", "CCN"]))
+    assert all(selected_data_frame["Component 2"].isin(["CCN", "CCF"]))
+
+    # test per_component
+    schema = SelectNumRepresentationSchema(
+        minimum_representation=3,
+        per_component=True
+    )
+    selected_data_frame = SelectNumRepresentation.apply(data_frame, schema, 1)
+    assert len(selected_data_frame) == 9
+    assert not any(selected_data_frame["Component 1"] == "CCO")
+    assert not any(selected_data_frame["Component 2"] == "CCO")
+
+    schema = SelectNumRepresentationSchema(
+        maximum_representation=2,
+        per_component=True
+    )
+    selected_data_frame = SelectNumRepresentation.apply(data_frame, schema, 1)
+    assert len(selected_data_frame) == 1
+    assert selected_data_frame["Component 1"].iloc[0] == "CCO"
+    assert selected_data_frame["N Components"].iloc[0] == 1
+
 
 
 @pytest.mark.skipif(
