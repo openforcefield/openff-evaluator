@@ -38,9 +38,7 @@ def test_default_options():
     """Test creating the default estimation options."""
 
     data_set = PhysicalPropertyDataSet()
-    force_field_source = SmirnoffForceFieldSource.from_path(
-        "openff-2.2.1.offxml"
-    )
+    force_field_source = SmirnoffForceFieldSource.from_path("openff-2.2.1.offxml")
 
     for property_type in property_types:
         physical_property = create_dummy_property(property_type)
