@@ -363,8 +363,8 @@ def test_select_num_representation():
     )
     selected_data_frame = SelectNumRepresentation.apply(data_frame, schema, 1)
     assert len(selected_data_frame) == 8
-    assert all(selected_data_frame["Component 1"].isin(["C", "CCN"]))
-    assert all(selected_data_frame["Component 2"].isin(["CCN", "CCF"]))
+    assert selected_data_frame["Component 1"].values.tolist() == ["CCN"] * 3 + ["C"] * 5
+    assert selected_data_frame["Component 2"].values.tolist() == [pandas.NA] * 3 + ["CCN"] * 2 + ["CCF"] * 3
 
     # test per_component
     schema = SelectNumRepresentationSchema(minimum_representation=3, per_component=True)
