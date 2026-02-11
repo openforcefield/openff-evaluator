@@ -208,7 +208,7 @@ def system_subset(
                 "LibraryCharges",
                 "VirtualSiteHandler",
                 "ToolkitAM1BCC",
-                "NAGLCharges"
+                "NAGLCharges",
             }
         )
 
@@ -224,7 +224,13 @@ def system_subset(
             },
         )
 
-    if parameter_key.tag in {"Bonds", "Angles", "ProperTorsions", "ImproperTorsions", "Constraints"}:
+    if parameter_key.tag in {
+        "Bonds",
+        "Angles",
+        "ProperTorsions",
+        "ImproperTorsions",
+        "Constraints",
+    }:
         # Also need to include vdW interactions to get particles
         handlers_to_register.add("vdW")
 
