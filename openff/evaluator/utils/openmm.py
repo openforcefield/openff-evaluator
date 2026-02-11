@@ -208,6 +208,7 @@ def system_subset(
                 "LibraryCharges",
                 "VirtualSiteHandler",
                 "ToolkitAM1BCC",
+                "NAGLCharges"
             }
         )
 
@@ -222,6 +223,10 @@ def system_subset(
                 "Constraints",
             },
         )
+
+    if parameter_key.tag in {"Bonds", "Angles", "ProperTorsions", "ImproperTorsions", "Constraints"}:
+        # Also need to include vdW interactions to get particles
+        handlers_to_register.add("vdW")
 
     registered_handlers = force_field.registered_parameter_handlers
 
