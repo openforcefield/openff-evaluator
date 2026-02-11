@@ -364,7 +364,7 @@ def test_select_num_representation():
     selected_data_frame = SelectNumRepresentation.apply(data_frame, schema, 1)
     assert len(selected_data_frame) == 8
     assert selected_data_frame["Component 1"].values.tolist() == ["CCN"] * 3 + ["C"] * 5
-    
+
     component_2_values = selected_data_frame["Component 2"].values.tolist()
     expected_values = [pandas.NA] * 3 + ["CCN"] * 2 + ["CCF"] * 3
     assert len(component_2_values) == len(expected_values)
