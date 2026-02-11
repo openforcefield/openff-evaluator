@@ -313,7 +313,9 @@ def test_find_relevant_gradient_keys(tmp_path):
         [
             *expected_gradient_keys,
             ParameterGradientKey(tag="vdW", smirks="[#6:1]", attribute="sigma"),
-            ParameterGradientKey(tag="LibraryCharges", smirks="[#5:1]", attribute="charge"),
+            ParameterGradientKey(
+                tag="LibraryCharges", smirks="[#5:1]", attribute="charge"
+            ),
         ],
     )
 
