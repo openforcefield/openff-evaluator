@@ -220,6 +220,7 @@ def hydrogen_chloride_force_field(
             {
                 "smirks": "[#1:1]-[#17:2]",
                 "type": "BondCharge",
+                "name": "EP",
                 "distance": 0.1 * unit.nanometers,
                 "match": "all_permutations",
                 "charge_increment1": 0.0 * unit.elementary_charge,
@@ -552,3 +553,87 @@ def test_extract_atom_indices():
 
     assert system.getNumParticles() == 3
     assert extract_atom_indices(system) == [0, 1]
+
+
+def test_system_subset_virtual_site_smirks_format():
+    """Test the new virtual site parameter selection using smirks/type/name/match format.
+    
+    This tests the new code (lines 239-257 in openmm.py) that handles virtual site
+    parameter keys with the special format "smirks/type/name/match" instead of just smirks.
+    """
+    from openff.toolkit.typing.engines.smirnoff import ForceField
+    
+    # Create force field with multiple virtual sites that have the same SMIRKS but different types
+    force_field = hydrogen_chloride_force_field(library_charge=True, charge_increment=False, vsite=True)
+    
+    # Create a dummy topology
+    topology: Topology = Molecule.from_mapped_smiles("[Cl:1][H:2]").to_topology()
+    
+    # Test with the NEW smirks/type/name/match format
+    system, parameter_value = system_subset(
+        parameter_key=ParameterGradientKey(
+            "VirtualSites",
+            "[#1:1]-[#17:2]/BondCharge/EP/all_permutations",  # New format!
+            "distance"
+        ),
+        force_field=force_field,
+        topology=topology,
+        scale_amount=0.5,
+    )
+    
+    # Verify the system was created correctly
+    assert system.getNumParticles() == 3  # 2 atoms + 1 virtual site
+    
+    # Verify the parameter value was extracted and perturbed
+    expected_value = 0.1 * 1.5  # 0.1 nm * (1.0 + 0.5)
+    assert numpy.isclose(parameter_value.to(unit.nanometer).magnitude, expected_value, atol=1e-6)
+
+
+def test_system_subset_virtual_site_multiple_matches():
+    """Test that the new virtual site selection correctly identifies unique parameters.
+    
+    This tests that when multiple virtual sites exist with the same SMIRKS but different
+    attributes, the smirks/type/name/match format correctly selects exactly one.
+    """
+    from openff.toolkit.typing.engines.smirnoff import ForceField
+    
+    force_field = hydrogen_chloride_force_field(True, False, True)
+    
+    vsite_handler = force_field.get_parameter_handler("VirtualSites")
+    
+    # add another bond charge virtual site 
+
+    vsite_handler.add_parameter(
+        {
+            "smirks": "[#1:1]-[#17:2]",
+            "type": "BondCharge",
+            "name": "EP2",
+            "distance": 0.3 * unit.nanometers,
+            "match": "all_permutations",
+            "charge_increment1": 0.0 * unit.elementary_charge,
+            "charge_increment2": 0.0 * unit.elementary_charge,
+        }
+    )
+
+    
+    # Create a dummy topology
+    topology: Topology = Molecule.from_mapped_smiles("[Cl:1][H:2]").to_topology()
+    
+    # Test with the NEW smirks/type/name/match format
+    system, parameter_value = system_subset(
+        parameter_key=ParameterGradientKey(
+            "VirtualSites",
+            "[#1:1]-[#17:2]/BondCharge/EP2/all_permutations",  # New format!
+            "distance"
+        ),
+        force_field=force_field,
+        topology=topology,
+        scale_amount=0.5,
+    )
+    
+    # Verify the system was created correctly
+    assert system.getNumParticles() == 4  # 2 atoms + 2 virtual sites
+    
+    # Verify the parameter value was extracted and perturbed
+    expected_value = 0.3 * 1.5  # 0.3 nm * (1.0 + 0.5)
+    assert numpy.isclose(parameter_value.to(unit.nanometer).magnitude, expected_value, atol=1e-6)
