@@ -34,5 +34,8 @@ dependencies:
     - pandoc
     - ipython
 
+    # Shim
+    - xmltodict !=1.0.3
+
     - pip:
       - git+https://github.com/openforcefield/openff-sphinx-theme.git@main
