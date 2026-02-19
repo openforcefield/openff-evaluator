@@ -287,7 +287,7 @@ def test_find_relevant_gradient_keys(tmp_path):
     )
     force_field.register_parameter_handler(vsite_handler)
 
-    # add constraints to test empty topology labels
+    # add librarycharges to test empty topology labels
     lc_handler = force_field.get_parameter_handler("LibraryCharges")
     lc_handler.add_parameter(
         {
