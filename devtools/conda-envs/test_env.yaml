@@ -21,7 +21,7 @@ dependencies:
   - pint >=0.21,<0.25
 
     # Standard dependencies
-  - openff-toolkit
+  - openff-toolkit-base =0.18
   - openmm
   - pymbar
   - dask >=2.7.0
@@ -37,3 +37,6 @@ dependencies:
   - taproom
   - dataclasses
   - pandas =2
+
+  - pip:
+    - git+https://github.com/openforcefield/openff-interchange.git@main
