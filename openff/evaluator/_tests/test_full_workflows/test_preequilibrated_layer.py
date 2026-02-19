@@ -217,7 +217,7 @@ class TestPreequilibratedSimulationLayer:
         """
         Test the full workflow with a server
         """
-        force_field_path = "openff-2.1.0.offxml"
+        force_field_path = "openff-2.3.0.offxml"
         force_field_source = SmirnoffForceFieldSource.from_path(force_field_path)
 
         os.chdir(dhmix_density_CCCO)

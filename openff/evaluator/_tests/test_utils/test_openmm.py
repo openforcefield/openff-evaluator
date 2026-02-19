@@ -445,7 +445,7 @@ def test_compute_gradients(tmp_path, smirks, all_zeros):
             )
         ],
         observables,
-        ForceField("openff-1.2.0.offxml"),
+        ForceField("openff-2.3.0.offxml"),
         ThermodynamicState(298.15 * unit.kelvin, 1.0 * unit.atmosphere),
         Topology.from_mdtraj(trajectory.topology, [Molecule.from_smiles("O")]),
         trajectory,

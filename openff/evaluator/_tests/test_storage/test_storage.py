@@ -49,7 +49,7 @@ def test_force_field_storage():
     """A simple test to that force fields can be stored and
     retrieved using the local storage backend."""
 
-    force_field_source = SmirnoffForceFieldSource.from_path("openff-2.2.1.offxml")
+    force_field_source = SmirnoffForceFieldSource.from_path("openff-2.3.0.offxml")
 
     with tempfile.TemporaryDirectory() as temporary_directory:
         local_storage = LocalFileStorage(temporary_directory)

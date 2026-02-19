@@ -313,7 +313,7 @@ def test_find_relevant_gradient_keys(tmp_path):
 
 def test_generate_default_metadata_defaults():
     dummy_property = create_dummy_property(Density)
-    dummy_forcefield = "openff-2.2.1.offxml"
+    dummy_forcefield = "openff-2.3.0.offxml"
 
     data = Workflow.generate_default_metadata(dummy_property, dummy_forcefield)
 
