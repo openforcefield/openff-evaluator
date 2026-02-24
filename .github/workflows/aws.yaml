@@ -35,6 +35,7 @@ jobs:
           GH_PAT: ${{ secrets.GH_PAT }}
   self-hosted-test:
     runs-on: self-hosted
+    timeout-minutes: 3
     needs:
       - start-aws-runner
     steps:
