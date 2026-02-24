@@ -37,3 +37,6 @@ dependencies:
   - taproom
   - dataclasses
   - pandas =2
+
+    # Pip dependencies
+  - pip::git+https://github.com/openforcefield/interchange.git@main
