@@ -1,3 +1,4 @@
+import collections
 import functools
 import itertools
 from enum import Enum
@@ -705,4 +706,109 @@ class SelectDataPoints(CurationComponent):
         return selected_data
 
 
-SelectionComponentSchema = Union[SelectSubstancesSchema, SelectDataPointsSchema]
+class SelectNumRepresentationSchema(CurationComponentSchema):
+    type: Literal["SelectNumRepresentation"] = "SelectNumRepresentation"
+
+    minimum_representation: int = Field(
+        default=1,
+        description="The minimum number of times a component or ssubstance should be represented "
+        "in the data set. If a component is represented less than this number of times, it will be "
+        "removed from the data set.",
+    )
+    maximum_representation: int = Field(
+        default=-1,
+        description="The maximum number of times a component or substance should be represented "
+        "in the data set. If a component is represented more than this number of times, it will be "
+        "removed from the data set. If this value is negative, no maximum is applied.",
+    )
+
+    per_component: bool = Field(
+        default=False,
+        description="Whether the selection should be applied per component (e.g. "
+        "select components which are represented at least `minimum_representation` times) "
+        "or per substance (e.g. select mixtures which are represented at least "
+        "`minimum_representation` times). Note that the proportion of each component in the mixture "
+        "is not considered in this selection, so a mixture of 2 components with 1:1 mole fraction "
+        "will be considered the same as a mixture of 2 components with 1:2 mole fraction.",
+    )
+
+
+class SelectNumRepresentation(CurationComponent):
+    """
+    A component for selecting components or substances which are represented
+    at least a specified number of times in the data set.
+    """
+
+    @classmethod
+    def _apply(
+        cls,
+        data_frame: pandas.DataFrame,
+        schema: SelectNumRepresentationSchema,
+        n_processes,
+    ) -> pandas.DataFrame:
+        import math
+
+        if schema.per_component:
+
+            def update_counter_per_row(row, counter):
+                n_components = row["N Components"]
+                for index in range(n_components):
+                    smiles = row[f"Component {index + 1}"]
+                    counter[smiles] += 1
+
+        else:
+
+            def update_counter_per_row(row, counter):
+                smiles = tuple(
+                    sorted(
+                        [
+                            row[f"Component {index + 1}"]
+                            for index in range(row["N Components"])
+                        ]
+                    )
+                )
+                counter[smiles] += 1
+
+        max_repr = schema.maximum_representation
+        if schema.maximum_representation < 0:
+            max_repr = math.inf
+
+        counter = collections.Counter()
+        for _, row in data_frame.iterrows():
+            update_counter_per_row(row, counter)
+
+        allowed_smiles = set()
+        for smiles, count in counter.items():
+            if count >= schema.minimum_representation and count <= max_repr:
+                allowed_smiles.add(smiles)
+
+        if schema.per_component:
+
+            def filter_function(row):
+                n_components = row["N Components"]
+                for index in range(n_components):
+                    smiles = row[f"Component {index + 1}"]
+                    if smiles not in allowed_smiles:
+                        return False
+                return True
+
+        else:
+
+            def filter_function(row):
+                smiles = tuple(
+                    sorted(
+                        [
+                            row[f"Component {index + 1}"]
+                            for index in range(row["N Components"])
+                        ]
+                    )
+                )
+                return smiles in allowed_smiles
+
+        filtered_data = data_frame[data_frame.apply(filter_function, axis=1)]
+        return filtered_data
+
+
+SelectionComponentSchema = Union[
+    SelectSubstancesSchema, SelectDataPointsSchema, SelectNumRepresentationSchema
+]
