@@ -8,6 +8,11 @@ Releases follow the ``major.minor.micro`` scheme recommended by
 * ``minor`` increments add features but do not break API compatibility
 * ``micro`` increments represent bugfix releases or improvements in documentation
 
+Current development
+-------------------
+
+* PR `#739 <https://github.com/openforcefield/openff-evaluator/pull/739>`_: Add ``ASH`` to list of forbidden residue names in Packmol wrapper
+
 0.5.2 - January 21, 2025
 ------------------------
 
