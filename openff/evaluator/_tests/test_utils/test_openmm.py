@@ -735,7 +735,6 @@ def test_system_subset_improper_torsions_existing_force_field():
             "idivf1": 1.0,
         }
     )
-    force_field.register_parameter_handler(improper_handler)
 
     # Create a branched 4-atom topology
     topology: Topology = Molecule.from_mapped_smiles(
