@@ -207,6 +207,7 @@ def _generate_residue_name(residue, smiles):
         "NMA",
         "THY",
         "URA",
+        "ASH",
     ]
 
     amino_residue_mappings = {
