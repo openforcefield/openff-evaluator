@@ -554,11 +554,8 @@ def test_extract_atom_indices():
     assert extract_atom_indices(system) == [0, 1]
 
 
-def test_system_subset_bonds_includes_vdw():
-    """Test that vdW handler is automatically included when dealing with Bonds.
-
-    This tests the new code addition that includes vdW for valence terms.
-    """
+def test_system_subset_bonds():
+    """Test bond subset"""
     # Create a dummy topology
     topology: Topology = Molecule.from_mapped_smiles("[Cl:1][H:2]").to_topology()
 
@@ -570,18 +567,18 @@ def test_system_subset_bonds_includes_vdw():
     )
 
     # Should have both bond force and nonbonded force (for vdW)
-    assert system.getNumForces() == 2
+    assert system.getNumForces() == 1
     assert system.getNumParticles() == 2
 
-    # Check that we have both HarmonicBondForce and NonbondedForce
+    # Check that we only have HarmonicBondForce and not NonbondedForce
     force_types = [
         type(system.getForce(i)).__name__ for i in range(system.getNumForces())
     ]
     assert "HarmonicBondForce" in force_types
-    assert "NonbondedForce" in force_types
+    assert "NonbondedForce" not in force_types
 
 
-def test_system_subset_constraints_includes_vdw():
+def test_system_subset_constraints():
     """Test that vdW handler is automatically included when dealing with Constraints.
 
     This tests the new code addition that includes vdW for valence terms.
@@ -610,17 +607,12 @@ def test_system_subset_constraints_includes_vdw():
     )
 
     # Should have nonbonded force (for vdW) even though we're dealing with constraints
-    assert system.getNumForces() >= 1
+    assert system.getNumForces() == 0 #?
     assert system.getNumParticles() == 2
-
-    # Check that NonbondedForce is present
-    force_types = [
-        type(system.getForce(i)).__name__ for i in range(system.getNumForces())
-    ]
-    assert "NonbondedForce" in force_types
+    assert system.getNumConstraints() == 1
 
 
-def test_system_subset_angles_includes_vdw():
+def test_system_subset_angles_with_full_force_field():
     """Test that vdW handler is automatically included when dealing with Angles.
 
     This tests the new code addition that includes vdW for valence terms.
@@ -631,7 +623,7 @@ def test_system_subset_angles_includes_vdw():
     force_field = ForceField()
 
     # Add vdW handler
-    vdw_handler = vdWHandler(version=0.4)
+    vdw_handler = force_field.get_parameter_handler("vdW")
     vdw_handler.add_parameter(
         {
             "smirks": "[*:1]",
@@ -639,10 +631,9 @@ def test_system_subset_angles_includes_vdw():
             "sigma": 1.0 * unit.angstrom,
         }
     )
-    force_field.register_parameter_handler(vdw_handler)
 
     # Add bonds handler (needed for angle to work)
-    bond_handler = BondHandler(version=0.4)
+    bond_handler = force_field.get_parameter_handler("Bonds")
     bond_handler.add_parameter(
         {
             "smirks": "[*:1]~[*:2]",
@@ -650,10 +641,9 @@ def test_system_subset_angles_includes_vdw():
             "k": 1000.0 * unit.kilojoule_per_mole / unit.angstrom**2,
         }
     )
-    force_field.register_parameter_handler(bond_handler)
 
     # Add angle handler
-    angle_handler = AngleHandler(version=0.3)
+    angle_handler = force_field.get_parameter_handler("Angles")
     angle_handler.add_parameter(
         {
             "smirks": "[*:1]~[*:2]~[*:3]",
@@ -661,7 +651,6 @@ def test_system_subset_angles_includes_vdw():
             "k": 100.0 * unit.kilojoule_per_mole / unit.radian**2,
         }
     )
-    force_field.register_parameter_handler(angle_handler)
 
     # Create a 3-atom topology (need at least 3 atoms for an angle)
     topology: Topology = Molecule.from_mapped_smiles("[H:1][O:2][H:3]").to_topology()
@@ -673,18 +662,13 @@ def test_system_subset_angles_includes_vdw():
         topology=topology,
     )
 
-    # Should have both angle force and nonbonded force (for vdW)
-    assert system.getNumForces() >= 1
+    # Should have angle force
+    assert system.getNumForces() == 1
     assert system.getNumParticles() == 3
+    force_type = type(system.getForce(0)).__name__
+    assert force_type == "HarmonicAngleForce", f"Expected HarmonicAngleForce
 
-    # Check that we have NonbondedForce
-    force_types = [
-        type(system.getForce(i)).__name__ for i in range(system.getNumForces())
-    ]
-    assert "NonbondedForce" in force_types
-
-
-def test_system_subset_proper_torsions_includes_vdw():
+def test_system_subset_proper_torsions_isolated_force_field():
     """Test that vdW handler is automatically included when dealing with ProperTorsions.
 
     This tests the new code addition that includes vdW for valence terms.
@@ -694,30 +678,7 @@ def test_system_subset_proper_torsions_includes_vdw():
     # Create force field with proper torsions
     force_field = ForceField()
 
-    # Add vdW handler
-    vdw_handler = vdWHandler(version=0.4)
-    vdw_handler.add_parameter(
-        {
-            "smirks": "[*:1]",
-            "epsilon": 1.0 * unit.kilojoules_per_mole,
-            "sigma": 1.0 * unit.angstrom,
-        }
-    )
-    force_field.register_parameter_handler(vdw_handler)
-
-    # Add bonds handler
-    bond_handler = BondHandler(version=0.4)
-    bond_handler.add_parameter(
-        {
-            "smirks": "[*:1]~[*:2]",
-            "length": 1.5 * unit.angstrom,
-            "k": 1000.0 * unit.kilojoule_per_mole / unit.angstrom**2,
-        }
-    )
-    force_field.register_parameter_handler(bond_handler)
-
-    # Add proper torsion handler
-    torsion_handler = ProperTorsionHandler(version=0.3)
+    torsion_handler = force_field.get_parameter_handler("ProperTorsions")
     torsion_handler.add_parameter(
         {
             "smirks": "[*:1]~[*:2]~[*:3]~[*:4]",
@@ -727,7 +688,6 @@ def test_system_subset_proper_torsions_includes_vdw():
             "idivf1": 1.0,
         }
     )
-    force_field.register_parameter_handler(torsion_handler)
 
     # Create a 4-atom topology (need at least 4 atoms for a proper torsion)
     topology: Topology = Molecule.from_mapped_smiles(
@@ -743,18 +703,14 @@ def test_system_subset_proper_torsions_includes_vdw():
         topology=topology,
     )
 
-    # Should have both torsion force and nonbonded force (for vdW)
-    assert system.getNumForces() >= 1
+    # Should have torsion force
+    assert system.getNumForces() == 1
     assert system.getNumParticles() == 5
-
-    # Check that we have NonbondedForce
-    force_types = [
-        type(system.getForce(i)).__name__ for i in range(system.getNumForces())
-    ]
-    assert "NonbondedForce" in force_types
+    force_type = type(system.getForce(0)).__name__
+    assert force_type == "PeriodicTorsionForce", f"Expected PeriodicTorsionForce, got {force_type}"
 
 
-def test_system_subset_improper_torsions_includes_vdw():
+def test_system_subset_improper_torsions_existing_force_field():
     """Test that vdW handler is automatically included when dealing with ImproperTorsions.
 
     This tests the new code addition that includes vdW for valence terms.
@@ -762,32 +718,9 @@ def test_system_subset_improper_torsions_includes_vdw():
     from openff.toolkit.typing.engines.smirnoff.parameters import ImproperTorsionHandler
 
     # Create force field with improper torsions
-    force_field = ForceField()
+    force_field = ForceField("openff-2.1.0.offxml")
 
-    # Add vdW handler
-    vdw_handler = vdWHandler(version=0.4)
-    vdw_handler.add_parameter(
-        {
-            "smirks": "[*:1]",
-            "epsilon": 1.0 * unit.kilojoules_per_mole,
-            "sigma": 1.0 * unit.angstrom,
-        }
-    )
-    force_field.register_parameter_handler(vdw_handler)
-
-    # Add bonds handler
-    bond_handler = BondHandler(version=0.4)
-    bond_handler.add_parameter(
-        {
-            "smirks": "[*:1]~[*:2]",
-            "length": 1.5 * unit.angstrom,
-            "k": 1000.0 * unit.kilojoule_per_mole / unit.angstrom**2,
-        }
-    )
-    force_field.register_parameter_handler(bond_handler)
-
-    # Add improper torsion handler
-    improper_handler = ImproperTorsionHandler(version=0.3)
+    improper_handler = force_field.get_parameter_handler("ImproperTorsions")
     improper_handler.add_parameter(
         {
             "smirks": "[*:1]~[*:2](~[*:3])~[*:4]",
@@ -813,16 +746,11 @@ def test_system_subset_improper_torsions_includes_vdw():
         topology=topology,
     )
 
-    # Should have nonbonded force (for vdW)
-    assert system.getNumForces() >= 1
+    # Should have torsion force
+    assert system.getNumForces() == 1
     assert system.getNumParticles() == 5
-
-    # Check that we have NonbondedForce
-    force_types = [
-        type(system.getForce(i)).__name__ for i in range(system.getNumForces())
-    ]
-    assert "NonbondedForce" in force_types
-
+    force_type = type(system.getForce(0)).__name__
+    assert force_type == "PeriodicTorsionForce", f"Expected PeriodicTorsionForce, got {force_type}"
 
 def test_system_subset_nagl_charges_retained():
     """Test that NAGLCharges handler is retained when dealing with charge-related parameters.
