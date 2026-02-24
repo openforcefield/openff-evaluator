@@ -658,7 +658,7 @@ def test_system_subset_constraints():
     )
 
     # Should have nonbonded force (for vdW) even though we're dealing with constraints
-    assert system.getNumForces() == 0 #?
+    assert system.getNumForces() == 0  # ?
     assert system.getNumParticles() == 2
     assert system.getNumConstraints() == 1
 
@@ -717,7 +717,10 @@ def test_system_subset_angles_with_full_force_field():
     assert system.getNumForces() == 1
     assert system.getNumParticles() == 3
     force_type = type(system.getForce(0)).__name__
-    assert force_type == "HarmonicAngleForce", f"Expected HarmonicAngleForce, but got {force_type}"
+    assert (
+        force_type == "HarmonicAngleForce"
+    ), f"Expected HarmonicAngleForce, but got {force_type}"
+
 
 def test_system_subset_proper_torsions_isolated_force_field():
     """Test that vdW handler is automatically included when dealing with ProperTorsions.
@@ -758,7 +761,9 @@ def test_system_subset_proper_torsions_isolated_force_field():
     assert system.getNumForces() == 1
     assert system.getNumParticles() == 5
     force_type = type(system.getForce(0)).__name__
-    assert force_type == "PeriodicTorsionForce", f"Expected PeriodicTorsionForce, got {force_type}"
+    assert (
+        force_type == "PeriodicTorsionForce"
+    ), f"Expected PeriodicTorsionForce, got {force_type}"
 
 
 def test_system_subset_improper_torsions_existing_force_field():
@@ -801,7 +806,10 @@ def test_system_subset_improper_torsions_existing_force_field():
     assert system.getNumForces() == 1
     assert system.getNumParticles() == 5
     force_type = type(system.getForce(0)).__name__
-    assert force_type == "PeriodicTorsionForce", f"Expected PeriodicTorsionForce, got {force_type}"
+    assert (
+        force_type == "PeriodicTorsionForce"
+    ), f"Expected PeriodicTorsionForce, got {force_type}"
+
 
 def test_system_subset_nagl_charges_retained():
     """Test that NAGLCharges handler is retained when dealing with charge-related parameters.
