@@ -666,7 +666,7 @@ def test_system_subset_angles_with_full_force_field():
     assert system.getNumForces() == 1
     assert system.getNumParticles() == 3
     force_type = type(system.getForce(0)).__name__
-    assert force_type == "HarmonicAngleForce", f"Expected HarmonicAngleForce
+    assert force_type == "HarmonicAngleForce", f"Expected HarmonicAngleForce, but got {force_type}"
 
 def test_system_subset_proper_torsions_isolated_force_field():
     """Test that vdW handler is automatically included when dealing with ProperTorsions.
