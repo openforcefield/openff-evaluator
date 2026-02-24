@@ -287,6 +287,15 @@ def test_find_relevant_gradient_keys(tmp_path):
     )
     force_field.register_parameter_handler(vsite_handler)
 
+    # add librarycharges to test empty topology labels
+    lc_handler = force_field.get_parameter_handler("LibraryCharges")
+    lc_handler.add_parameter(
+        {
+            "smirks": "[#5:1]",
+            "charge": [0.0 * unit.elementary_charge],
+        }
+    )
+
     force_field_path = os.path.join(tmp_path, "ff.json")
     SmirnoffForceFieldSource.from_object(force_field).json(force_field_path)
 
@@ -304,6 +313,9 @@ def test_find_relevant_gradient_keys(tmp_path):
         [
             *expected_gradient_keys,
             ParameterGradientKey(tag="vdW", smirks="[#6:1]", attribute="sigma"),
+            ParameterGradientKey(
+                tag="LibraryCharges", smirks="[#5:1]", attribute="charge"
+            ),
         ],
     )
 
