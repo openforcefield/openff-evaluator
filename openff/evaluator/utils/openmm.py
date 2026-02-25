@@ -26,7 +26,10 @@ def parameter_matches_gradient_key(
     parameter, parameter_key: ParameterGradientKey
 ) -> bool:
     if parameter_key.tag != "VirtualSites":
-        return parameter_key.smirks == parameter.smirks
+        if parameter_key.smirks is not None:
+            return parameter_key.smirks == parameter.smirks
+        if hasattr(parameter, "smirks") and parameter.smirks is not None:
+            return False
     # For VirtualSites, SMIRKS is necessary but not always sufficient; optional
     # identity fields (type/name/match) tighten matching to a single parameter.
     return all(
