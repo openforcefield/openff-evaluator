@@ -67,7 +67,7 @@ jobs:
         id-token: write
         contents: read
     needs:
-      - start-aws-runner
+      - start-aws-runner 
       - self-hosted-test
     if: ${{ always() }}
     steps:
