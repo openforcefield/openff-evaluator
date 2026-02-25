@@ -29,11 +29,13 @@ def parameter_matches_gradient_key(
         return parameter_key.smirks == parameter.smirks
     # For VirtualSites, SMIRKS is necessary but not always sufficient; optional
     # identity fields (type/name/match) tighten matching to a single parameter.
-    return all([
-        parameter_key.virtual_site_type == parameter.type,
-        parameter_key.virtual_site_name == parameter.name,
-        parameter_key.virtual_site_match == parameter.match,
-    ])
+    return all(
+        [
+            parameter_key.virtual_site_type == parameter.type,
+            parameter_key.virtual_site_name == parameter.name,
+            parameter_key.virtual_site_match == parameter.match,
+        ]
+    )
 
 
 def get_parameter_from_gradient_key(
