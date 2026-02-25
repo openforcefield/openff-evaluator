@@ -28,6 +28,7 @@ from openff.evaluator.utils.observables import (
     ObservableArray,
     ObservableFrame,
 )
+from openff.evaluator.utils.openmm import parameter_matches_gradient_key
 from openff.evaluator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
 from openff.evaluator.utils.utils import get_nested_attribute
 from openff.evaluator.workflow import Protocol, ProtocolGraph
@@ -44,36 +45,6 @@ class Workflow:
     def protocols(self):
         """tuple of Protocol: The protocols in this workflow."""
         return {x.id: x for x in self._protocols}
-
-    @staticmethod
-    def _parameter_matches_gradient_key(parameter, parameter_key):
-        # VirtualSite identity metadata is optional on the key, but whenever it
-        # is present we require an exact match against the labelled parameter.
-        if (
-            parameter_key.smirks is not None
-            and getattr(parameter, "smirks", None) != parameter_key.smirks
-        ):
-            return False
-
-        if (
-            getattr(parameter_key, "virtual_site_type", None) is not None
-            and getattr(parameter, "type", None) != parameter_key.virtual_site_type
-        ):
-            return False
-
-        if (
-            getattr(parameter_key, "virtual_site_name", None) is not None
-            and getattr(parameter, "name", None) != parameter_key.virtual_site_name
-        ):
-            return False
-
-        if (
-            getattr(parameter_key, "virtual_site_match", None) is not None
-            and getattr(parameter, "match", None) != parameter_key.virtual_site_match
-        ):
-            return False
-
-        return True
 
     @property
     def final_value_source(self):
@@ -644,9 +615,7 @@ class Workflow:
                     ]
 
                 for parameter in labelled_parameters:
-                    if not cls._parameter_matches_gradient_key(
-                        parameter, parameter_key
-                    ):
+                    if not parameter_matches_gradient_key(parameter, parameter_key):
                         continue
 
                     contains_parameter = True

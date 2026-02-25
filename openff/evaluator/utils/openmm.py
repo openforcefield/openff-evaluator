@@ -22,36 +22,18 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def _parameter_matches_gradient_key(
+def parameter_matches_gradient_key(
     parameter, parameter_key: ParameterGradientKey
 ) -> bool:
+    if parameter_key.tag != "VirtualSites":
+        return parameter_key.smirks == parameter.smirks
     # For VirtualSites, SMIRKS is necessary but not always sufficient; optional
     # identity fields (type/name/match) tighten matching to a single parameter.
-    if (
-        parameter_key.smirks is not None
-        and getattr(parameter, "smirks", None) != parameter_key.smirks
-    ):
-        return False
-
-    if (
-        parameter_key.virtual_site_type is not None
-        and getattr(parameter, "type", None) != parameter_key.virtual_site_type
-    ):
-        return False
-
-    if (
-        parameter_key.virtual_site_name is not None
-        and getattr(parameter, "name", None) != parameter_key.virtual_site_name
-    ):
-        return False
-
-    if (
-        parameter_key.virtual_site_match is not None
-        and getattr(parameter, "match", None) != parameter_key.virtual_site_match
-    ):
-        return False
-
-    return True
+    return all([
+        parameter_key.virtual_site_type == parameter.type,
+        parameter_key.virtual_site_name == parameter.name,
+        parameter_key.virtual_site_match == parameter.match,
+    ])
 
 
 def get_parameter_from_gradient_key(
@@ -70,7 +52,7 @@ def get_parameter_from_gradient_key(
     matching_parameters = [
         parameter
         for parameter in handler.parameters
-        if _parameter_matches_gradient_key(parameter, parameter_key)
+        if parameter_matches_gradient_key(parameter, parameter_key)
     ]
 
     if len(matching_parameters) == 0:
