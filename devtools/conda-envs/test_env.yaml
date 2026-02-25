@@ -15,11 +15,8 @@ dependencies:
   - requests-mock # For testing http requests.
   - foyer
 
-    # Shim
-  - pint >=0.21,<0.25
-
     # Standard dependencies
-  - openff-toolkit
+  - openff-toolkit =0.18
   - openmm
   - pymbar
   - dask >=2.7.0
@@ -35,6 +32,3 @@ dependencies:
   - taproom
   - dataclasses
   - pandas =2
-
-  # Shim
-  - xmltodict !=1.0.3

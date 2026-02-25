@@ -93,7 +93,7 @@ def test_storage_retrieval():
         },
     }
 
-    force_field = SmirnoffForceFieldSource.from_path("openff-2.2.1.offxml")
+    force_field = SmirnoffForceFieldSource.from_path("openff-2.3.0.offxml")
 
     with tempfile.TemporaryDirectory() as base_directory:
         # Create a storage backend with some dummy data.

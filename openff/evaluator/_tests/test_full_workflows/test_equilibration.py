@@ -111,7 +111,7 @@ class TestEquilibrationLayer:
 
     @pytest.fixture
     def force_field_source(self):
-        force_field_source = SmirnoffForceFieldSource.from_path("openff-2.1.0.offxml")
+        force_field_source = SmirnoffForceFieldSource.from_path("openff-2.3.0.offxml")
         return force_field_source
 
     @pytest.mark.parametrize(

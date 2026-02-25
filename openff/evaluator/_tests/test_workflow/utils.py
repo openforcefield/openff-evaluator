@@ -10,7 +10,7 @@ from openff.evaluator.workflow.attributes import InputAttribute, OutputAttribute
 
 def create_dummy_metadata(dummy_property, calculation_layer):
     global_metadata = Workflow.generate_default_metadata(
-        dummy_property, "openff-2.2.1.offxml", []
+        dummy_property, "openff-2.3.0.offxml", []
     )
 
     if calculation_layer == "ReweightingLayer":

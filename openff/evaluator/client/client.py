@@ -339,7 +339,7 @@ class EvaluatorClient:
     >>>
     >>> # Load in the force field parameters
     >>> from openff.evaluator.forcefield import SmirnoffForceFieldSource
-    >>> force_field_source = SmirnoffForceFieldSource.from_path('openff-2.2.1.offxml')
+    >>> force_field_source = SmirnoffForceFieldSource.from_path('openff-2.3.0.offxml')
     >>>
     >>> # Submit the estimation request to a running server.
     >>> request = client.request_estimate(data_set, force_field_source)

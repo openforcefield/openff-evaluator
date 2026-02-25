@@ -149,7 +149,7 @@ def dataset_submission(c_o_dataset):
     submission.dataset = c_o_dataset
     submission.options = options
     submission.force_field_source = SmirnoffForceFieldSource.from_path(
-        "openff-2.1.0.offxml"
+        "openff-2.3.0.offxml"
     )
 
     return submission
