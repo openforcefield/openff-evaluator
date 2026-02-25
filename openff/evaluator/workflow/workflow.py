@@ -644,7 +644,9 @@ class Workflow:
                     ]
 
                 for parameter in labelled_parameters:
-                    if not cls._parameter_matches_gradient_key(parameter, parameter_key):
+                    if not cls._parameter_matches_gradient_key(
+                        parameter, parameter_key
+                    ):
                         continue
 
                     contains_parameter = True

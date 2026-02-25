@@ -22,10 +22,15 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def _parameter_matches_gradient_key(parameter, parameter_key: ParameterGradientKey) -> bool:
+def _parameter_matches_gradient_key(
+    parameter, parameter_key: ParameterGradientKey
+) -> bool:
     # For VirtualSites, SMIRKS is necessary but not always sufficient; optional
     # identity fields (type/name/match) tighten matching to a single parameter.
-    if parameter_key.smirks is not None and getattr(parameter, "smirks", None) != parameter_key.smirks:
+    if (
+        parameter_key.smirks is not None
+        and getattr(parameter, "smirks", None) != parameter_key.smirks
+    ):
         return False
 
     if (
@@ -49,7 +54,9 @@ def _parameter_matches_gradient_key(parameter, parameter_key: ParameterGradientK
     return True
 
 
-def get_parameter_from_gradient_key(force_field: "ForceField", parameter_key: ParameterGradientKey):
+def get_parameter_from_gradient_key(
+    force_field: "ForceField", parameter_key: ParameterGradientKey
+):
     handler = force_field.get_parameter_handler(parameter_key.tag)
 
     if parameter_key.smirks is None:

@@ -16,8 +16,8 @@ from openff.evaluator.forcefield import (
     ParameterGradient,
     SmirnoffForceFieldSource,
 )
-from openff.evaluator.utils.openmm import get_parameter_from_gradient_key
 from openff.evaluator.utils.observables import Observable, ObservableArray
+from openff.evaluator.utils.openmm import get_parameter_from_gradient_key
 from openff.evaluator.workflow import Protocol, workflow_protocol
 from openff.evaluator.workflow.attributes import InputAttribute, OutputAttribute
 
