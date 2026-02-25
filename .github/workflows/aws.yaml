@@ -41,8 +41,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Schedule auto-shutdown
-        run: nohup bash -c 'sleep 180 && sudo shutdown -h now' > /tmp/auto-shutdown.log 2>&1 &                     
+      - name: Schedule auto-shutdown after 24 hours
+        run: nohup bash -c 'sleep 86400 && sudo shutdown -h now' > /tmp/auto-shutdown.log 2>&1 &                     
 
 
       - name: Print disk usage
