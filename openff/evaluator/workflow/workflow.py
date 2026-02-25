@@ -45,6 +45,36 @@ class Workflow:
         """tuple of Protocol: The protocols in this workflow."""
         return {x.id: x for x in self._protocols}
 
+    @staticmethod
+    def _parameter_matches_gradient_key(parameter, parameter_key):
+        # VirtualSite identity metadata is optional on the key, but whenever it
+        # is present we require an exact match against the labelled parameter.
+        if (
+            parameter_key.smirks is not None
+            and getattr(parameter, "smirks", None) != parameter_key.smirks
+        ):
+            return False
+
+        if (
+            getattr(parameter_key, "virtual_site_type", None) is not None
+            and getattr(parameter, "type", None) != parameter_key.virtual_site_type
+        ):
+            return False
+
+        if (
+            getattr(parameter_key, "virtual_site_name", None) is not None
+            and getattr(parameter, "name", None) != parameter_key.virtual_site_name
+        ):
+            return False
+
+        if (
+            getattr(parameter_key, "virtual_site_match", None) is not None
+            and getattr(parameter, "match", None) != parameter_key.virtual_site_match
+        ):
+            return False
+
+        return True
+
     @property
     def final_value_source(self):
         """ProtocolPath: The path to the protocol output which corresponds to the
@@ -614,10 +644,7 @@ class Workflow:
                     ]
 
                 for parameter in labelled_parameters:
-                    if (
-                        parameter_key.smirks is not None
-                        and parameter.smirks != parameter_key.smirks
-                    ):
+                    if not cls._parameter_matches_gradient_key(parameter, parameter_key):
                         continue
 
                     contains_parameter = True

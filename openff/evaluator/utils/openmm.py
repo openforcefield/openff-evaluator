@@ -22,6 +22,65 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _parameter_matches_gradient_key(parameter, parameter_key: ParameterGradientKey) -> bool:
+    # For VirtualSites, SMIRKS is necessary but not always sufficient; optional
+    # identity fields (type/name/match) tighten matching to a single parameter.
+    if parameter_key.smirks is not None and getattr(parameter, "smirks", None) != parameter_key.smirks:
+        return False
+
+    if (
+        parameter_key.virtual_site_type is not None
+        and getattr(parameter, "type", None) != parameter_key.virtual_site_type
+    ):
+        return False
+
+    if (
+        parameter_key.virtual_site_name is not None
+        and getattr(parameter, "name", None) != parameter_key.virtual_site_name
+    ):
+        return False
+
+    if (
+        parameter_key.virtual_site_match is not None
+        and getattr(parameter, "match", None) != parameter_key.virtual_site_match
+    ):
+        return False
+
+    return True
+
+
+def get_parameter_from_gradient_key(force_field: "ForceField", parameter_key: ParameterGradientKey):
+    handler = force_field.get_parameter_handler(parameter_key.tag)
+
+    if parameter_key.smirks is None:
+        return handler
+
+    if parameter_key.tag != "VirtualSites":
+        return handler.parameters[parameter_key.smirks]
+
+    # VirtualSites handlers may contain multiple parameters with the same SMIRKS;
+    # disambiguate using any identity metadata encoded in the gradient key.
+    matching_parameters = [
+        parameter
+        for parameter in handler.parameters
+        if _parameter_matches_gradient_key(parameter, parameter_key)
+    ]
+
+    if len(matching_parameters) == 0:
+        raise KeyError(
+            "No VirtualSites parameter could be matched for key "
+            f"{parameter_key}. Ensure smirks/type/name/match identify a single parameter."
+        )
+
+    if len(matching_parameters) > 1:
+        raise KeyError(
+            "Multiple VirtualSites parameters match key "
+            f"{parameter_key}. Add enough identity fields (type/name/match) to disambiguate."
+        )
+
+    return matching_parameters[0]
+
+
 def _strip_cmm_force(system: openmm.System):
     """Removes the first `openmm.CMMotionRemover` force from the system."""
 
@@ -233,13 +292,7 @@ def system_subset(
             copy.deepcopy(force_field.get_parameter_handler(handler_to_register))
         )
 
-    handler = force_field_subset.get_parameter_handler(parameter_key.tag)
-
-    parameter = (
-        handler
-        if parameter_key.smirks is None
-        else handler.parameters[parameter_key.smirks]
-    )
+    parameter = get_parameter_from_gradient_key(force_field_subset, parameter_key)
 
     parameter_value = getattr(parameter, parameter_key.attribute)
     is_quantity = isinstance(parameter_value, unit.Quantity)
