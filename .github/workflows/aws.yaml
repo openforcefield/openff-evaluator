@@ -35,11 +35,14 @@ jobs:
           GH_PAT: ${{ secrets.GH_PAT }}
   self-hosted-test:
     runs-on: self-hosted
-    timeout-minutes: 3
+    timeout-minutes: 1440 # 24 hours * 60 mins
     needs:
       - start-aws-runner
     steps:
       - uses: actions/checkout@v6
+
+      - name: Schedule auto-shutdown
+        run: nohup bash -c 'sleep 180 && sudo shutdown -h now' > /tmp/auto-shutdown.log 2>&1 &                     
 
       - name: Print disk usage
         run: "df -h"
