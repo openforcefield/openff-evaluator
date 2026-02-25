@@ -28,6 +28,7 @@ from openff.evaluator.utils.observables import (
     ObservableArray,
     ObservableFrame,
 )
+from openff.evaluator.utils.openmm import parameter_matches_gradient_key
 from openff.evaluator.utils.serialization import TypedJSONDecoder, TypedJSONEncoder
 from openff.evaluator.utils.utils import get_nested_attribute
 from openff.evaluator.workflow import Protocol, ProtocolGraph
@@ -615,10 +616,7 @@ class Workflow:
                     ]
 
                 for parameter in labelled_parameters:
-                    if (
-                        parameter_key.smirks is not None
-                        and parameter.smirks != parameter_key.smirks
-                    ):
+                    if not parameter_matches_gradient_key(parameter, parameter_key):
                         continue
 
                     contains_parameter = True

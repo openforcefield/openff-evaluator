@@ -29,6 +29,7 @@ from openff.evaluator.utils.observables import ObservableArray, ObservableFrame
 from openff.evaluator.utils.openmm import (
     extract_atom_indices,
     extract_positions,
+    get_parameter_from_gradient_key,
     system_subset,
     update_context_with_pdb,
     update_context_with_positions,
@@ -257,6 +258,56 @@ def test_system_subset_vdw():
 
     assert np.isclose(epsilon_0.value_in_unit(openmm_unit.kilojoules_per_mole), 2.0)
     assert np.isclose(epsilon_1.value_in_unit(openmm_unit.kilojoules_per_mole), 0.5)
+
+
+def test_get_parameter_from_gradient_key_virtual_sites_disambiguation():
+    force_field = ForceField()
+    vsite_handler = VirtualSiteHandler(version=0.3)
+
+    vsite_handler.add_parameter(
+        {
+            "smirks": "[#1:1]-[#17:2]",
+            "name": "EP1",
+            "type": "BondCharge",
+            "distance": 0.10 * unit.nanometers,
+            "match": "all_permutations",
+            "charge_increment1": 0.0 * unit.elementary_charge,
+            "charge_increment2": 0.0 * unit.elementary_charge,
+        }
+    )
+    vsite_handler.add_parameter(
+        {
+            "smirks": "[#1:1]-[#17:2]",
+            "name": "EP2",
+            "type": "BondCharge",
+            "distance": 0.20 * unit.nanometers,
+            "match": "all_permutations",
+            "charge_increment1": 0.0 * unit.elementary_charge,
+            "charge_increment2": 0.0 * unit.elementary_charge,
+        }
+    )
+
+    force_field.register_parameter_handler(vsite_handler)
+
+    with pytest.raises(KeyError, match="Multiple VirtualSites parameters"):
+        get_parameter_from_gradient_key(
+            force_field,
+            ParameterGradientKey("VirtualSites", "[#1:1]-[#17:2]", "distance"),
+        )
+
+    parameter = get_parameter_from_gradient_key(
+        force_field,
+        ParameterGradientKey(
+            "VirtualSites",
+            "[#1:1]-[#17:2]",
+            "distance",
+            virtual_site_type="BondCharge",
+            virtual_site_name="EP2",
+            virtual_site_match="all_permutations",
+        ),
+    )
+
+    assert parameter.name == "EP2"
 
 
 def test_system_subset_vdw_cutoff():
