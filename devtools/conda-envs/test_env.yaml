@@ -20,6 +20,7 @@ dependencies:
 
     # Standard dependencies
   - openff-toolkit
+  - openff-interchange >=0.5.1
   - openmm
   - pymbar
   - dask >=2.7.0
@@ -39,7 +40,3 @@ dependencies:
   # Shim
   - xmltodict !=1.0.3
 
-  # Pip dependencies
-  - pip:
-    - git+https://github.com/openforcefield/openff-interchange.git@main
-  
