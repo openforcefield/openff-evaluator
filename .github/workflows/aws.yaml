@@ -35,10 +35,17 @@ jobs:
           GH_PAT: ${{ secrets.GH_PAT }}
   self-hosted-test:
     runs-on: self-hosted
+    timeout-minutes: 600 # 10 hours * 60 mins, also see the auto-shutdown step below for failsafe 
     needs:
       - start-aws-runner
     steps:
       - uses: actions/checkout@v6
+
+      - name: Schedule auto-shutdown after 24 hours 
+        # This is the failsafe if timeout-minutes above fails
+        # More info https://github.com/openforcefield/openff-evaluator/issues/740
+        run: nohup bash -c 'sleep 86400 && sudo shutdown -h now' > /tmp/auto-shutdown.log 2>&1 &                     
+
 
       - name: Print disk usage
         run: "df -h"
