@@ -20,6 +20,7 @@ dependencies:
 
     # Standard dependencies
   - openff-toolkit
+  - openff-interchange >=0.5.1
   - openmm
   - pymbar
   - dask >=2.7.0
@@ -35,6 +36,7 @@ dependencies:
   - taproom
   - dataclasses
   - pandas =2
-
+  
   # Shim
   - xmltodict !=1.0.3
+
