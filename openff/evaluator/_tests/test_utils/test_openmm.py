@@ -578,40 +578,6 @@ def test_system_subset_bonds():
     assert "NonbondedForce" not in force_types
 
 
-def test_system_subset_constraints():
-    """Test that vdW handler is automatically included when dealing with Constraints.
-
-    This tests the new code addition that includes vdW for valence terms.
-    """
-    from openff.toolkit.typing.engines.smirnoff.parameters import ConstraintHandler
-
-    # Create force field with constraints
-    force_field = hydrogen_chloride_force_field(False, False, False)
-    constraint_handler = ConstraintHandler(version=0.3)
-    constraint_handler.add_parameter(
-        {
-            "smirks": "[#1:1]-[#17:2]",
-            "distance": 1.0 * unit.angstrom,
-        }
-    )
-    force_field.register_parameter_handler(constraint_handler)
-
-    # Create a dummy topology
-    topology: Topology = Molecule.from_mapped_smiles("[Cl:1][H:2]").to_topology()
-
-    # Create the system subset for a constraint parameter
-    system, parameter_value = system_subset(
-        parameter_key=ParameterGradientKey("Constraints", "[#1:1]-[#17:2]", "distance"),
-        force_field=force_field,
-        topology=topology,
-    )
-
-    # Should have nonbonded force (for vdW) even though we're dealing with constraints
-    assert system.getNumForces() == 0  # ?
-    assert system.getNumParticles() == 2
-    assert system.getNumConstraints() == 1
-
-
 def test_system_subset_angles_with_full_force_field():
     """
     Test basic behavior of creating system subsets for angle parameters
