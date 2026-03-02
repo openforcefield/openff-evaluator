@@ -834,5 +834,5 @@ def test_system_subset_nagl_charges_retained():
     )
 
     # The system should be created successfully with NAGL handler registered
-    assert system.getNumForces() >= 1
+    assert system.getNumForces() == 1
     assert system.getNumParticles() == 3
