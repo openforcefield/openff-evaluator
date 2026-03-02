@@ -617,7 +617,7 @@ def test_system_subset_bonds():
         topology=topology,
     )
 
-    # Should have both bond force and nonbonded force (for vdW)
+    # Should have bond force and no nonbonded force (for vdW)
     assert system.getNumForces() == 1
     assert system.getNumParticles() == 2
 
