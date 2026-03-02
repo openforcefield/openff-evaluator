@@ -715,9 +715,8 @@ def test_system_subset_proper_torsions_isolated_force_field():
 
 
 def test_system_subset_improper_torsions_existing_force_field():
-    """Test that vdW handler is automatically included when dealing with ImproperTorsions.
-
-    This tests the new code addition that includes vdW for valence terms.
+    """
+    Test basic behavior of creating system subsets for torsion parameters from a "full" force field
     """
     from openff.toolkit.typing.engines.smirnoff.parameters import ImproperTorsionHandler
 
