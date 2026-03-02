@@ -613,9 +613,8 @@ def test_system_subset_constraints():
 
 
 def test_system_subset_angles_with_full_force_field():
-    """Test that vdW handler is automatically included when dealing with Angles.
-
-    This tests the new code addition that includes vdW for valence terms.
+    """
+    Test basic behavior of creating system subsets for angle parameters
     """
     from openff.toolkit.typing.engines.smirnoff.parameters import AngleHandler
 
