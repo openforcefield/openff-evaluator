@@ -1,6 +1,5 @@
 [build-system]
 build-backend = "setuptools.build_meta"
-
 requires = [
   "setuptools>=77.0.3",
   "setuptools-scm>=8",
@@ -23,20 +22,19 @@ classifiers = [
 ]
 dynamic = [ "version" ]
 
-[tool.setuptools.packages]
-find = {}
+[tool.setuptools]
+packages.find = {}
 
 [tool.setuptools_scm]
 fallback_version = "0.0.0"
 
-[tool.coverage.report]
-exclude_lines = [
-  "pragma: no cover",
-  "if TYPE_CHECKING:",
-  "raise NotImplementedError",
-  "@overload",
-]
-[tool.coverage.run]
-omit = [
+[tool.coverage]
+run.omit = [
   "*/*/_tests/*",
+]
+report.exclude_lines = [
+  "@overload",
+  "if TYPE_CHECKING:",
+  "pragma: no cover",
+  "raise NotImplementedError",
 ]
