@@ -555,7 +555,6 @@ def test_extract_atom_indices():
     assert extract_atom_indices(system) == [0, 1]
 
 
-<<<<<<< HEAD
 def test_system_subset_virtual_site_smirks_format():
     """Test the new virtual site parameter selection using smirks/type/name/match format.
 
@@ -643,7 +642,6 @@ def test_system_subset_virtual_site_multiple_matches():
     assert numpy.isclose(
         parameter_value.to(unit.nanometer).magnitude, expected_value, atol=1e-6
     )
-=======
 def test_system_subset_bonds():
     """Test bond subset"""
     # Create a dummy topology
@@ -839,4 +837,3 @@ def test_system_subset_nagl_charges_retained():
     # The system should be created successfully with NAGL handler registered
     assert system.getNumForces() == 1
     assert system.getNumParticles() == 3
->>>>>>> upstream/main
