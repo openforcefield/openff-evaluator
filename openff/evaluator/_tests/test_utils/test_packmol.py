@@ -160,3 +160,24 @@ def test_amino_acids():
 
     for index, smiles in enumerate(smiles):
         assert trajectory.top.residue(index).name == amino_residues[smiles]
+
+
+def test_packmol_forbidden_residue_name_ash(monkeypatch):
+    import mdtraj
+
+    top = mdtraj.Topology()
+    chain = top.add_chain()
+    residue = top.add_residue("UNK", chain)
+    top.add_atom("C1", mdtraj.element.carbon, residue)
+    top.add_atom("C2", mdtraj.element.carbon, residue)
+
+    forced_choices = iter("ASHBCD")
+
+    def fake_choice(_):
+        return next(forced_choices)
+
+    monkeypatch.setattr(packmol.random, "choice", fake_choice)
+
+    packmol._generate_residue_name(residue, "CC")
+
+    assert residue.name == "BCD"

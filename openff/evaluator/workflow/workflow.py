@@ -591,6 +591,7 @@ class Workflow:
             for parameter_key in parameter_gradient_keys:
                 if (
                     parameter_key.tag not in labelled_molecule
+                    or not len(labelled_molecule[parameter_key.tag])
                     or parameter_key in reduced_parameter_keys
                 ):
                     continue
