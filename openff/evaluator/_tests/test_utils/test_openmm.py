@@ -735,6 +735,7 @@ def test_system_subset_nagl_charges_retained():
         "NAGLCharges",
         handler_kwargs=dict(version=0.3, model_file="openff-gnn-am1bcc-1.0.0.pt"),
     )
+    force_field.deregister_parameter_handler("Bonds")
 
     # Create a dummy topology
     topology: Topology = Molecule.from_mapped_smiles("[Cl:1][H:2]").to_topology()
