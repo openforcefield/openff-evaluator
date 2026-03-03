@@ -51,7 +51,7 @@ def test_simple_replicators():
     dummy_property = create_dummy_property(Density)
 
     dummy_metadata = Workflow.generate_default_metadata(
-        dummy_property, "smirnoff99Frosst-1.1.0.offxml", []
+        dummy_property, "openff-2.2.1.offxml", []
     )
 
     dummy_workflow = Workflow(dummy_metadata, "")
@@ -125,7 +125,7 @@ def test_group_replicators():
     dummy_property = create_dummy_property(Density)
 
     dummy_metadata = Workflow.generate_default_metadata(
-        dummy_property, "smirnoff99Frosst-1.1.0.offxml", []
+        dummy_property, "openff-2.2.1.offxml", []
     )
 
     dummy_workflow = Workflow(dummy_metadata, "")
@@ -205,7 +205,7 @@ def test_advanced_group_replicators():
     dummy_property = create_dummy_property(Density)
 
     dummy_metadata = Workflow.generate_default_metadata(
-        dummy_property, "smirnoff99Frosst-1.1.0.offxml", []
+        dummy_property, "openff-2.2.1.offxml", []
     )
 
     dummy_workflow = Workflow(dummy_metadata, "")
@@ -263,7 +263,7 @@ def test_nested_replicators():
     dummy_property = create_dummy_property(Density)
 
     dummy_metadata = Workflow.generate_default_metadata(
-        dummy_property, "smirnoff99Frosst-1.1.0.offxml", []
+        dummy_property, "openff-2.2.1.offxml", []
     )
 
     dummy_workflow = Workflow(dummy_metadata, "")
@@ -311,7 +311,7 @@ def test_advanced_nested_replicators():
 
     dummy_property = create_dummy_property(Density)
     dummy_metadata = Workflow.generate_default_metadata(
-        dummy_property, "smirnoff99Frosst-1.1.0.offxml", []
+        dummy_property, "openff-2.2.1.offxml", []
     )
     dummy_metadata["dummy_list"] = [[1], [2]]
 

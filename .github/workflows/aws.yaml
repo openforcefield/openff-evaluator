@@ -1,4 +1,4 @@
-name: Test Self-Hosted Runner
+name: Run integration tests on GPU-enabled AWS image
 on:
   workflow_dispatch:
   pull_request:
@@ -19,25 +19,33 @@ jobs:
       mapping: ${{ steps.aws-start.outputs.mapping }}
     steps:
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v5
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: arn:aws:iam::649715411074:role/gh-actions-runner-role
           aws-region: us-east-1
       - name: Create cloud runner
         id: aws-start
-        uses: omsf/start-aws-gha-runner@v1.1.0
+        uses: omsf/start-aws-gha-runner@v1.1.1
         with:
           aws_image_id: ami-0d5079d9be06933e5
           aws_instance_type: g4dn.xlarge
+          aws_root_device_size: 125
           aws_home_dir: /home/ubuntu
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
   self-hosted-test:
     runs-on: self-hosted
+    timeout-minutes: 600 # 10 hours * 60 mins, also see the auto-shutdown step below for failsafe 
     needs:
       - start-aws-runner
     steps:
       - uses: actions/checkout@v6
+
+      - name: Schedule auto-shutdown after 24 hours 
+        # This is the failsafe if timeout-minutes above fails
+        # More info https://github.com/openforcefield/openff-evaluator/issues/740
+        run: nohup bash -c 'sleep 86400 && sudo shutdown -h now' > /tmp/auto-shutdown.log 2>&1 &                     
+
 
       - name: Print disk usage
         run: "df -h"
@@ -70,7 +78,7 @@ jobs:
     if: ${{ always() }}
     steps:
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v5
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: arn:aws:iam::649715411074:role/gh-actions-runner-role
           aws-region: us-east-1
