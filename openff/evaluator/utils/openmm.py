@@ -365,7 +365,7 @@ def update_context_with_positions(
         for j in range(system.getNumParticles()):
             if not system.isVirtualSite(j):
                 # take an old position and update the index
-                new_positions[j] = positions[i].value_in_unit(openmm_unit.nanometers)
+                new_positions[j] = positions[i]
                 i += 1
 
         positions = new_positions * openmm_unit.nanometers
