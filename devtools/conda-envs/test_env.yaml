@@ -15,9 +15,6 @@ dependencies:
   - requests-mock # For testing http requests.
   - foyer
 
-    # Shim
-  - pint >=0.21,<0.25
-
     # Standard dependencies
   - openff-toolkit
   - openff-interchange >=0.5.1
