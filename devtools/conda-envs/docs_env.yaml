@@ -4,7 +4,7 @@ channels:
 dependencies:
     # Base depends
     - python =3.11
-    - setuptools =81
+    - setuptools
     - pip
 
     # Standard dependencies
@@ -33,6 +33,9 @@ dependencies:
     - sphinxcontrib-bibtex
     - pandoc
     - ipython
+
+    # Shim
+    - xmltodict !=1.0.3
 
     - pip:
       - git+https://github.com/openforcefield/openff-sphinx-theme.git@main

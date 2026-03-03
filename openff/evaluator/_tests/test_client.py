@@ -38,9 +38,7 @@ def test_default_options():
     """Test creating the default estimation options."""
 
     data_set = PhysicalPropertyDataSet()
-    force_field_source = SmirnoffForceFieldSource.from_path(
-        "smirnoff99Frosst-1.1.0.offxml"
-    )
+    force_field_source = SmirnoffForceFieldSource.from_path("openff-2.2.1.offxml")
 
     for property_type in property_types:
         physical_property = create_dummy_property(property_type)
@@ -61,7 +59,7 @@ def test_default_options():
     "force_field_source, expected_protocol_type",
     [
         (
-            SmirnoffForceFieldSource.from_path("smirnoff99Frosst-1.1.0.offxml"),
+            SmirnoffForceFieldSource.from_path("openff-2.2.1.offxml"),
             "BuildSmirnoffSystem",
         ),
         (TLeapForceFieldSource(), "BuildTLeapSystem"),
@@ -97,7 +95,7 @@ def test_submission():
                     client = EvaluatorClient()
 
                     # Submit an empty data set.
-                    force_field_path = "smirnoff99Frosst-1.1.0.offxml"
+                    force_field_path = "openff-2.2.1.offxml"
                     force_field_source = SmirnoffForceFieldSource.from_path(
                         force_field_path
                     )
