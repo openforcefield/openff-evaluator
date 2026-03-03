@@ -561,8 +561,6 @@ def test_system_subset_virtual_site_smirks_format():
     This tests the new code (lines 239-257 in openmm.py) that handles virtual site
     parameter keys with the special format "smirks/type/name/match" instead of just smirks.
     """
-    from openff.toolkit.typing.engines.smirnoff import ForceField
-
     # Create force field with multiple virtual sites that have the same SMIRKS but different types
     force_field = hydrogen_chloride_force_field(
         library_charge=True, charge_increment=False, vsite=True
@@ -599,8 +597,6 @@ def test_system_subset_virtual_site_multiple_matches():
     This tests that when multiple virtual sites exist with the same SMIRKS but different
     attributes, the smirks/type/name/match format correctly selects exactly one.
     """
-    from openff.toolkit.typing.engines.smirnoff import ForceField
-
     force_field = hydrogen_chloride_force_field(True, False, True)
 
     vsite_handler = force_field.get_parameter_handler("VirtualSites")
@@ -642,6 +638,8 @@ def test_system_subset_virtual_site_multiple_matches():
     assert numpy.isclose(
         parameter_value.to(unit.nanometer).magnitude, expected_value, atol=1e-6
     )
+
+
 def test_system_subset_bonds():
     """Test bond subset"""
     # Create a dummy topology
