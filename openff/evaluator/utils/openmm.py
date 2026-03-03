@@ -208,6 +208,7 @@ def system_subset(
                 "LibraryCharges",
                 "VirtualSiteHandler",
                 "ToolkitAM1BCC",
+                "NAGLCharges",
             }
         )
 

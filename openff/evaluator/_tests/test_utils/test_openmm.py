@@ -555,6 +555,7 @@ def test_extract_atom_indices():
     assert extract_atom_indices(system) == [0, 1]
 
 
+<<<<<<< HEAD
 def test_system_subset_virtual_site_smirks_format():
     """Test the new virtual site parameter selection using smirks/type/name/match format.
 
@@ -642,3 +643,200 @@ def test_system_subset_virtual_site_multiple_matches():
     assert numpy.isclose(
         parameter_value.to(unit.nanometer).magnitude, expected_value, atol=1e-6
     )
+=======
+def test_system_subset_bonds():
+    """Test bond subset"""
+    # Create a dummy topology
+    topology: Topology = Molecule.from_mapped_smiles("[Cl:1][H:2]").to_topology()
+
+    # Create the system subset for a bond parameter
+    system, parameter_value = system_subset(
+        parameter_key=ParameterGradientKey("Bonds", "[#1:1]-[#17:2]", "length"),
+        force_field=hydrogen_chloride_force_field(False, False, False),
+        topology=topology,
+    )
+
+    # Should have bond force and no nonbonded force (for vdW)
+    assert system.getNumForces() == 1
+    assert system.getNumParticles() == 2
+
+    # Check that we only have HarmonicBondForce and not NonbondedForce
+    force_types = [
+        type(system.getForce(i)).__name__ for i in range(system.getNumForces())
+    ]
+    assert "HarmonicBondForce" in force_types
+    assert "NonbondedForce" not in force_types
+
+
+def test_system_subset_angles_with_full_force_field():
+    """
+    Test basic behavior of creating system subsets for angle parameters
+    """
+
+    # Create force field with angles
+    force_field = ForceField()
+
+    # Add vdW handler
+    vdw_handler = force_field.get_parameter_handler("vdW")
+    vdw_handler.add_parameter(
+        {
+            "smirks": "[*:1]",
+            "epsilon": 1.0 * unit.kilojoules_per_mole,
+            "sigma": 1.0 * unit.angstrom,
+        }
+    )
+
+    # Add bonds handler (needed for angle to work)
+    bond_handler = force_field.get_parameter_handler("Bonds")
+    bond_handler.add_parameter(
+        {
+            "smirks": "[*:1]~[*:2]",
+            "length": 1.5 * unit.angstrom,
+            "k": 1000.0 * unit.kilojoule_per_mole / unit.angstrom**2,
+        }
+    )
+
+    # Add angle handler
+    angle_handler = force_field.get_parameter_handler("Angles")
+    angle_handler.add_parameter(
+        {
+            "smirks": "[*:1]~[*:2]~[*:3]",
+            "angle": 120.0 * unit.degree,
+            "k": 100.0 * unit.kilojoule_per_mole / unit.radian**2,
+        }
+    )
+
+    # Create a 3-atom topology (need at least 3 atoms for an angle)
+    topology: Topology = Molecule.from_mapped_smiles("[H:1][O:2][H:3]").to_topology()
+
+    # Create the system subset for an angle parameter
+    system, parameter_value = system_subset(
+        parameter_key=ParameterGradientKey("Angles", "[*:1]~[*:2]~[*:3]", "angle"),
+        force_field=force_field,
+        topology=topology,
+    )
+
+    # Should have angle force
+    assert system.getNumForces() == 1
+    assert system.getNumParticles() == 3
+    force_type = type(system.getForce(0)).__name__
+    assert (
+        force_type == "HarmonicAngleForce"
+    ), f"Expected HarmonicAngleForce, but got {force_type}"
+
+
+def test_system_subset_proper_torsions_isolated_force_field():
+    """Test that vdW handler is automatically included when dealing with ProperTorsions.
+
+    This tests the new code addition that includes vdW for valence terms.
+    """
+
+    # Create force field with proper torsions
+    force_field = ForceField()
+
+    torsion_handler = force_field.get_parameter_handler("ProperTorsions")
+    torsion_handler.add_parameter(
+        {
+            "smirks": "[*:1]~[*:2]~[*:3]~[*:4]",
+            "periodicity1": 1,
+            "phase1": 0.0 * unit.degree,
+            "k1": 1.0 * unit.kilojoule_per_mole,
+            "idivf1": 1.0,
+        }
+    )
+
+    # Create a 4-atom topology (need at least 4 atoms for a proper torsion)
+    topology: Topology = Molecule.from_mapped_smiles(
+        "[H:1][C:2]([H:3])([H:4])[H:5]"
+    ).to_topology()
+
+    # Create the system subset for a torsion parameter
+    system, parameter_value = system_subset(
+        parameter_key=ParameterGradientKey(
+            "ProperTorsions", "[*:1]~[*:2]~[*:3]~[*:4]", "k1"
+        ),
+        force_field=force_field,
+        topology=topology,
+    )
+
+    # Should have torsion force
+    assert system.getNumForces() == 1
+    assert system.getNumParticles() == 5
+    force_type = type(system.getForce(0)).__name__
+    assert (
+        force_type == "PeriodicTorsionForce"
+    ), f"Expected PeriodicTorsionForce, got {force_type}"
+
+
+def test_system_subset_improper_torsions_existing_force_field():
+    """
+    Test basic behavior of creating system subsets for torsion parameters from a "full" force field
+    """
+
+    # Create force field with improper torsions
+    force_field = ForceField("openff-2.1.0.offxml")
+
+    improper_handler = force_field.get_parameter_handler("ImproperTorsions")
+    improper_handler.add_parameter(
+        {
+            "smirks": "[*:1]~[*:2](~[*:3])~[*:4]",
+            "periodicity1": 2,
+            "phase1": 180.0 * unit.degree,
+            "k1": 1.0 * unit.kilojoule_per_mole,
+            "idivf1": 1.0,
+        }
+    )
+
+    # Create a branched 4-atom topology
+    topology: Topology = Molecule.from_mapped_smiles(
+        "[H:1][C:2]([H:3])([H:4])[H:5]"
+    ).to_topology()
+
+    # Create the system subset for an improper torsion parameter
+    system, parameter_value = system_subset(
+        parameter_key=ParameterGradientKey(
+            "ImproperTorsions", "[*:1]~[*:2](~[*:3])~[*:4]", "k1"
+        ),
+        force_field=force_field,
+        topology=topology,
+    )
+
+    # Should have torsion force
+    assert system.getNumForces() == 1
+    assert system.getNumParticles() == 5
+    force_type = type(system.getForce(0)).__name__
+    assert (
+        force_type == "PeriodicTorsionForce"
+    ), f"Expected PeriodicTorsionForce, got {force_type}"
+
+
+def test_system_subset_nagl_charges_retained():
+    """Test that NAGLCharges handler is retained when dealing with charge-related parameters.
+
+    This tests the new code addition that includes NAGLCharges in the electrostatic handlers.
+    """
+
+    # Create force field with NAGL charges
+    force_field = hydrogen_chloride_force_field(False, False, True)
+    force_field.get_parameter_handler(
+        "NAGLCharges",
+        handler_kwargs=dict(version=0.3, model_file="openff-gnn-am1bcc-1.0.0.pt"),
+    )
+    force_field.deregister_parameter_handler("Bonds")
+
+    # Create a dummy topology
+    topology: Topology = Molecule.from_mapped_smiles("[Cl:1][H:2]").to_topology()
+
+    # Create the system subset for virtual sites
+    system, parameter_value = system_subset(
+        parameter_key=ParameterGradientKey(
+            "VirtualSites", "[#1:1]-[#17:2]", "distance"
+        ),
+        force_field=force_field,
+        topology=topology,
+    )
+
+    # The system should be created successfully with NAGL handler registered
+    assert system.getNumForces() == 1
+    assert system.getNumParticles() == 3
+>>>>>>> upstream/main
