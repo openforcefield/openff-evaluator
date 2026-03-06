@@ -304,10 +304,12 @@ def test_find_relevant_gradient_keys(tmp_path):
         ParameterGradientKey(tag="vdW", smirks=None, attribute="scale14"),
         ParameterGradientKey(tag="vdW", smirks="[#1:1]", attribute="epsilon"),
         ParameterGradientKey(
-            tag="VirtualSites", smirks="[#1:1][#17:2]", attribute="distance",
+            tag="VirtualSites",
+            smirks="[#1:1][#17:2]",
+            attribute="distance",
             virtual_site_type="BondCharge",
             virtual_site_match="all_permutations",
-            virtual_site_name="EP", # default
+            virtual_site_name="EP",  # default
         ),
     }
 
