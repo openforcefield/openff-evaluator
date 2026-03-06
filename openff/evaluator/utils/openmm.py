@@ -25,15 +25,18 @@ logger = logging.getLogger(__name__)
 def parameter_matches_gradient_key(
     parameter, parameter_key: ParameterGradientKey
 ) -> bool:
+    if parameter_key.smirks is None:
+        if hasattr(parameter, "smirks") and parameter.smirks is not None:
+            return False
     if parameter_key.tag != "VirtualSites":
         if parameter_key.smirks is not None:
             return parameter_key.smirks == parameter.smirks
-        if hasattr(parameter, "smirks") and parameter.smirks is not None:
-            return False
+
     # For VirtualSites, SMIRKS is necessary but not always sufficient; optional
     # identity fields (type/name/match) tighten matching to a single parameter.
     return all(
         [
+            parameter_key.smirks == parameter.smirks,
             parameter_key.virtual_site_type == parameter.type,
             parameter_key.virtual_site_name == parameter.name,
             parameter_key.virtual_site_match == parameter.match,
@@ -365,7 +368,7 @@ def update_context_with_positions(
         for j in range(system.getNumParticles()):
             if not system.isVirtualSite(j):
                 # take an old position and update the index
-                new_positions[j] = positions[i]
+                new_positions[j] = positions[i].value_in_unit(openmm_unit.nanometers)
                 i += 1
 
         positions = new_positions * openmm_unit.nanometers
