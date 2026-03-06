@@ -325,7 +325,6 @@ def test_get_parameter_from_gradient_key_virtual_sites_disambiguation():
     assert parameter.name == "EP1"
 
 
-
 def test_get_parameter_from_gradient_key_virtual_sites_smirks_filtering():
     """SMIRKS must be part of vsite matching: a key for one SMIRKS pattern must not
     return a parameter registered under a different SMIRKS pattern, even when
