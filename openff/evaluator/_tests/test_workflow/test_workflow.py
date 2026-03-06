@@ -285,6 +285,7 @@ def test_find_relevant_gradient_keys(tmp_path):
             "charge_increment2": 0.0 * unit.elementary_charge,
         }
     )
+    assert vsite_handler.parameters[-1].name == "EP"
     force_field.register_parameter_handler(vsite_handler)
 
     # add librarycharges to test empty topology labels
@@ -303,7 +304,10 @@ def test_find_relevant_gradient_keys(tmp_path):
         ParameterGradientKey(tag="vdW", smirks=None, attribute="scale14"),
         ParameterGradientKey(tag="vdW", smirks="[#1:1]", attribute="epsilon"),
         ParameterGradientKey(
-            tag="VirtualSites", smirks="[#1:1][#17:2]", attribute="distance"
+            tag="VirtualSites", smirks="[#1:1][#17:2]", attribute="distance",
+            virtual_site_type="BondCharge",
+            virtual_site_match="all_permutations",
+            virtual_site_name="EP", # default
         ),
     }
 
