@@ -599,28 +599,34 @@ class Workflow:
 
                 contains_parameter = False
 
-                labelled_parameters = (
-                    [
-                        match.parameter_type
-                        for match in labelled_molecule[parameter_key.tag]
-                    ]
-                    if isinstance(labelled_molecule[parameter_key.tag], list)
-                    else [*labelled_molecule[parameter_key.tag].values()]
-                )
-
-                if isinstance(labelled_parameters[0], list):
-                    # Virtual sites create a nested list, so unwrap it ... unless we
-                    # instead need to wrap the others into lists of lists ...
-                    labelled_parameters = [
-                        x.parameter_type for y in labelled_parameters for x in y
-                    ]
-
-                for parameter in labelled_parameters:
-                    if not parameter_matches_gradient_key(parameter, parameter_key):
-                        continue
-
+                # Keys with smirks=None refer to handler-level attributes (e.g. vdW
+                # scale14). The handler has already been confirmed to have matches for
+                # this molecule, so no per-parameter check is needed.
+                if parameter_key.smirks is None:
                     contains_parameter = True
-                    break
+                else:
+                    labelled_parameters = (
+                        [
+                            match.parameter_type
+                            for match in labelled_molecule[parameter_key.tag]
+                        ]
+                        if isinstance(labelled_molecule[parameter_key.tag], list)
+                        else [*labelled_molecule[parameter_key.tag].values()]
+                    )
+
+                    if isinstance(labelled_parameters[0], list):
+                        # Virtual sites create a nested list, so unwrap it ... unless we
+                        # instead need to wrap the others into lists of lists ...
+                        labelled_parameters = [
+                            x.parameter_type for y in labelled_parameters for x in y
+                        ]
+
+                    for parameter in labelled_parameters:
+                        if not parameter_matches_gradient_key(parameter, parameter_key):
+                            continue
+
+                        contains_parameter = True
+                        break
 
                 if not contains_parameter:
                     continue
