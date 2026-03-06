@@ -29,6 +29,7 @@ from openff.evaluator.utils.observables import ObservableArray, ObservableFrame
 from openff.evaluator.utils.openmm import (
     extract_atom_indices,
     extract_positions,
+    get_parameter_from_gradient_key,
     system_subset,
     update_context_with_pdb,
     update_context_with_positions,
@@ -259,6 +260,120 @@ def test_system_subset_vdw():
     assert np.isclose(epsilon_1.value_in_unit(openmm_unit.kilojoules_per_mole), 0.5)
 
 
+def test_get_parameter_from_gradient_key_virtual_sites_disambiguation():
+    force_field = ForceField()
+    vsite_handler = VirtualSiteHandler(version=0.3)
+
+    vsite_handler.add_parameter(
+        {
+            "smirks": "[#1:1]-[#17:2]",
+            "name": "EP1",
+            "type": "BondCharge",
+            "distance": 0.10 * unit.nanometers,
+            "match": "all_permutations",
+            "charge_increment1": 0.0 * unit.elementary_charge,
+            "charge_increment2": 0.0 * unit.elementary_charge,
+        }
+    )
+    vsite_handler.add_parameter(
+        {
+            "smirks": "[#1:1]-[#17:2]",
+            "name": "EP2",
+            "type": "BondCharge",
+            "distance": 0.20 * unit.nanometers,
+            "match": "all_permutations",
+            "charge_increment1": 0.0 * unit.elementary_charge,
+            "charge_increment2": 0.0 * unit.elementary_charge,
+        }
+    )
+
+    force_field.register_parameter_handler(vsite_handler)
+
+    # No identity fields → None != actual values, so nothing matches
+    with pytest.raises(KeyError, match="No VirtualSites parameter could be matched"):
+        get_parameter_from_gradient_key(
+            force_field,
+            ParameterGradientKey("VirtualSites", "[#1:1]-[#17:2]", "distance"),
+        )
+
+    # Full identity for EP2 → exactly one match
+    parameter = get_parameter_from_gradient_key(
+        force_field,
+        ParameterGradientKey(
+            "VirtualSites",
+            "[#1:1]-[#17:2]",
+            "distance",
+            virtual_site_type="BondCharge",
+            virtual_site_name="EP2",
+            virtual_site_match="all_permutations",
+        ),
+    )
+    assert parameter.name == "EP2"
+
+    # Full identity for EP1 → exactly one match
+    parameter = get_parameter_from_gradient_key(
+        force_field,
+        ParameterGradientKey(
+            "VirtualSites",
+            "[#1:1]-[#17:2]",
+            "distance",
+            virtual_site_type="BondCharge",
+            virtual_site_name="EP1",
+            virtual_site_match="all_permutations",
+        ),
+    )
+    assert parameter.name == "EP1"
+
+
+def test_get_parameter_from_gradient_key_virtual_sites_smirks_filtering():
+    """SMIRKS must be part of vsite matching: a key for one SMIRKS pattern must not
+    return a parameter registered under a different SMIRKS pattern, even when
+    type/name/match are identical."""
+    force_field = ForceField()
+    vsite_handler = VirtualSiteHandler(version=0.3)
+
+    for smirks in ("[#1:1]-[#17:2]", "[#8:1]-[#17:2]"):
+        vsite_handler.add_parameter(
+            {
+                "smirks": smirks,
+                "name": "EP",
+                "type": "BondCharge",
+                "distance": 0.10 * unit.nanometers,
+                "match": "all_permutations",
+                "charge_increment1": 0.0 * unit.elementary_charge,
+                "charge_increment2": 0.0 * unit.elementary_charge,
+            }
+        )
+
+    force_field.register_parameter_handler(vsite_handler)
+
+    parameter = get_parameter_from_gradient_key(
+        force_field,
+        ParameterGradientKey(
+            "VirtualSites",
+            "[#1:1]-[#17:2]",
+            "distance",
+            virtual_site_type="BondCharge",
+            virtual_site_name="EP",
+            virtual_site_match="all_permutations",
+        ),
+    )
+    assert parameter.smirks == "[#1:1]-[#17:2]"
+
+    parameter = get_parameter_from_gradient_key(
+        force_field,
+        ParameterGradientKey(
+            "VirtualSites",
+            "[#8:1]-[#17:2]",
+            "distance",
+            virtual_site_type="BondCharge",
+            virtual_site_name="EP",
+            virtual_site_match="all_permutations",
+        ),
+    )
+    assert parameter.smirks == "[#8:1]-[#17:2]"
+
+
 def test_system_subset_vdw_cutoff():
     """Test that handler attributes are correctly handled."""
 
@@ -376,6 +491,9 @@ def test_system_subset_virtual_site_water(add_nonwater):
             "VirtualSites",
             "[#1:2]-[#8X2H2+0:1]-[#1:3]",
             "distance",
+            virtual_site_type="DivalentLonePair",
+            virtual_site_name="EP",
+            virtual_site_match="once",
         ),
         force_field=ForceField(
             "openff_unconstrained-1.0.0.offxml",
@@ -582,6 +700,7 @@ def test_system_subset_angles_with_full_force_field():
     """
     Test basic behavior of creating system subsets for angle parameters
     """
+    from openff.toolkit.typing.engines.smirnoff.parameters import AngleHandler
 
     # Create force field with angles
     force_field = ForceField()
@@ -640,6 +759,7 @@ def test_system_subset_proper_torsions_isolated_force_field():
 
     This tests the new code addition that includes vdW for valence terms.
     """
+    from openff.toolkit.typing.engines.smirnoff.parameters import ProperTorsionHandler
 
     # Create force field with proper torsions
     force_field = ForceField()
@@ -682,6 +802,7 @@ def test_system_subset_improper_torsions_existing_force_field():
     """
     Test basic behavior of creating system subsets for torsion parameters from a "full" force field
     """
+    from openff.toolkit.typing.engines.smirnoff.parameters import ImproperTorsionHandler
 
     # Create force field with improper torsions
     force_field = ForceField("openff-2.1.0.offxml")
@@ -726,13 +847,14 @@ def test_system_subset_nagl_charges_retained():
     This tests the new code addition that includes NAGLCharges in the electrostatic handlers.
     """
 
-    # Create force field with NAGL charges
+    # Create force field with NAGL charges but without a Bonds handler, so the
+    # VirtualSites subset only produces a NonbondedForce.
     force_field = hydrogen_chloride_force_field(False, False, True)
+    force_field.deregister_parameter_handler("Bonds")
     force_field.get_parameter_handler(
         "NAGLCharges",
         handler_kwargs=dict(version=0.3, model_file="openff-gnn-am1bcc-1.0.0.pt"),
     )
-    force_field.deregister_parameter_handler("Bonds")
 
     # Create a dummy topology
     topology: Topology = Molecule.from_mapped_smiles("[Cl:1][H:2]").to_topology()
@@ -740,7 +862,12 @@ def test_system_subset_nagl_charges_retained():
     # Create the system subset for virtual sites
     system, parameter_value = system_subset(
         parameter_key=ParameterGradientKey(
-            "VirtualSites", "[#1:1]-[#17:2]", "distance"
+            "VirtualSites",
+            "[#1:1]-[#17:2]",
+            "distance",
+            virtual_site_type="BondCharge",
+            virtual_site_name="EP",
+            virtual_site_match="all_permutations",
         ),
         force_field=force_field,
         topology=topology,

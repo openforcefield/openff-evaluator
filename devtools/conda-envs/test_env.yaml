@@ -37,5 +37,3 @@ dependencies:
   - dataclasses
   - pandas =2
 
-  # Shim
-  - xmltodict !=1.0.3

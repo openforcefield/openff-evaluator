@@ -16,27 +16,76 @@ class ParameterGradientKey:
     def attribute(self):
         return self._attribute
 
-    def __init__(self, tag=None, smirks=None, attribute=None):
+    @property
+    def virtual_site_type(self):
+        return self._virtual_site_type
+
+    @property
+    def virtual_site_name(self):
+        return self._virtual_site_name
+
+    @property
+    def virtual_site_match(self):
+        return self._virtual_site_match
+
+    def __init__(
+        self,
+        tag=None,
+        smirks=None,
+        attribute=None,
+        virtual_site_type=None,
+        virtual_site_name=None,
+        virtual_site_match=None,
+    ):
         self._tag = tag
         self._smirks = smirks
         self._attribute = attribute
+        self._virtual_site_type = virtual_site_type
+        self._virtual_site_name = virtual_site_name
+        self._virtual_site_match = virtual_site_match
 
     def __getstate__(self):
-        return {"tag": self._tag, "smirks": self._smirks, "attribute": self._attribute}
+        return {
+            "tag": self._tag,
+            "smirks": self._smirks,
+            "attribute": self._attribute,
+            "virtual_site_type": self._virtual_site_type,
+            "virtual_site_name": self._virtual_site_name,
+            "virtual_site_match": self._virtual_site_match,
+        }
 
     def __setstate__(self, state):
         self._tag = state["tag"]
         self._smirks = state["smirks"]
         self._attribute = state["attribute"]
+        # Keep deserialization tolerant of older payloads that predate
+        # VirtualSite identity metadata.
+        self._virtual_site_type = state.get("virtual_site_type")
+        self._virtual_site_name = state.get("virtual_site_name")
+        self._virtual_site_match = state.get("virtual_site_match")
 
     def __str__(self):
-        return f"tag={self._tag} smirks={self._smirks} attribute={self._attribute}"
+        return (
+            f"tag={self._tag} smirks={self._smirks} attribute={self._attribute} "
+            f"virtual_site_type={self._virtual_site_type} "
+            f"virtual_site_name={self._virtual_site_name} "
+            f"virtual_site_match={self._virtual_site_match}"
+        )
 
     def __repr__(self):
         return f"<ParameterGradientKey {str(self)}>"
 
     def __hash__(self):
-        return hash((self._tag, self._smirks, self._attribute))
+        return hash(
+            (
+                self._tag,
+                self._smirks,
+                self._attribute,
+                self._virtual_site_type,
+                self._virtual_site_name,
+                self._virtual_site_match,
+            )
+        )
 
     def __eq__(self, other):
         return (
@@ -44,6 +93,9 @@ class ParameterGradientKey:
             and self._tag == other._tag
             and self._smirks == other._smirks
             and self._attribute == other._attribute
+            and self._virtual_site_type == other._virtual_site_type
+            and self._virtual_site_name == other._virtual_site_name
+            and self._virtual_site_match == other._virtual_site_match
         )
 
     def __ne__(self, other):

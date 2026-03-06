@@ -133,7 +133,7 @@ def _evaluate_energies(
         pressure = to_openmm(thermodynamic_state.pressure)
 
     for frame_index in range(trajectory.n_frames):
-        positions = trajectory.xyz[frame_index]
+        positions = trajectory.xyz[frame_index] * openmm_unit.nanometer
         box_vectors = None
 
         if enable_pbc:

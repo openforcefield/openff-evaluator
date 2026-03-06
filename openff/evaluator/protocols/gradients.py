@@ -17,6 +17,7 @@ from openff.evaluator.forcefield import (
     SmirnoffForceFieldSource,
 )
 from openff.evaluator.utils.observables import Observable, ObservableArray
+from openff.evaluator.utils.openmm import get_parameter_from_gradient_key
 from openff.evaluator.workflow import Protocol, workflow_protocol
 from openff.evaluator.workflow.attributes import InputAttribute, OutputAttribute
 
@@ -62,10 +63,7 @@ class ZeroGradients(Protocol, abc.ABC):
         force_field = force_field_source.to_force_field()
 
         def _get_parameter_unit(gradient_key):
-            parameter = force_field.get_parameter_handler(gradient_key.tag)
-
-            if gradient_key.smirks is not None:
-                parameter = parameter.parameters[gradient_key.smirks]
+            parameter = get_parameter_from_gradient_key(force_field, gradient_key)
 
             value = getattr(parameter, gradient_key.attribute)
 
