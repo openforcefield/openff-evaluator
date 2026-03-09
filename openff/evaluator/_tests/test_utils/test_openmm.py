@@ -487,6 +487,26 @@ def test_system_subset_library_charge():
     assert np.isclose(epsilon_1.value_in_unit(openmm_unit.kilojoules_per_mole), 0.0)
 
 
+def test_system_subset_library_charge_with_vsite():
+    """When the force field contains a VirtualSites handler, a LibraryCharges
+    system subset must include the vsite particle.
+
+    This tests the fix that corrected "VirtualSiteHandler" (wrong tagname) to
+    "VirtualSites" in the electrostatics handlers_to_register set, and that the
+    Bonds handler is also pulled in so Interchange can compute vsite geometry."""
+    force_field = hydrogen_chloride_force_field(True, False, True)
+    topology: Topology = Molecule.from_mapped_smiles("[Cl:1][H:2]").to_topology()
+
+    system, _ = system_subset(
+        parameter_key=ParameterGradientKey("LibraryCharges", "[#17:1]", "charge1"),
+        force_field=force_field,
+        topology=topology,
+    )
+
+    # HCl has 2 atoms; the BondCharge virtual site adds a third particle.
+    assert system.getNumParticles() == 3
+
+
 def test_system_subset_charge_increment():
     pytest.skip(
         "This test will fail until the SMIRNOFF charge increment handler allows "

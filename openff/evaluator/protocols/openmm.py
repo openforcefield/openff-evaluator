@@ -133,6 +133,8 @@ def _evaluate_energies(
         pressure = to_openmm(thermodynamic_state.pressure)
 
     for frame_index in range(trajectory.n_frames):
+        # mdtraj stores positions as bare numpy arrays in nm; Interchange requires
+        # an explicit OpenMM Quantity, so the unit must be attached here.
         positions = trajectory.xyz[frame_index] * openmm_unit.nanometer
         box_vectors = None
 

@@ -322,6 +322,15 @@ def test_find_relevant_gradient_keys(tmp_path):
             ParameterGradientKey(
                 tag="LibraryCharges", smirks="[#5:1]", attribute="charge"
             ),
+            # Correct SMIRKS but wrong virtual_site_name → identity mismatch, must be excluded.
+            ParameterGradientKey(
+                tag="VirtualSites",
+                smirks="[#1:1][#17:2]",
+                attribute="distance",
+                virtual_site_type="BondCharge",
+                virtual_site_match="all_permutations",
+                virtual_site_name="WRONG",
+            ),
         ],
     )
 

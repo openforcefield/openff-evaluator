@@ -265,16 +265,18 @@ def system_subset(
                 "Electrostatics",
                 "ChargeIncrementModel",
                 "LibraryCharges",
-                "VirtualSiteHandler",
+                "VirtualSites",
                 "ToolkitAM1BCC",
                 "NAGLCharges",
             }
         )
 
-    if parameter_key.tag in {"VirtualSites"}:
+    if "VirtualSites" in handlers_to_register:
         # Interchange's current implementation uses bonds and constraints to determine the values
         # OpenMM needs for virtual sites; using positions might not produce accurate results since a
-        # conformer's geometry likely does not match the force field geometry
+        # conformer's geometry likely does not match the force field geometry.
+        # This block must run whenever VirtualSites is included — not only when it is the primary
+        # tag — so that LibraryCharges/ChargeIncrementModel subsets also carry the geometry handlers.
         handlers_to_register.update(
             {
                 "vdW",
