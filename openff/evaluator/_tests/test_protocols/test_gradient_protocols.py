@@ -4,9 +4,7 @@ import tempfile
 import numpy as np
 from openff.units import unit
 
-from openff.evaluator._tests.test_utils.test_openmm import (
-    hydrogen_chloride_force_field,
-)
+from openff.evaluator._tests.test_utils.test_openmm import hydrogen_chloride_force_field
 from openff.evaluator._tests.utils import build_tip3p_smirnoff_force_field
 from openff.evaluator.forcefield import ParameterGradientKey, SmirnoffForceFieldSource
 from openff.evaluator.protocols.gradients import ZeroGradients
