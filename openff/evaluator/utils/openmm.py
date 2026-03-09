@@ -52,6 +52,9 @@ def get_parameter_from_gradient_key(
 ):
     handler = force_field.get_parameter_handler(parameter_key.tag)
 
+    # If the key doesn't specify a SMIRKS,
+    # we assume it's referring to the handler as a whole, and return that.
+    # This is for when we're fitting handler-level attributes, e.g. scale14
     if parameter_key.smirks is None:
         return handler
 
