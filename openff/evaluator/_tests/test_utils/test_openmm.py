@@ -413,7 +413,7 @@ def test_parameter_matches_gradient_key_smirks_none_vsite():
         }
     )
 
-    vsite_parameter = vsite_handler.parameters["[#1:1]-[#17:2]"]
+    vsite_parameter = vsite_handler.parameters[-1]
 
     # Handler-level key: smirks=None, vsite fields=None, only attribute set
     key = ParameterGradientKey("VirtualSites", None, "cutoff")
