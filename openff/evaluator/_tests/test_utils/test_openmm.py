@@ -776,8 +776,6 @@ def test_system_subset_angles_with_full_force_field():
     """
     Test basic behavior of creating system subsets for angle parameters
     """
-    from openff.toolkit.typing.engines.smirnoff.parameters import AngleHandler
-
     # Create force field with angles
     force_field = ForceField()
 
@@ -835,8 +833,6 @@ def test_system_subset_proper_torsions_isolated_force_field():
 
     This tests the new code addition that includes vdW for valence terms.
     """
-    from openff.toolkit.typing.engines.smirnoff.parameters import ProperTorsionHandler
-
     # Create force field with proper torsions
     force_field = ForceField()
 
@@ -878,8 +874,6 @@ def test_system_subset_improper_torsions_existing_force_field():
     """
     Test basic behavior of creating system subsets for torsion parameters from a "full" force field
     """
-    from openff.toolkit.typing.engines.smirnoff.parameters import ImproperTorsionHandler
-
     # Create force field with improper torsions
     force_field = ForceField("openff-2.1.0.offxml")
 
