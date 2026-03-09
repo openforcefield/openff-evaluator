@@ -274,7 +274,10 @@ def system_subset(
             }
         )
 
-    if "VirtualSites" in handlers_to_register:
+    if (
+        "VirtualSites" in handlers_to_register
+        and "VirtualSites" in force_field.registered_parameter_handlers
+    ):
         # Interchange's current implementation uses bonds and constraints to determine the values
         # OpenMM needs for virtual sites; using positions might not produce accurate results since a
         # conformer's geometry likely does not match the force field geometry.

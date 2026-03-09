@@ -2,9 +2,11 @@ import os
 import tempfile
 
 import numpy as np
-from openff.toolkit.typing.engines.smirnoff import ForceField
 from openff.units import unit
 
+from openff.evaluator._tests.test_utils.test_openmm import (
+    hydrogen_chloride_force_field,
+)
 from openff.evaluator._tests.utils import build_tip3p_smirnoff_force_field
 from openff.evaluator.forcefield import ParameterGradientKey, SmirnoffForceFieldSource
 from openff.evaluator.protocols.gradients import ZeroGradients
@@ -44,51 +46,10 @@ def test_zero_gradient_vsite():
     vsite gradient key, going through get_parameter_from_gradient_key with
     full identity fields (type/name/match)."""
 
-    force_field = ForceField()
-
-    vdw_handler = force_field.get_parameter_handler("vdW")
-    vdw_handler.cutoff = 6.0 * unit.angstrom
-    vdw_handler.scale14 = 1.0
-    for smirks, eps in (("[#1:1]", 0.0), ("[#17:1]", 2.0)):
-        vdw_handler.add_parameter(
-            {
-                "smirks": smirks,
-                "epsilon": eps * unit.kilojoules_per_mole,
-                "sigma": 1.0 * unit.angstrom,
-            }
-        )
-
-    bond_handler = force_field.get_parameter_handler("Bonds")
-    bond_handler.add_parameter(
-        {
-            "smirks": "[#1:1]-[#17:2]",
-            "length": 1.0 * unit.angstrom,
-            "k": 1000.0 * unit.kilojoule_per_mole / unit.angstrom**2,
-        }
-    )
-
-    electrostatics_handler = force_field.get_parameter_handler("Electrostatics")
-    electrostatics_handler.cutoff = 6.0 * unit.angstrom
-    electrostatics_handler.periodic_potential = "PME"
-
-    library_charge_handler = force_field.get_parameter_handler("LibraryCharges")
-    library_charge_handler.add_parameter(
-        {"smirks": "[#1:1]", "charge1": 1.0 * unit.elementary_charge}
-    )
-    library_charge_handler.add_parameter(
-        {"smirks": "[#17:1]", "charge1": -1.0 * unit.elementary_charge}
-    )
-
-    vsite_handler = force_field.get_parameter_handler("VirtualSites")
-    vsite_handler.add_parameter(
-        {
-            "smirks": "[#1:1]-[#17:2]",
-            "type": "BondCharge",
-            "distance": 0.10 * unit.nanometers,
-            "match": "all_permutations",
-            "charge_increment1": 0.0 * unit.elementary_charge,
-            "charge_increment2": 0.0 * unit.elementary_charge,
-        }
+    force_field = hydrogen_chloride_force_field(
+        library_charge=True,
+        charge_increment=False,
+        vsite=True,
     )
 
     vsite_key = ParameterGradientKey(
