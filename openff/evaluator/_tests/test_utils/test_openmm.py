@@ -263,7 +263,7 @@ def test_system_subset_vdw():
 
 def test_get_parameter_from_gradient_key_virtual_sites_disambiguation():
     force_field = ForceField()
-    vsite_handler = VirtualSiteHandler(version=0.3)
+    vsite_handler = force_field.get_parameter_handler("VirtualSites")
 
     vsite_handler.add_parameter(
         {
@@ -288,16 +288,14 @@ def test_get_parameter_from_gradient_key_virtual_sites_disambiguation():
         }
     )
 
-    force_field.register_parameter_handler(vsite_handler)
-
-    # No identity fields → None != actual values, so nothing matches
+    # No identity fields
     with pytest.raises(KeyError, match="No VirtualSites parameter could be matched"):
         get_parameter_from_gradient_key(
             force_field,
             ParameterGradientKey("VirtualSites", "[#1:1]-[#17:2]", "distance"),
         )
 
-    # Full identity for EP2 → exactly one match
+    # Full identity for EP2
     parameter = get_parameter_from_gradient_key(
         force_field,
         ParameterGradientKey(
@@ -311,7 +309,7 @@ def test_get_parameter_from_gradient_key_virtual_sites_disambiguation():
     )
     assert parameter.name == "EP2"
 
-    # Full identity for EP1 → exactly one match
+    # Full identity for EP1
     parameter = get_parameter_from_gradient_key(
         force_field,
         ParameterGradientKey(
@@ -331,7 +329,7 @@ def test_get_parameter_from_gradient_key_virtual_sites_smirks_filtering():
     return a parameter registered under a different SMIRKS pattern, even when
     type/name/match are identical."""
     force_field = ForceField()
-    vsite_handler = VirtualSiteHandler(version=0.3)
+    vsite_handler = force_field.get_parameter_handler("VirtualSites")
 
     for smirks in ("[#1:1]-[#17:2]", "[#8:1]-[#17:2]"):
         vsite_handler.add_parameter(
@@ -345,8 +343,6 @@ def test_get_parameter_from_gradient_key_virtual_sites_smirks_filtering():
                 "charge_increment2": 0.0 * unit.elementary_charge,
             }
         )
-
-    force_field.register_parameter_handler(vsite_handler)
 
     parameter = get_parameter_from_gradient_key(
         force_field,
@@ -379,7 +375,8 @@ def test_parameter_matches_gradient_key_smirks_none_non_vsite():
     """When smirks is None and tag is not VirtualSites, the function should return
     True for a parameter whose smirks is also None, and False otherwise.
     Just testing we haven't broken this behaviour for non-vsite handlers."""
-    vdw_handler = vdWHandler(version=0.4)
+    forcefield = ForceField()
+    vdw_handler = forcefield.get_parameter_handler("vdW")
     vdw_handler.add_parameter(
         {
             "smirks": "[#1:1]",
@@ -403,7 +400,7 @@ def test_parameter_matches_gradient_key_smirks_none_vsite():
     virtual_site identity fields must also be None. The function should return
     True for the handler and False for any concrete vsite parameter."""
     force_field = ForceField()
-    vsite_handler = VirtualSiteHandler(version=0.3)
+    vsite_handler = force_field.get_parameter_handler("VirtualSites")
     vsite_handler.add_parameter(
         {
             "smirks": "[#1:1]-[#17:2]",
@@ -415,7 +412,6 @@ def test_parameter_matches_gradient_key_smirks_none_vsite():
             "charge_increment2": 0.0 * unit.elementary_charge,
         }
     )
-    force_field.register_parameter_handler(vsite_handler)
 
     vsite_parameter = vsite_handler.parameters["[#1:1]-[#17:2]"]
 

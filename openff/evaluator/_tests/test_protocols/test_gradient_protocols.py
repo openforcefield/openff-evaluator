@@ -2,13 +2,7 @@ import os
 import tempfile
 
 import numpy as np
-from openff.toolkit.typing.engines.smirnoff import ForceField, vdWHandler
-from openff.toolkit.typing.engines.smirnoff.parameters import (
-    BondHandler,
-    ElectrostaticsHandler,
-    LibraryChargeHandler,
-    VirtualSiteHandler,
-)
+from openff.toolkit.typing.engines.smirnoff import ForceField
 from openff.units import unit
 
 from openff.evaluator._tests.utils import build_tip3p_smirnoff_force_field
@@ -52,7 +46,7 @@ def test_zero_gradient_vsite():
 
     force_field = ForceField()
 
-    vdw_handler = vdWHandler(version=0.4)
+    vdw_handler = force_field.get_parameter_handler("vdW")
     vdw_handler.cutoff = 6.0 * unit.angstrom
     vdw_handler.scale14 = 1.0
     for smirks, eps in (("[#1:1]", 0.0), ("[#17:1]", 2.0)):
@@ -63,9 +57,8 @@ def test_zero_gradient_vsite():
                 "sigma": 1.0 * unit.angstrom,
             }
         )
-    force_field.register_parameter_handler(vdw_handler)
 
-    bond_handler = BondHandler(version=0.4)
+    bond_handler = force_field.get_parameter_handler("Bonds")
     bond_handler.add_parameter(
         {
             "smirks": "[#1:1]-[#17:2]",
@@ -73,23 +66,20 @@ def test_zero_gradient_vsite():
             "k": 1000.0 * unit.kilojoule_per_mole / unit.angstrom**2,
         }
     )
-    force_field.register_parameter_handler(bond_handler)
 
-    electrostatics_handler = ElectrostaticsHandler(version=0.3)
+    electrostatics_handler = force_field.get_parameter_handler("Electrostatics")
     electrostatics_handler.cutoff = 6.0 * unit.angstrom
     electrostatics_handler.periodic_potential = "PME"
-    force_field.register_parameter_handler(electrostatics_handler)
 
-    library_charge_handler = LibraryChargeHandler(version=0.3)
+    library_charge_handler = force_field.get_parameter_handler("LibraryCharges")
     library_charge_handler.add_parameter(
         {"smirks": "[#1:1]", "charge1": 1.0 * unit.elementary_charge}
     )
     library_charge_handler.add_parameter(
         {"smirks": "[#17:1]", "charge1": -1.0 * unit.elementary_charge}
     )
-    force_field.register_parameter_handler(library_charge_handler)
 
-    vsite_handler = VirtualSiteHandler(version=0.3)
+    vsite_handler = force_field.get_parameter_handler("VirtualSites")
     vsite_handler.add_parameter(
         {
             "smirks": "[#1:1]-[#17:2]",
@@ -100,7 +90,6 @@ def test_zero_gradient_vsite():
             "charge_increment2": 0.0 * unit.elementary_charge,
         }
     )
-    force_field.register_parameter_handler(vsite_handler)
 
     vsite_key = ParameterGradientKey(
         "VirtualSites",
