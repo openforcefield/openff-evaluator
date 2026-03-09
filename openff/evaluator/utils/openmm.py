@@ -25,12 +25,15 @@ logger = logging.getLogger(__name__)
 def parameter_matches_gradient_key(
     parameter, parameter_key: ParameterGradientKey
 ) -> bool:
+    # Matching is based solely on SMIRKS (and, for VirtualSites, the identity
+    # fields type/name/match). The key's attribute is not part of identity.
     if parameter_key.smirks is None:
         if hasattr(parameter, "smirks") and parameter.smirks is not None:
             return False
+        return True
+
     if parameter_key.tag != "VirtualSites":
-        if parameter_key.smirks is not None:
-            return parameter_key.smirks == parameter.smirks
+        return parameter_key.smirks == parameter.smirks
 
     # For VirtualSites, SMIRKS is necessary but not always sufficient; optional
     # identity fields (type/name/match) tighten matching to a single parameter.

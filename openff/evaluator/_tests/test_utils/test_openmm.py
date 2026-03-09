@@ -30,6 +30,7 @@ from openff.evaluator.utils.openmm import (
     extract_atom_indices,
     extract_positions,
     get_parameter_from_gradient_key,
+    parameter_matches_gradient_key,
     system_subset,
     update_context_with_pdb,
     update_context_with_positions,
@@ -372,6 +373,61 @@ def test_get_parameter_from_gradient_key_virtual_sites_smirks_filtering():
         ),
     )
     assert parameter.smirks == "[#8:1]-[#17:2]"
+
+
+def test_parameter_matches_gradient_key_smirks_none_non_vsite():
+    """When smirks is None and tag is not VirtualSites, the function should return
+    True for a parameter whose smirks is also None, and False otherwise.
+    Just testing we haven't broken this behaviour for non-vsite handlers."""
+    vdw_handler = vdWHandler(version=0.4)
+    vdw_handler.add_parameter(
+        {
+            "smirks": "[#1:1]",
+            "epsilon": 0.0 * unit.kilojoules_per_mole,
+            "sigma": 1.0 * unit.angstrom,
+        }
+    )
+    parameter_with_smirks = vdw_handler.parameters["[#1:1]"]
+
+    key = ParameterGradientKey("vdW", None, "scale14")
+
+    # A concrete per-parameter object has a non-None smirks: should not match
+    assert not parameter_matches_gradient_key(parameter_with_smirks, key)
+
+    # The handler itself has no smirks attribute: should match
+    assert parameter_matches_gradient_key(vdw_handler, key)
+
+
+def test_parameter_matches_gradient_key_smirks_none_vsite():
+    """When tag is VirtualSites and smirks is None (handler-level key), the
+    virtual_site identity fields must also be None. The function should return
+    True for the handler and False for any concrete vsite parameter."""
+    force_field = ForceField()
+    vsite_handler = VirtualSiteHandler(version=0.3)
+    vsite_handler.add_parameter(
+        {
+            "smirks": "[#1:1]-[#17:2]",
+            "name": "EP",
+            "type": "BondCharge",
+            "distance": 0.10 * unit.nanometers,
+            "match": "all_permutations",
+            "charge_increment1": 0.0 * unit.elementary_charge,
+            "charge_increment2": 0.0 * unit.elementary_charge,
+        }
+    )
+    force_field.register_parameter_handler(vsite_handler)
+
+    vsite_parameter = vsite_handler.parameters["[#1:1]-[#17:2]"]
+
+    # Handler-level key: smirks=None, vsite fields=None, only attribute set
+    key = ParameterGradientKey("VirtualSites", None, "cutoff")
+
+    # A concrete vsite parameter has a non-None smirks: should not match
+    assert not parameter_matches_gradient_key(vsite_parameter, key)
+
+    # get_parameter_from_gradient_key with smirks=None returns the handler directly
+    handler = get_parameter_from_gradient_key(force_field, key)
+    assert handler is vsite_handler
 
 
 def test_system_subset_vdw_cutoff():
