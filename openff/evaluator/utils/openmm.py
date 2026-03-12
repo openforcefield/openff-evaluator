@@ -22,6 +22,68 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def parameter_matches_gradient_key(
+    parameter, parameter_key: ParameterGradientKey
+) -> bool:
+    # Matching is based solely on SMIRKS (and, for VirtualSites, the identity
+    # fields type/name/match). The key's attribute is not part of identity.
+    if parameter_key.smirks is None:
+        if hasattr(parameter, "smirks") and parameter.smirks is not None:
+            return False
+        return True
+
+    if parameter_key.tag != "VirtualSites":
+        return parameter_key.smirks == parameter.smirks
+
+    # For VirtualSites, SMIRKS is necessary but not always sufficient; optional
+    # identity fields (type/name/match) tighten matching to a single parameter.
+    return all(
+        [
+            parameter_key.smirks == parameter.smirks,
+            parameter_key.virtual_site_type == parameter.type,
+            parameter_key.virtual_site_name == parameter.name,
+            parameter_key.virtual_site_match == parameter.match,
+        ]
+    )
+
+
+def get_parameter_from_gradient_key(
+    force_field: "ForceField", parameter_key: ParameterGradientKey
+):
+    handler = force_field.get_parameter_handler(parameter_key.tag)
+
+    # If the key doesn't specify a SMIRKS,
+    # we assume it's referring to the handler as a whole, and return that.
+    # This is for when we're fitting handler-level attributes, e.g. scale14
+    if parameter_key.smirks is None:
+        return handler
+
+    if parameter_key.tag != "VirtualSites":
+        return handler.parameters[parameter_key.smirks]
+
+    # VirtualSites handlers may contain multiple parameters with the same SMIRKS;
+    # disambiguate using any identity metadata encoded in the gradient key.
+    matching_parameters = [
+        parameter
+        for parameter in handler.parameters
+        if parameter_matches_gradient_key(parameter, parameter_key)
+    ]
+
+    if len(matching_parameters) == 0:
+        raise KeyError(
+            "No VirtualSites parameter could be matched for key "
+            f"{parameter_key}. Ensure smirks/type/name/match identify a single parameter."
+        )
+
+    if len(matching_parameters) > 1:
+        raise KeyError(
+            "Multiple VirtualSites parameters match key "
+            f"{parameter_key}. Add enough identity fields (type/name/match) to disambiguate."
+        )
+
+    return matching_parameters[0]
+
+
 def _strip_cmm_force(system: openmm.System):
     """Removes the first `openmm.CMMotionRemover` force from the system."""
 
@@ -206,16 +268,21 @@ def system_subset(
                 "Electrostatics",
                 "ChargeIncrementModel",
                 "LibraryCharges",
-                "VirtualSiteHandler",
+                "VirtualSites",
                 "ToolkitAM1BCC",
                 "NAGLCharges",
             }
         )
 
-    if parameter_key.tag in {"VirtualSites"}:
+    if (
+        "VirtualSites" in handlers_to_register
+        and "VirtualSites" in force_field.registered_parameter_handlers
+    ):
         # Interchange's current implementation uses bonds and constraints to determine the values
         # OpenMM needs for virtual sites; using positions might not produce accurate results since a
-        # conformer's geometry likely does not match the force field geometry
+        # conformer's geometry likely does not match the force field geometry.
+        # This block must run whenever VirtualSites is included — not only when it is the primary
+        # tag — so that LibraryCharges/ChargeIncrementModel subsets also carry the geometry handlers.
         handlers_to_register.update(
             {
                 "vdW",
@@ -234,13 +301,7 @@ def system_subset(
             copy.deepcopy(force_field.get_parameter_handler(handler_to_register))
         )
 
-    handler = force_field_subset.get_parameter_handler(parameter_key.tag)
-
-    parameter = (
-        handler
-        if parameter_key.smirks is None
-        else handler.parameters[parameter_key.smirks]
-    )
+    parameter = get_parameter_from_gradient_key(force_field_subset, parameter_key)
 
     parameter_value = getattr(parameter, parameter_key.attribute)
     is_quantity = isinstance(parameter_value, unit.Quantity)
