@@ -8,10 +8,15 @@ Releases follow the ``major.minor.micro`` scheme recommended by
 * ``minor`` increments add features but do not break API compatibility
 * ``micro`` increments represent bugfix releases or improvements in documentation
 
-Current development
--------------------
+0.5.3 - March 12, 2025
+----------------------
 
 * PR `#739 <https://github.com/openforcefield/openff-evaluator/pull/739>`_: Add ``ASH`` to list of forbidden residue names in Packmol wrapper
+* PR `#724 <https://github.com/openforcefield/openff-evaluator/pull/724>`_: Add ``selectnumrepresentations`` filter
+* PR `#734 <https://github.com/openforcefield/openff-evaluator/pull/734>`_: Allow for empty topology labels for inapplicable keys
+* PR `#733 <https://github.com/openforcefield/openff-evaluator/pull/733>`_: Allow gradients to be computed with NAGL charges and valence handlers
+* PR `#742 <https://github.com/openforcefield/openff-evaluator/pull/742>`_: Extend ``ParameterGradientKey`` to accommodate virtual sites
+* PR `#746 <https://github.com/openforcefield/openff-evaluator/pull/746>`_: Remove Pint constraint
 
 0.5.2 - January 21, 2025
 ------------------------
