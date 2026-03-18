@@ -57,3 +57,27 @@ class MutableLocalFileStorage(LocalFileStorage):
                 object_to_store,
                 ancillary_data_path,
             )
+
+    def update(self, other: LocalFileStorage) -> None:
+        """Copy all objects from *other* into this storage.
+
+        Existing objects are deduplicated automatically: for
+        :class:`~openff.evaluator.storage.data.HashableStoredData`
+        (e.g. force fields) the parent :meth:`store_object` skips
+        storing if an identical object already exists.
+
+        Parameters
+        ----------
+        other:
+            Storage instance whose contents are merged into this one.
+            *other* is not modified.
+        """
+        for type_name, keys in other._stored_object_keys.items():
+            for key in list(keys):
+                obj, ancillary = other.retrieve_object(key)
+                self.store_object(obj, ancillary)
+
+    def __iadd__(self, other: LocalFileStorage) -> "MutableLocalFileStorage":
+        """Merge *other* into this storage in-place (``self += other``)."""
+        self.update(other)
+        return self
