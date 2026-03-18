@@ -328,3 +328,146 @@ def test_combine_deduplicates_force_fields():
 
         keys = storage_a._stored_object_keys[ForceFieldData.__name__]
         assert len(keys) == 1
+
+
+def _make_storage_with_substances(base_dir, *smiles_list):
+    """Create a MutableLocalFileStorage with one SimulationData object per SMILES."""
+    storage = MutableLocalFileStorage(os.path.join(base_dir, "storage"))
+    for i, smiles in enumerate(smiles_list):
+        substance = Substance.from_components(smiles)
+        data_dir = os.path.join(base_dir, f"data_{i}")
+        obj = create_dummy_simulation_data(data_dir, substance)
+        storage.store_object(obj, data_dir)
+    return storage
+
+
+def test_subset_include_substance():
+    """Only the object matching include_substances is in the result."""
+    substance_c = Substance.from_components("C")
+
+    with tempfile.TemporaryDirectory() as base_dir:
+        storage = _make_storage_with_substances(base_dir, "C", "O", "CC")
+        result_dir = os.path.join(base_dir, "result")
+
+        result = storage.subset(result_dir, include_substances=[substance_c])
+        keys = result._stored_object_keys[StoredSimulationData.__name__]
+        assert len(keys) == 1
+        obj, _ = result.retrieve_object(keys[0])
+        assert obj.substance == substance_c
+
+
+def test_subset_include_component():
+    """Only objects whose substance contains the component are included."""
+    with tempfile.TemporaryDirectory() as base_dir:
+        storage = _make_storage_with_substances(base_dir, "C", "O")
+        result_dir = os.path.join(base_dir, "result")
+
+        include_comp = list(Substance.from_components("C").components)
+        result = storage.subset(result_dir, include_components=include_comp)
+
+        keys = result._stored_object_keys.get(StoredSimulationData.__name__, [])
+        assert len(keys) == 1
+        obj, _ = result.retrieve_object(keys[0])
+        assert obj.substance == Substance.from_components("C")
+
+
+def test_subset_exclude_substance():
+    """Object matching exclude_substances is absent from the result."""
+    substance_o = Substance.from_components("O")
+
+    with tempfile.TemporaryDirectory() as base_dir:
+        storage = _make_storage_with_substances(base_dir, "C", "O")
+        result_dir = os.path.join(base_dir, "result")
+
+        result = storage.subset(result_dir, exclude_substances=[substance_o])
+        keys = result._stored_object_keys[StoredSimulationData.__name__]
+        assert len(keys) == 1
+        obj, _ = result.retrieve_object(keys[0])
+        assert obj.substance == Substance.from_components("C")
+
+
+def test_subset_exclude_component():
+    """Object whose substance contains the excluded component is absent."""
+    with tempfile.TemporaryDirectory() as base_dir:
+        storage = _make_storage_with_substances(base_dir, "C", "O")
+        result_dir = os.path.join(base_dir, "result")
+
+        exclude_comp = list(Substance.from_components("O").components)
+        result = storage.subset(result_dir, exclude_components=exclude_comp)
+
+        keys = result._stored_object_keys.get(StoredSimulationData.__name__, [])
+        assert len(keys) == 1
+        obj, _ = result.retrieve_object(keys[0])
+        assert obj.substance == Substance.from_components("C")
+
+
+def test_subset_combined_filters():
+    """include and exclude filters work together correctly."""
+    substance_c = Substance.from_components("C")
+    substance_cc = Substance.from_components("CC")
+
+    with tempfile.TemporaryDirectory() as base_dir:
+        storage = _make_storage_with_substances(base_dir, "C", "O", "CC")
+        result_dir = os.path.join(base_dir, "result")
+
+        result = storage.subset(
+            result_dir,
+            include_substances=[substance_c, substance_cc],
+            exclude_substances=[substance_cc],
+        )
+        keys = result._stored_object_keys[StoredSimulationData.__name__]
+        assert len(keys) == 1
+        obj, _ = result.retrieve_object(keys[0])
+        assert obj.substance == substance_c
+
+
+def test_subset_no_filters_returns_all():
+    """subset() with no filters returns an identical copy of the storage."""
+    with tempfile.TemporaryDirectory() as base_dir:
+        storage = _make_storage_with_substances(base_dir, "C", "O")
+        result_dir = os.path.join(base_dir, "result")
+
+        result = storage.subset(result_dir)
+        keys = result._stored_object_keys[StoredSimulationData.__name__]
+        assert len(keys) == 2
+
+
+def test_subset_force_field_data_included_when_no_substance_filter():
+    """ForceFieldData is included when no include filters are active."""
+    with tempfile.TemporaryDirectory() as base_dir:
+        storage_dir = os.path.join(base_dir, "storage")
+        storage = MutableLocalFileStorage(storage_dir)
+
+        ff = SmirnoffForceFieldSource.from_path("openff-2.2.1.offxml")
+        storage.store_force_field(ff)
+
+        result_dir = os.path.join(base_dir, "result")
+        result = storage.subset(result_dir)
+
+        ff_keys = result._stored_object_keys.get(ForceFieldData.__name__, [])
+        assert len(ff_keys) == 1
+
+
+def test_subset_force_field_excluded_when_include_substance_active():
+    """ForceFieldData is excluded when an include_substances filter is active."""
+    substance_c = Substance.from_components("C")
+
+    with tempfile.TemporaryDirectory() as base_dir:
+        storage_dir = os.path.join(base_dir, "storage")
+        storage = MutableLocalFileStorage(storage_dir)
+
+        ff = SmirnoffForceFieldSource.from_path("openff-2.2.1.offxml")
+        storage.store_force_field(ff)
+        data_dir = os.path.join(base_dir, "data")
+        obj = create_dummy_simulation_data(data_dir, substance_c)
+        storage.store_object(obj, data_dir)
+
+        result_dir = os.path.join(base_dir, "result")
+        result = storage.subset(result_dir, include_substances=[substance_c])
+
+        # ForceFieldData has no substance, so it cannot match the include filter
+        ff_keys = result._stored_object_keys.get(ForceFieldData.__name__, [])
+        assert len(ff_keys) == 0
+        # But simulation data is present
+        sim_keys = result._stored_object_keys[StoredSimulationData.__name__]
+        assert len(sim_keys) == 1

@@ -81,3 +81,94 @@ class MutableLocalFileStorage(LocalFileStorage):
                 object_to_store,
                 ancillary_data_path,
             )
+
+    @staticmethod
+    def _substance_passes_filters(
+        substance,
+        include_substances,
+        include_components,
+        exclude_substances,
+        exclude_components,
+    ) -> bool:
+        """Return True if *substance* passes all active filters.
+
+        Objects whose substance is ``None`` (e.g. :class:`ForceFieldData`)
+        are included only when no *include* filters are active.
+        """
+        if substance is None:
+            return include_substances is None and include_components is None
+
+        component_ids = {c.identifier for c in substance.components}
+
+        if include_substances is not None:
+            if not any(substance == s for s in include_substances):
+                return False
+
+        if include_components is not None:
+            if not all(c.identifier in component_ids for c in include_components):
+                return False
+
+        if exclude_substances is not None:
+            if any(substance == s for s in exclude_substances):
+                return False
+
+        if exclude_components is not None:
+            if any(c.identifier in component_ids for c in exclude_components):
+                return False
+
+        return True
+
+    def subset(
+        self,
+        directory: str,
+        include_substances=None,
+        include_components=None,
+        exclude_substances=None,
+        exclude_components=None,
+    ) -> "MutableLocalFileStorage":
+        """Return a new :class:`MutableLocalFileStorage` at *directory*
+        containing only objects that match the given filters.
+
+        Parameters
+        ----------
+        directory:
+            Root directory for the new storage.
+        include_substances:
+            If given, only include objects whose substance exactly matches
+            one of the listed
+            :class:`~openff.evaluator.substances.Substance` instances.
+        include_components:
+            If given, only include objects whose substance contains
+            *every* listed
+            :class:`~openff.evaluator.substances.components.Component`.
+        exclude_substances:
+            Exclude objects whose substance exactly matches any listed
+            substance.
+        exclude_components:
+            Exclude objects whose substance contains *any* listed
+            component.
+
+        Returns
+        -------
+        MutableLocalFileStorage
+            A new storage instance containing the matching objects.
+        """
+        result = MutableLocalFileStorage(directory)
+
+        for type_name, keys in self._stored_object_keys.items():
+            for key in list(keys):
+                obj, ancillary = self.retrieve_object(key)
+                substance = getattr(obj, "substance", None)
+
+                if not self._substance_passes_filters(
+                    substance,
+                    include_substances,
+                    include_components,
+                    exclude_substances,
+                    exclude_components,
+                ):
+                    continue
+
+                result.store_object(obj, ancillary)
+
+        return result
