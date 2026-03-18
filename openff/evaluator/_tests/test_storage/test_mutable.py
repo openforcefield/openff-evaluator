@@ -1,0 +1,102 @@
+"""Unit tests for MutableLocalFileStorage — combine/update behaviour."""
+import os
+import tempfile
+
+from openff.evaluator._tests.utils import create_dummy_simulation_data
+from openff.evaluator.forcefield import SmirnoffForceFieldSource
+from openff.evaluator.storage import MutableLocalFileStorage
+from openff.evaluator.storage.data import ForceFieldData, StoredSimulationData
+from openff.evaluator.substances import Substance
+
+
+def test_combine_storages_update():
+    """update() merges all objects from other into self."""
+    substance_a = Substance.from_components("C")
+    substance_b = Substance.from_components("O")
+
+    with tempfile.TemporaryDirectory() as base_dir:
+        dir_a = os.path.join(base_dir, "storage_a")
+        dir_b = os.path.join(base_dir, "storage_b")
+        data_a = os.path.join(base_dir, "data_a")
+        data_b = os.path.join(base_dir, "data_b")
+
+        obj_a = create_dummy_simulation_data(data_a, substance_a)
+        obj_b = create_dummy_simulation_data(data_b, substance_b)
+
+        storage_a = MutableLocalFileStorage(dir_a)
+        storage_a.store_object(obj_a, data_a)
+
+        storage_b = MutableLocalFileStorage(dir_b)
+        storage_b.store_object(obj_b, data_b)
+
+        storage_a.update(storage_b)
+
+        keys = storage_a._stored_object_keys[StoredSimulationData.__name__]
+        assert len(keys) == 2
+
+
+def test_combine_storages_iadd():
+    """``+=`` operator merges other into self."""
+    substance_a = Substance.from_components("C")
+    substance_b = Substance.from_components("O")
+
+    with tempfile.TemporaryDirectory() as base_dir:
+        dir_a = os.path.join(base_dir, "storage_a")
+        dir_b = os.path.join(base_dir, "storage_b")
+        data_a = os.path.join(base_dir, "data_a")
+        data_b = os.path.join(base_dir, "data_b")
+
+        obj_a = create_dummy_simulation_data(data_a, substance_a)
+        obj_b = create_dummy_simulation_data(data_b, substance_b)
+
+        storage_a = MutableLocalFileStorage(dir_a)
+        storage_a.store_object(obj_a, data_a)
+
+        storage_b = MutableLocalFileStorage(dir_b)
+        storage_b.store_object(obj_b, data_b)
+
+        storage_a += storage_b
+
+        keys = storage_a._stored_object_keys[StoredSimulationData.__name__]
+        assert len(keys) == 2
+
+
+def test_combine_update_does_not_modify_other():
+    """update() does not remove objects from the source storage."""
+    substance = Substance.from_components("C")
+
+    with tempfile.TemporaryDirectory() as base_dir:
+        dir_a = os.path.join(base_dir, "storage_a")
+        dir_b = os.path.join(base_dir, "storage_b")
+        data_b = os.path.join(base_dir, "data_b")
+
+        obj = create_dummy_simulation_data(data_b, substance)
+        storage_a = MutableLocalFileStorage(dir_a)
+        storage_b = MutableLocalFileStorage(dir_b)
+        storage_b.store_object(obj, data_b)
+
+        storage_a.update(storage_b)
+
+        # original storage_b still has the object
+        keys_b = storage_b._stored_object_keys[StoredSimulationData.__name__]
+        assert len(keys_b) == 1
+
+
+def test_combine_deduplicates_force_fields():
+    """Combining two storages with the same force field stores it only once."""
+    force_field_source = SmirnoffForceFieldSource.from_path("openff-2.2.1.offxml")
+
+    with tempfile.TemporaryDirectory() as base_dir:
+        dir_a = os.path.join(base_dir, "storage_a")
+        dir_b = os.path.join(base_dir, "storage_b")
+
+        storage_a = MutableLocalFileStorage(dir_a)
+        storage_b = MutableLocalFileStorage(dir_b)
+
+        storage_a.store_force_field(force_field_source)
+        storage_b.store_force_field(force_field_source)
+
+        storage_a.update(storage_b)
+
+        keys = storage_a._stored_object_keys[ForceFieldData.__name__]
+        assert len(keys) == 1
