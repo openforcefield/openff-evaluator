@@ -721,6 +721,14 @@ def test_filter_ionic_liquid():
     assert len(filtered_frame) == 1
 
 
+def test_filter_by_smiles_via_workflow(data_frame):
+    schema = CurationWorkflowSchema(
+        component_schemas=[FilterBySmilesSchema(smiles_to_include=["C"])]
+    )
+    filtered_frame = CurationWorkflow.apply(data_frame, schema)
+    assert len(filtered_frame) == 16
+
+
 def test_validate_filter_by_smiles():
     # Ensure a valid schema passes
     FilterBySmilesSchema(smiles_to_include=["C"])
