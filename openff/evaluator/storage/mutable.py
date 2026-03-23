@@ -35,7 +35,9 @@ class MutableLocalFileStorage(LocalFileStorage):
         retrieved from storage.
     """
 
-    def _store_object(self, object_to_store, storage_key=None, ancillary_data_path=None):
+    def _store_object(
+        self, object_to_store, storage_key=None, ancillary_data_path=None
+    ):
         """Store *object_to_store*, **copying** any ancillary data directory
         rather than moving it, so the caller's source data is preserved.
         """
