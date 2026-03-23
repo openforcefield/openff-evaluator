@@ -1,5 +1,6 @@
 import os
 import tempfile
+
 import pytest
 
 from openff.evaluator._tests.utils import (
@@ -15,6 +16,7 @@ DATA_FACTORIES = [
     pytest.param(create_dummy_simulation_data, id="simulation"),
     pytest.param(create_dummy_equilibration_data, id="equilibration"),
 ]
+
 
 def test_combine_storages_update():
     """update() merges all objects from other into self."""
@@ -108,6 +110,7 @@ def test_combine_deduplicates_force_fields():
         keys = storage_a._stored_object_keys[ForceFieldData.__name__]
         assert len(keys) == 1
 
+
 @pytest.mark.parametrize("factory", DATA_FACTORIES)
 def test_store_data_copies_not_moves(factory):
     """store_object() copies ancillary data, leaving the source directory intact."""
@@ -122,7 +125,9 @@ def test_store_data_copies_not_moves(factory):
         storage.store_object(data, data_dir)
 
         # Source directory must still exist after storing
-        assert os.path.isdir(data_dir), "Source ancillary directory was moved (destroyed)"
+        assert os.path.isdir(
+            data_dir
+        ), "Source ancillary directory was moved (destroyed)"
         assert os.path.isfile(os.path.join(data_dir, data.coordinate_file_name))
         if hasattr(data, "trajectory_file_name"):
             assert os.path.isfile(os.path.join(data_dir, data.trajectory_file_name))
@@ -162,9 +167,9 @@ def test_parent_move_behaviour_differs(factory):
         parent_data = factory(parent_data_dir, substance)
         parent_storage = LocalFileStorage(parent_storage_dir)
         parent_storage.store_object(parent_data, parent_data_dir)
-        assert not os.path.isdir(parent_data_dir), (
-            "LocalFileStorage should have moved (destroyed) the source directory"
-        )
+        assert not os.path.isdir(
+            parent_data_dir
+        ), "LocalFileStorage should have moved (destroyed) the source directory"
 
         # Subclass: source directory survives
         mutable_storage_dir = os.path.join(base_dir, "mutable_storage")
@@ -172,9 +177,10 @@ def test_parent_move_behaviour_differs(factory):
         mutable_data = factory(mutable_data_dir, substance)
         mutable_storage = MutableLocalFileStorage(mutable_storage_dir)
         mutable_storage.store_object(mutable_data, mutable_data_dir)
-        assert os.path.isdir(mutable_data_dir), (
-            "MutableLocalFileStorage should have copied, not moved, the source directory"
-        )
+        assert os.path.isdir(
+            mutable_data_dir
+        ), "MutableLocalFileStorage should have copied, not moved, the source directory"
+
 
 COMBINE_OPS = [
     pytest.param(lambda a, b: a.update(b), id="update"),
