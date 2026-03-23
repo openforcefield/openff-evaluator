@@ -176,8 +176,15 @@ def test_parent_move_behaviour_differs(factory):
             "MutableLocalFileStorage should have copied, not moved, the source directory"
         )
 
-def test_combine_storages_update():
-    """update() merges all objects from other into self."""
+COMBINE_OPS = [
+    pytest.param(lambda a, b: a.update(b), id="update"),
+    pytest.param(lambda a, b: a.__iadd__(b), id="iadd"),
+]
+
+
+@pytest.mark.parametrize("combine_op", COMBINE_OPS)
+def test_combine_storages(combine_op):
+    """update() and += both merge all objects from other into self."""
     substance_a = Substance.from_components("C")
     substance_b = Substance.from_components("O")
 
@@ -196,33 +203,7 @@ def test_combine_storages_update():
         storage_b = MutableLocalFileStorage(dir_b)
         storage_b.store_object(obj_b, data_b)
 
-        storage_a.update(storage_b)
-
-        keys = storage_a._stored_object_keys[StoredSimulationData.__name__]
-        assert len(keys) == 2
-
-
-def test_combine_storages_iadd():
-    """``+=`` operator merges other into self."""
-    substance_a = Substance.from_components("C")
-    substance_b = Substance.from_components("O")
-
-    with tempfile.TemporaryDirectory() as base_dir:
-        dir_a = os.path.join(base_dir, "storage_a")
-        dir_b = os.path.join(base_dir, "storage_b")
-        data_a = os.path.join(base_dir, "data_a")
-        data_b = os.path.join(base_dir, "data_b")
-
-        obj_a = create_dummy_simulation_data(data_a, substance_a)
-        obj_b = create_dummy_simulation_data(data_b, substance_b)
-
-        storage_a = MutableLocalFileStorage(dir_a)
-        storage_a.store_object(obj_a, data_a)
-
-        storage_b = MutableLocalFileStorage(dir_b)
-        storage_b.store_object(obj_b, data_b)
-
-        storage_a += storage_b
+        combine_op(storage_a, storage_b)
 
         keys = storage_a._stored_object_keys[StoredSimulationData.__name__]
         assert len(keys) == 2
