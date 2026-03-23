@@ -35,9 +35,7 @@ class MutableLocalFileStorage(LocalFileStorage):
         retrieved from storage.
     """
 
-    def _store_object(
-        self, object_to_store, storage_key=None, ancillary_data_path=None
-    ):
+    def _store_object(self, object_to_store, storage_key=None, ancillary_data_path=None):
         """Store *object_to_store*, **copying** any ancillary data directory
         rather than moving it, so the caller's source data is preserved.
         """
@@ -81,24 +79,3 @@ class MutableLocalFileStorage(LocalFileStorage):
         """Merge *other* into this storage in-place (``self += other``)."""
         self.update(other)
         return self
-
-    def _store_object(self, object_to_store, storage_key=None, ancillary_data_path=None):
-        """Store *object_to_store*, **copying** any ancillary data directory
-        rather than moving it, so the caller's source data is preserved.
-        """
-        file_path = path.join(self._root_directory, f"{storage_key}.json")
-
-        with open(file_path, "w") as file:
-            json.dump(object_to_store, file, cls=TypedJSONEncoder)
-
-        if object_to_store.has_ancillary_data():
-            directory_path = path.join(self._root_directory, f"{storage_key}")
-            if path.isdir(directory_path):
-                shutil.rmtree(directory_path, ignore_errors=True)
-            shutil.copytree(ancillary_data_path, directory_path)
-
-        if self._cache_objects_in_memory:
-            self._cached_retrieved_objects[storage_key] = (
-                object_to_store,
-                ancillary_data_path,
-            )
