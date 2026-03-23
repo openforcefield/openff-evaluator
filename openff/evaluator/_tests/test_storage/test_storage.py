@@ -276,3 +276,30 @@ def test_duplicate_data_storage(factory, reverse_order):
 
         # Make sure all pieces of data got assigned the same key.
         assert len(all_storage_keys) == 1
+
+
+def test_equilibration_data_query_calculation_layer():
+    """EquilibrationDataQuery filters by calculation_layer when set."""
+    substance = Substance.from_components("C")
+
+    with tempfile.TemporaryDirectory() as base_directory:
+        backend_directory = os.path.join(base_directory, "storage_dir")
+        storage = LocalFileStorage(backend_directory)
+
+        for layer in ("SimulationLayer", "ReweightingLayer"):
+            data_directory = os.path.join(base_directory, layer)
+            data_object = create_dummy_equilibration_data(
+                data_directory,
+                substance,
+                calculation_layer=layer,
+                calculation_id=layer,
+            )
+            storage.store_object(data_object, data_directory)
+
+        for layer in ("SimulationLayer", "ReweightingLayer"):
+            query = EquilibrationDataQuery()
+            query.substance = substance
+            query.calculation_layer = layer
+
+            results = storage.query(query)
+            assert results is not None and len(results) == 1
