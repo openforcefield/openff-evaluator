@@ -2,19 +2,30 @@
 import os
 import tempfile
 
-from openff.evaluator._tests.utils import create_dummy_simulation_data
+import pytest
+
+from openff.evaluator._tests.utils import (
+    create_dummy_equilibration_data,
+    create_dummy_simulation_data,
+)
 from openff.evaluator.storage import MutableLocalFileStorage
 from openff.evaluator.substances import Substance
 
+DATA_FACTORIES = [
+    pytest.param(create_dummy_simulation_data, id="simulation"),
+    pytest.param(create_dummy_equilibration_data, id="equilibration"),
+]
 
-def test_store_object_copies_not_moves():
+
+@pytest.mark.parametrize("factory", DATA_FACTORIES)
+def test_store_data_copies_not_moves(factory):
     """store_object() copies ancillary data, leaving the source directory intact."""
     substance = Substance.from_components("C")
     with tempfile.TemporaryDirectory() as base_dir:
         storage_dir = os.path.join(base_dir, "storage")
         data_dir = os.path.join(base_dir, "data_directory")
 
-        data = create_dummy_simulation_data(data_dir, substance)
+        data = factory(data_dir, substance)
 
         storage = MutableLocalFileStorage(storage_dir)
         storage.store_object(data, data_dir)
@@ -22,17 +33,19 @@ def test_store_object_copies_not_moves():
         # Source directory must still exist after storing
         assert os.path.isdir(data_dir), "Source ancillary directory was moved (destroyed)"
         assert os.path.isfile(os.path.join(data_dir, data.coordinate_file_name))
-        assert os.path.isfile(os.path.join(data_dir, data.trajectory_file_name))
+        if hasattr(data, "trajectory_file_name"):
+            assert os.path.isfile(os.path.join(data_dir, data.trajectory_file_name))
 
 
-def test_store_object_copy_stores_correctly():
+@pytest.mark.parametrize("factory", DATA_FACTORIES)
+def test_store_data_copy_stores_correctly(factory):
     """The stored copy can be retrieved and contains the expected data."""
     substance = Substance.from_components("C")
     with tempfile.TemporaryDirectory() as base_dir:
         storage_dir = os.path.join(base_dir, "storage")
         data_dir = os.path.join(base_dir, "data_directory")
 
-        data = create_dummy_simulation_data(data_dir, substance)
+        data = factory(data_dir, substance)
 
         storage = MutableLocalFileStorage(storage_dir)
         key = storage.store_object(data, data_dir)
@@ -40,11 +53,14 @@ def test_store_object_copy_stores_correctly():
         retrieved, retrieved_dir = storage.retrieve_object(key)
         assert retrieved is not None
         assert retrieved.substance.json() == data.substance.json()
+        if hasattr(data, "max_number_of_molecules"):
+            assert retrieved.max_number_of_molecules == data.max_number_of_molecules
         assert os.path.isdir(retrieved_dir)
 
 
-def test_parent_move_behaviour_differs():
-    """Confirm LocalFileStorage (parent) moves, while MutableLocalFileStorage copies."""
+@pytest.mark.parametrize("factory", DATA_FACTORIES)
+def test_parent_move_behaviour_differs(factory):
+    """LocalFileStorage moves; MutableLocalFileStorage copies."""
     from openff.evaluator.storage import LocalFileStorage
 
     substance = Substance.from_components("C")
@@ -52,7 +68,7 @@ def test_parent_move_behaviour_differs():
         # Parent: source directory is destroyed after store
         parent_storage_dir = os.path.join(base_dir, "parent_storage")
         parent_data_dir = os.path.join(base_dir, "parent_data")
-        parent_data = create_dummy_simulation_data(parent_data_dir, substance)
+        parent_data = factory(parent_data_dir, substance)
         parent_storage = LocalFileStorage(parent_storage_dir)
         parent_storage.store_object(parent_data, parent_data_dir)
         assert not os.path.isdir(parent_data_dir), (
@@ -62,7 +78,7 @@ def test_parent_move_behaviour_differs():
         # Subclass: source directory survives
         mutable_storage_dir = os.path.join(base_dir, "mutable_storage")
         mutable_data_dir = os.path.join(base_dir, "mutable_data")
-        mutable_data = create_dummy_simulation_data(mutable_data_dir, substance)
+        mutable_data = factory(mutable_data_dir, substance)
         mutable_storage = MutableLocalFileStorage(mutable_storage_dir)
         mutable_storage.store_object(mutable_data, mutable_data_dir)
         assert os.path.isdir(mutable_data_dir), (
