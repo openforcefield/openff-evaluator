@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Minimal ThermoML fixture for regression testing of tautomer resolution.
+     2-pyrrolidinone is identified by InChI only (no SMILES), mirroring the
+     real files 10.1021/je0340809, 10.1021/je801006q, 10.1016/j.jct.2013.09.015.
+     The InChI mobile-H layer (H,5,6) causes RDKit's MolFromInchi to produce
+     the lactim OC1=NCCC1 instead of the correct lactam O=C1CCCN1. -->
+<DataReport xmlns="http://www.iupac.org/namespaces/ThermoML"
+            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            xsi:schemaLocation="http://www.iupac.org/namespaces/ThermoML http://trc.nist.gov/ThermoML.xsd">
+  <Version>
+    <nVersionMajor>2</nVersionMajor>
+    <nVersionMinor>0</nVersionMinor>
+  </Version>
+  <Compound>
+    <RegNum>
+      <nOrgNum>1</nOrgNum>
+    </RegNum>
+    <sStandardInChI>InChI=1S/H2O/h1H2</sStandardInChI>
+    <sCommonName>water</sCommonName>
+  </Compound>
+  <Compound>
+    <RegNum>
+      <nOrgNum>2</nOrgNum>
+    </RegNum>
+    <sStandardInChI>InChI=1S/C4H7NO/c6-4-2-1-3-5-4/h1-3H2,(H,5,6)</sStandardInChI>
+    <sCommonName>2-pyrrolidinone</sCommonName>
+    <sCommonName>2-pyrrolidone</sCommonName>
+  </Compound>
+  <PureOrMixtureData>
+    <Component>
+      <RegNum><nOrgNum>1</nOrgNum></RegNum>
+      <nSampleNm>1</nSampleNm>
+    </Component>
+    <Component>
+      <RegNum><nOrgNum>2</nOrgNum></RegNum>
+      <nSampleNm>1</nSampleNm>
+    </Component>
+    <Property>
+      <nPropNumber>1</nPropNumber>
+      <Property-MethodID>
+        <PropertyGroup>
+          <VolumetricProp>
+            <ePropName>Mass density, kg/m3</ePropName>
+            <eMethodName>Vibrating tube method</eMethodName>
+          </VolumetricProp>
+        </PropertyGroup>
+      </Property-MethodID>
+      <PropPhaseID><ePropPhase>Liquid</ePropPhase></PropPhaseID>
+      <ePresentation>Direct value, X</ePresentation>
+    </Property>
+    <PhaseID><ePhase>Liquid</ePhase></PhaseID>
+    <Constraint>
+      <nConstraintNumber>1</nConstraintNumber>
+      <ConstraintID>
+        <ConstraintType><ePressure>Pressure, kPa</ePressure></ConstraintType>
+      </ConstraintID>
+      <ConstraintPhaseID><eConstraintPhase>Liquid</eConstraintPhase></ConstraintPhaseID>
+      <nConstraintValue>101.325</nConstraintValue>
+      <nConstrDigits>6</nConstrDigits>
+    </Constraint>
+    <Variable>
+      <nVarNumber>1</nVarNumber>
+      <VariableID>
+        <VariableType><eComponentComposition>Mole fraction</eComponentComposition></VariableType>
+        <RegNum><nOrgNum>2</nOrgNum></RegNum>
+      </VariableID>
+      <VarPhaseID><eVarPhase>Liquid</eVarPhase></VarPhaseID>
+    </Variable>
+    <Variable>
+      <nVarNumber>2</nVarNumber>
+      <VariableID>
+        <VariableType><eTemperature>Temperature, K</eTemperature></VariableType>
+      </VariableID>
+      <VarPhaseID><eVarPhase>Liquid</eVarPhase></VarPhaseID>
+    </Variable>
+    <NumValues>
+      <VariableValue><nVarNumber>1</nVarNumber><nVarValue>0.2</nVarValue><nVarDigits>2</nVarDigits></VariableValue>
+      <VariableValue><nVarNumber>2</nVarNumber><nVarValue>298.15</nVarValue><nVarDigits>5</nVarDigits></VariableValue>
+      <PropertyValue>
+        <nPropNumber>1</nPropNumber>
+        <nPropValue>1020.5</nPropValue>
+        <nPropDigits>5</nPropDigits>
+      </PropertyValue>
+    </NumValues>
+  </PureOrMixtureData>
+</DataReport>
