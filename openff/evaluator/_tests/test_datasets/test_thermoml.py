@@ -238,6 +238,36 @@ def test_thermoml_mole_constraints(caplog):
     assert len(data_set) > 0
 
 
+def test_thermoml_pyrrolidinone_tautomer_resolution():
+    """Regression test: 2-pyrrolidinone (InChI-only entry with mobile-H layer)
+    must parse as the lactam O=C1CCCN1, not the lactim OC1=NCCC1.
+
+    The InChI ``InChI=1S/C4H7NO/c6-4-2-1-3-5-4/h1-3H2,(H,5,6)`` round-trips
+    to the same string for both tautomers; the common name disambiguates.
+    Requires an OpenEye licence for ``Molecule.from_iupac``.
+    """
+    pytest.importorskip("openeye.oechem")
+
+    data_set = ThermoMLDataSet.from_file(
+        get_data_filename("test/properties/pyrrolidinone.xml")
+    )
+    assert data_set is not None
+    assert len(data_set) > 0
+
+    lactam_smiles = "O=C1CCCN1"
+    lactim_smiles = "OC1=NCCC1"
+
+    found_lactam = False
+    for prop in data_set:
+        for component in prop.substance.components:
+            if component.smiles == lactam_smiles:
+                found_lactam = True
+            assert component.smiles != lactim_smiles, (
+                f"Got lactim {lactim_smiles!r} for 2-pyrrolidinone; expected lactam"
+            )
+    assert found_lactam, "Lactam SMILES not found in any parsed substance"
+
+
 def test_trim_missing_from_pandas():
     """
     Trim physical properties when some thermophysical data missing.
