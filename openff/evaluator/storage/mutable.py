@@ -153,6 +153,23 @@ class MutableLocalFileStorage(LocalFileStorage):
         MutableLocalFileStorage
             A new storage instance containing the matching objects.
         """
+        if include_substances and exclude_substances:
+            overlap = [s for s in include_substances if any(s == e for e in exclude_substances)]
+            if overlap:
+                raise ValueError(
+                    "The same substance cannot appear in both include_substances "
+                    "and exclude_substances."
+                )
+
+        if include_components and exclude_components:
+            inc_ids = {c.identifier for c in include_components}
+            exc_ids = {c.identifier for c in exclude_components}
+            if inc_ids & exc_ids:
+                raise ValueError(
+                    "The same component cannot appear in both include_components "
+                    "and exclude_components."
+                )
+
         result = MutableLocalFileStorage(directory)
 
         for type_name, keys in self._stored_object_keys.items():
