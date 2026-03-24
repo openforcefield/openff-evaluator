@@ -408,8 +408,8 @@ class _Compound:
         # Attempt tautomer resolution using common name (requires OpenEye).
         if common_name is not None:
             try:
-                from rdkit.Chem.MolStandardize import rdMolStandardize
                 from openff.toolkit.utils import InvalidIUPACNameError, LicenseError
+                from rdkit.Chem.MolStandardize import rdMolStandardize
 
                 enumerator = rdMolStandardize.TautomerEnumerator()
                 tautomers = enumerator.Enumerate(mol)
