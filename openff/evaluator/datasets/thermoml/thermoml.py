@@ -400,9 +400,9 @@ class _Compound:
         if inchi_string is None:
             raise ValueError("The InChI string cannot be `None`.")
 
-        mol = MolFromInchi(inchi_string, removeHs=False)
+        molecule = MolFromInchi(inchi_string, removeHs=False)
 
-        if not mol:
+        if not molecule:
             raise ValueError(f"The InChI string ({inchi_string}) could not be parsed")
 
         # Attempt tautomer resolution using common name (requires OpenEye).
@@ -412,7 +412,7 @@ class _Compound:
                 from rdkit.Chem.MolStandardize import rdMolStandardize
 
                 enumerator = rdMolStandardize.TautomerEnumerator()
-                tautomers = enumerator.Enumerate(mol)
+                tautomers = enumerator.Enumerate(molecule)
 
                 if len(tautomers) > 1:
                     iupac_mol = Molecule.from_iupac(
@@ -437,7 +437,7 @@ class _Compound:
 
         # Original behaviour: convert InChI-derived molecule directly.
         try:
-            return Molecule.from_rdkit(mol).to_smiles(
+            return Molecule.from_rdkit(molecule).to_smiles(
                 isomeric=True,
                 explicit_hydrogens=False,
                 mapped=False,
