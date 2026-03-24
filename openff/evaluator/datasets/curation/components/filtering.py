@@ -720,7 +720,7 @@ class FilterBySmilesSchema(CurationComponentSchema):
         assert data.smiles_to_include is not None or data.smiles_to_exclude is not None
         assert data.smiles_to_include is None or data.smiles_to_exclude is None
 
-        return cls
+        return data
 
 
 class FilterBySmiles(CurationComponent):
