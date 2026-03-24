@@ -239,7 +239,7 @@ def test_thermoml_mole_constraints(caplog):
 
 
 def test_thermoml_pyrrolidinone_tautomer_resolution():
-    """Regression test: 2-pyrrolidinone (InChI-only entry with mobile-H layer)
+    """2-pyrrolidinone (InChI-only entry with mobile-H layer)
     must parse as the lactam O=C1CCCN1, not the lactim OC1=NCCC1.
 
     The InChI ``InChI=1S/C4H7NO/c6-4-2-1-3-5-4/h1-3H2,(H,5,6)`` round-trips

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Minimal ThermoML fixture for regression testing of tautomer resolution.
+<!-- Minimal ThermoML fixture for testing of tautomer resolution.
      2-pyrrolidinone is identified by InChI only (no SMILES), mirroring the
      real files 10.1021/je0340809, 10.1021/je801006q, 10.1016/j.jct.2013.09.015.
      The InChI mobile-H layer (H,5,6) causes RDKit's MolFromInchi to produce
