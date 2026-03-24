@@ -262,9 +262,9 @@ def test_thermoml_pyrrolidinone_tautomer_resolution():
         for component in prop.substance.components:
             if component.smiles == lactam_smiles:
                 found_lactam = True
-            assert component.smiles != lactim_smiles, (
-                f"Got lactim {lactim_smiles!r} for 2-pyrrolidinone; expected lactam"
-            )
+            assert (
+                component.smiles != lactim_smiles
+            ), f"Got lactim {lactim_smiles!r} for 2-pyrrolidinone; expected lactam"
     assert found_lactam, "Lactam SMILES not found in any parsed substance"
 
 
