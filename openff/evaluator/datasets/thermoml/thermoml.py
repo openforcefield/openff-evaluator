@@ -6,9 +6,9 @@ import copy
 import logging
 import re
 import traceback
+import warnings
 from enum import Enum, unique
 from urllib.error import HTTPError
-import warnings
 from xml.etree import ElementTree
 
 import numpy as np
@@ -405,7 +405,7 @@ class _Compound:
 
         if not molecule:
             raise ValueError(f"The InChI string ({inchi_string}) could not be parsed")
-        
+
         enumerator = rdMolStandardize.TautomerEnumerator()
         tautomers = enumerator.Enumerate(molecule)
 
@@ -424,7 +424,7 @@ class _Compound:
                 )
             else:
 
-            # Attempt tautomer resolution using common name (requires OpenEye).
+                # Attempt tautomer resolution using common name (requires OpenEye).
                 try:
                     from openff.toolkit.utils import InvalidIUPACNameError, LicenseError
                     from rdkit.Chem.MolStandardize import rdMolStandardize

@@ -4,6 +4,7 @@ Units tests for openff.evaluator.datasets
 
 import numpy as np
 import pytest
+from openff.toolkit.utils.toolkits import OPENEYE_AVAILABLE
 from openff.units import unit
 from openff.utilities.utilities import get_data_file_path
 
@@ -21,7 +22,6 @@ from openff.evaluator.datasets.thermoml.thermoml import (
 from openff.evaluator.plugins import register_default_plugins
 from openff.evaluator.properties import EnthalpyOfMixing
 from openff.evaluator.utils import get_data_filename
-from openff.toolkit.utils.toolkits import OPENEYE_AVAILABLE
 
 register_default_plugins()
 
@@ -238,7 +238,10 @@ def test_thermoml_mole_constraints(caplog):
     assert data_set is not None
     assert len(data_set) > 0
 
-@pytest.mark.skipif(not OPENEYE_AVAILABLE, reason="Requires OpenEye toolkit for tautomer resolution.")
+
+@pytest.mark.skipif(
+    not OPENEYE_AVAILABLE, reason="Requires OpenEye toolkit for tautomer resolution."
+)
 def test_thermoml_pyrrolidinone_tautomer_resolution_with_openeye():
     """2-pyrrolidinone (InChI-only entry with mobile-H layer)
     must parse as the lactam O=C1CCCN1, not the lactim OC1=NCCC1.
@@ -266,7 +269,11 @@ def test_thermoml_pyrrolidinone_tautomer_resolution_with_openeye():
             ), f"Got lactim {lactim_smiles!r} for 2-pyrrolidinone; expected lactam"
     assert found_lactam, "Lactam SMILES not found in any parsed substance"
 
-@pytest.mark.skipif(OPENEYE_AVAILABLE, reason="Requires OpenEye toolkit for tautomer resolution, but this test checks behavior without it.")
+
+@pytest.mark.skipif(
+    OPENEYE_AVAILABLE,
+    reason="Requires OpenEye toolkit for tautomer resolution, but this test checks behavior without it.",
+)
 def test_thermoml_pyrrolidinone_tautomer_resolution_without_openeye():
     """Without OpenEye, 2-pyrrolidinone (InChI-only entry with mobile-H layer)
     parses as the lactim OC1=NCCC1, not lactam O=C1CCCN1
