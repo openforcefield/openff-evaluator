@@ -8,6 +8,7 @@ import re
 import traceback
 from enum import Enum, unique
 from urllib.error import HTTPError
+import warnings
 from xml.etree import ElementTree
 
 import numpy as np
@@ -389,41 +390,54 @@ class _Compound:
             None if the identifier cannot be converted, otherwise the
             converted SMILES pattern.
         """
-        import rdkit.Chem
         from openff.toolkit.topology import Molecule
+        from openff.toolkit.utils.toolkits import OPENEYE_AVAILABLE
 
         try:
-            from rdkit.Chem.inchi import MolFromInchi
+            from rdkit import Chem
         except ImportError:
-            from rdkit.Chem import MolFromInchi  # older RDKit
+            return None
 
         if inchi_string is None:
             raise ValueError("The InChI string cannot be `None`.")
 
-        molecule = MolFromInchi(inchi_string, removeHs=False)
+        molecule = Chem.MolFromInchi(inchi_string, removeHs=False)
 
         if not molecule:
             raise ValueError(f"The InChI string ({inchi_string}) could not be parsed")
+        
+        enumerator = rdMolStandardize.TautomerEnumerator()
+        tautomers = enumerator.Enumerate(molecule)
 
-        # Attempt tautomer resolution using common name (requires OpenEye).
-        if common_name is not None:
-            try:
-                from openff.toolkit.utils import InvalidIUPACNameError, LicenseError
-                from rdkit.Chem.MolStandardize import rdMolStandardize
+        if len(tautomers) > 1:
+            if not OPENEYE_AVAILABLE:
+                warnings.warn(
+                    f"Multiple tautomers were generated from the InChI string {inchi_string}. "
+                    "However, we cannot disambiguate between them using the common name as "
+                    "OpenEye is not available. The first tautomer will be returned, but this may not be the correct one."
+                )
+            elif common_name is None:
+                warnings.warn(
+                    f"Multiple tautomers were generated from the InChI string {inchi_string}. "
+                    "However, we cannot disambiguate between them as no common name was provided. "
+                    "The first tautomer will be returned, but this may not be the correct one."
+                )
+            else:
 
-                enumerator = rdMolStandardize.TautomerEnumerator()
-                tautomers = enumerator.Enumerate(molecule)
+            # Attempt tautomer resolution using common name (requires OpenEye).
+                try:
+                    from openff.toolkit.utils import InvalidIUPACNameError, LicenseError
+                    from rdkit.Chem.MolStandardize import rdMolStandardize
 
-                if len(tautomers) > 1:
                     iupac_mol = Molecule.from_iupac(
                         common_name, allow_undefined_stereo=True
                     )
-                    iupac_smiles = rdkit.Chem.MolToSmiles(
-                        rdkit.Chem.RemoveHs(iupac_mol.to_rdkit())
+                    smiles_from_common_name = Chem.MolToSmiles(
+                        Chem.RemoveHs(iupac_mol.to_rdkit())
                     )
 
                     for tautomer in tautomers:
-                        if rdkit.Chem.MolToSmiles(tautomer) == iupac_smiles:
+                        if Chem.MolToSmiles(tautomer) == smiles_from_common_name:
                             try:
                                 return Molecule.from_rdkit(tautomer).to_smiles(
                                     isomeric=True,
@@ -432,8 +446,8 @@ class _Compound:
                                 )
                             except ValueError:
                                 pass
-            except (LicenseError, InvalidIUPACNameError, Exception):
-                pass  # Fall through to original behaviour below
+                except (LicenseError, InvalidIUPACNameError, Exception):
+                    pass  # Fall through to original behaviour below
 
         # Original behaviour: convert InChI-derived molecule directly.
         try:
