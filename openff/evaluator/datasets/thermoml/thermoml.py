@@ -395,6 +395,7 @@ class _Compound:
 
         try:
             from rdkit import Chem
+            from rdkit.Chem.MolStandardize import rdMolStandardize
         except ImportError:
             return None
 
@@ -427,7 +428,6 @@ class _Compound:
                 # Attempt tautomer resolution using common name (requires OpenEye).
                 try:
                     from openff.toolkit.utils import InvalidIUPACNameError, LicenseError
-                    from rdkit.Chem.MolStandardize import rdMolStandardize
 
                     iupac_mol = Molecule.from_iupac(
                         common_name, allow_undefined_stereo=True
