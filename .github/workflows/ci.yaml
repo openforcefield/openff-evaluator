@@ -104,7 +104,7 @@ jobs:
             docs/tutorials/tutorial03.ipynb
 
       - name: Code coverage
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage.xml
