@@ -50,7 +50,7 @@ class MutableLocalFileStorage(LocalFileStorage):
             *other* is not modified.
         """
         for _, keys in other._stored_object_keys.items():
-            for key in list(keys):
+            for key in keys:
                 obj, ancillary = other.retrieve_object(key)
                 self.store_object(obj, ancillary)
 

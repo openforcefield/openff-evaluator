@@ -276,7 +276,7 @@ def test_update_replaces_overlapping_data_by_statistical_inefficiency(
             os.path.join(base_dir, "b_overlap"),
             substance_a,
             calculation_id="shared-id",
-            statistical_inefficiency=0.4,
+            statistical_inefficiency=2.5 - 1e-6,
         )
         obj_b_unique_1 = _create_stored_data(
             factory,
