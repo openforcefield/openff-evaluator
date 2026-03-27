@@ -4,6 +4,7 @@ Units tests for openff.evaluator.datasets
 
 import numpy as np
 import pytest
+from openff.toolkit.utils.toolkits import OPENEYE_AVAILABLE
 from openff.units import unit
 from openff.utilities.utilities import get_data_file_path
 
@@ -236,6 +237,69 @@ def test_thermoml_mole_constraints(caplog):
 
     assert data_set is not None
     assert len(data_set) > 0
+
+
+@pytest.mark.skipif(
+    not OPENEYE_AVAILABLE, reason="Requires OpenEye toolkit for tautomer resolution."
+)
+def test_thermoml_pyrrolidinone_tautomer_resolution_with_openeye():
+    """2-pyrrolidinone (InChI-only entry with mobile-H layer)
+    must parse as the lactam O=C1CCCN1, not the lactim OC1=NCCC1.
+
+    The InChI ``InChI=1S/C4H7NO/c6-4-2-1-3-5-4/h1-3H2,(H,5,6)`` round-trips
+    to the same string for both tautomers; the common name disambiguates.
+    Requires an OpenEye licence for ``Molecule.from_iupac``.
+    """
+    data_set = ThermoMLDataSet.from_file(
+        get_data_filename("test/properties/pyrrolidinone.xml")
+    )
+    assert data_set is not None
+    assert len(data_set) > 0
+
+    lactam_smiles = "O=C1CCCN1"
+    lactim_smiles = "OC1=NCCC1"
+
+    found_lactam = False
+    for prop in data_set:
+        for component in prop.substance.components:
+            if component.smiles == lactam_smiles:
+                found_lactam = True
+            assert (
+                component.smiles != lactim_smiles
+            ), f"Got lactim {lactim_smiles!r} for 2-pyrrolidinone; expected lactam"
+    assert found_lactam, "Lactam SMILES not found in any parsed substance"
+
+
+@pytest.mark.skipif(
+    OPENEYE_AVAILABLE,
+    reason="Requires OpenEye toolkit for tautomer resolution, but this test checks behavior without it.",
+)
+def test_thermoml_pyrrolidinone_tautomer_resolution_without_openeye():
+    """Without OpenEye, 2-pyrrolidinone (InChI-only entry with mobile-H layer)
+    parses as the lactim OC1=NCCC1, not lactam O=C1CCCN1
+    """
+    with pytest.warns(
+        UserWarning,
+        match="Multiple tautomers were generated from the InChI string",
+    ):
+        data_set = ThermoMLDataSet.from_file(
+            get_data_filename("test/properties/pyrrolidinone.xml")
+        )
+    assert data_set is not None
+    assert len(data_set) > 0
+
+    lactam_smiles = "O=C1CCCN1"
+    lactim_smiles = "OC1=NCCC1"
+
+    found_lactam = False
+    for prop in data_set:
+        for component in prop.substance.components:
+            if component.smiles == lactam_smiles:
+                found_lactam = True
+            if component.smiles == lactim_smiles:
+                found_lactim = True
+    assert not found_lactam, "Lactam SMILES should not be found in any parsed substance"
+    assert found_lactim, "Lactim SMILES not found in any parsed substance"
 
 
 def test_trim_missing_from_pandas():
