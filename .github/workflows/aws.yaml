@@ -54,7 +54,7 @@ jobs:
         run: "docker version || true"
 
       - name: Setup Conda Environment
-        uses: mamba-org/setup-micromamba@v2
+        uses: mamba-org/setup-micromamba@v3
         with:
           environment-file: devtools/conda-envs/test_env.yaml
 
