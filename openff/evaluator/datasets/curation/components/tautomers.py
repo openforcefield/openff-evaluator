@@ -166,10 +166,7 @@ def _to_category_tuple(
     categories: Optional[Iterable[TautomerCategory]],
 ) -> Tuple[str, ...]:
     if categories is None:
-        return tuple(
-            category.value
-            for category in TautomerCategory
-        )
+        return tuple(category.value for category in TautomerCategory)
 
     return tuple(sorted(category.value for category in categories))
 

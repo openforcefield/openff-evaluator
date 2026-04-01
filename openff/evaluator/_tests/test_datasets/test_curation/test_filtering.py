@@ -38,10 +38,10 @@ from openff.evaluator.datasets.curation.components.filtering import (
     FilterByStereochemistrySchema,
     FilterBySubstances,
     FilterBySubstancesSchema,
-    FilterByTemperature,
-    FilterByTemperatureSchema,
     FilterByTautomers,
     FilterByTautomersSchema,
+    FilterByTemperature,
+    FilterByTemperatureSchema,
     FilterDuplicates,
     FilterDuplicatesSchema,
 )
@@ -1258,7 +1258,10 @@ def test_filter_by_tautomers_via_workflow():
     data_frame = pandas.DataFrame(
         [
             {"N Components": 1, "Component 1": "C"},
-            {"N Components": 1, "Component 1": "CC(=O)CC(=O)C"},  # beta-diketone, not in whitelist
+            {
+                "N Components": 1,
+                "Component 1": "CC(=O)CC(=O)C",
+            },  # beta-diketone, not in whitelist
         ]
     )
 
@@ -1285,9 +1288,7 @@ def test_filter_by_tautomers_no_match_removed_default():
 
 def test_filter_by_tautomers_whitelist_keto_enol_aliphatic_kept():
     """Acetone (KETO_ENOL_ALIPHATIC) must survive the default filter."""
-    data_frame = pandas.DataFrame(
-        [{"N Components": 1, "Component 1": "CC(C)=O"}]
-    )
+    data_frame = pandas.DataFrame([{"N Components": 1, "Component 1": "CC(C)=O"}])
 
     filtered_frame = FilterByTautomers.apply(data_frame, FilterByTautomersSchema())
 
@@ -1298,9 +1299,12 @@ def test_filter_by_tautomers_default_whitelist_only():
     data_frame = pandas.DataFrame(
         [
             {"N Components": 1, "Component 1": "C"},
-            {"N Components": 1, "Component 1": "CC(=O)N"},       # amide → kept
-            {"N Components": 1, "Component 1": "CC(=O)CC(=O)C"}, # beta-diketone → removed
-            {"N Components": 1, "Component 1": "O=C1CCCCC1"},    # cyclic keto/enol → kept
+            {"N Components": 1, "Component 1": "CC(=O)N"},  # amide → kept
+            {
+                "N Components": 1,
+                "Component 1": "CC(=O)CC(=O)C",
+            },  # beta-diketone → removed
+            {"N Components": 1, "Component 1": "O=C1CCCCC1"},  # cyclic keto/enol → kept
         ]
     )
 
@@ -1338,7 +1342,9 @@ def test_filter_by_tautomers_explicit_exclude():
 
     filtered_frame = FilterByTautomers.apply(
         data_frame,
-        FilterByTautomersSchema(categories_to_include=None, categories_to_exclude=["AMIDE_IMIDIC_ACID"]),
+        FilterByTautomersSchema(
+            categories_to_include=None, categories_to_exclude=["AMIDE_IMIDIC_ACID"]
+        ),
     )
 
     assert len(filtered_frame) == 1
@@ -1349,9 +1355,7 @@ def test_filter_by_tautomers_exclude_suppression_canonical():
     """Acetylacetone is canonically BETA_DIKETONE (suppression hides KETO_ENOL_ALIPHATIC).
     Excluding KETO_ENOL_ALIPHATIC should therefore keep it; excluding BETA_DIKETONE
     should remove it."""
-    data_frame = pandas.DataFrame(
-        [{"N Components": 1, "Component 1": "CC(=O)CC(=O)C"}]
-    )
+    data_frame = pandas.DataFrame([{"N Components": 1, "Component 1": "CC(=O)CC(=O)C"}])
 
     # KETO_ENOL_ALIPHATIC is suppressed → molecule is kept
     kept = FilterByTautomers.apply(
@@ -1380,9 +1384,7 @@ def test_filter_by_tautomers_include_suppression_applied():
     latter, so specifying categories_to_include=["BETA_DIKETONE"] must keep it.
     The enol form CC(O)=CC(=O)C is used because BETA_DIKETONE's dominant form
     is the enol."""
-    data_frame = pandas.DataFrame(
-        [{"N Components": 1, "Component 1": "CC(O)=CC(=O)C"}]
-    )
+    data_frame = pandas.DataFrame([{"N Components": 1, "Component 1": "CC(O)=CC(=O)C"}])
 
     filtered_frame = FilterByTautomers.apply(
         data_frame,
@@ -1398,8 +1400,8 @@ def test_filter_by_tautomers_minor_form_rejected():
     passes; C=C(O)O (the enol/minor form) must be removed."""
     data_frame = pandas.DataFrame(
         [
-            {"N Components": 1, "Component 1": "CC(=O)O"},   # dominant — kept
-            {"N Components": 1, "Component 1": "C=C(O)O"},   # minor — removed
+            {"N Components": 1, "Component 1": "CC(=O)O"},  # dominant — kept
+            {"N Components": 1, "Component 1": "C=C(O)O"},  # minor — removed
         ]
     )
 

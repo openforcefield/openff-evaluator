@@ -1299,10 +1299,7 @@ class FilterByTautomersSchema(CurationComponentSchema):
 
     @model_validator(mode="after")
     def _validate(self):
-        if (
-            self.categories_to_include is None
-            and self.categories_to_exclude is None
-        ):
+        if self.categories_to_include is None and self.categories_to_exclude is None:
             raise ValueError(
                 "Exactly one of 'categories_to_include' or 'categories_to_exclude' "
                 "must be set; both cannot be None."
@@ -1322,8 +1319,7 @@ class FilterByTautomersSchema(CurationComponentSchema):
             if len(self.categories_to_include) == 0:
                 raise ValueError("'categories_to_include' must not be empty.")
             unknown = [
-                c for c in self.categories_to_include
-                if c not in valid_category_names
+                c for c in self.categories_to_include if c not in valid_category_names
             ]
             if unknown:
                 raise ValueError(
@@ -1332,8 +1328,7 @@ class FilterByTautomersSchema(CurationComponentSchema):
 
         if self.categories_to_exclude is not None:
             unknown = [
-                c for c in self.categories_to_exclude
-                if c not in valid_category_names
+                c for c in self.categories_to_exclude if c not in valid_category_names
             ]
             if unknown:
                 raise ValueError(
