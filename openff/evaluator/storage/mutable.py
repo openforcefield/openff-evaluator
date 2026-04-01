@@ -20,11 +20,6 @@ class MutableLocalFileStorage(LocalFileStorage):
       :meth:`update` or ``+=``.
     - **Subset**: create a new storage containing only objects whose
       substance matches a set of include/exclude filters.
-    - **Search**: retrieve objects grouped by substance or component
-      using :meth:`retrieve_by_substance` and
-      :meth:`retrieve_by_component`.
-    - **Remove**: delete individual stored objects with
-      :meth:`remove_object`.
 
     Parameters
     ----------
@@ -163,7 +158,7 @@ class MutableLocalFileStorage(LocalFileStorage):
                     "and exclude_substances."
                 )
 
-        if include_components and exclude_components:
+        if include_components is not None and exclude_components is not None:
             inc_ids = {c.identifier for c in include_components}
             exc_ids = {c.identifier for c in exclude_components}
             if inc_ids & exc_ids:

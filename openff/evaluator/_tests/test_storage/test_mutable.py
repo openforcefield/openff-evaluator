@@ -14,7 +14,7 @@ from openff.evaluator.storage.data import (
     StoredEquilibrationData,
     StoredSimulationData,
 )
-from openff.evaluator.substances import Component, MoleFraction, Substance
+from openff.evaluator.substances import Component, Substance
 
 DATA_FACTORIES = [
     pytest.param(create_dummy_simulation_data, id="simulation"),
@@ -330,15 +330,6 @@ def test_combine_deduplicates_force_fields():
         assert len(keys) == 1
 
 
-def _make_mixture(*smiles_list):
-    """Build an equimolar Substance from two or more SMILES."""
-    substance = Substance()
-    mf = MoleFraction(1.0 / len(smiles_list))
-    for smi in smiles_list:
-        substance.add_component(Component(smi), mf)
-    return substance
-
-
 def _make_storage_with_substances(base_dir, factory, *substances_or_smiles):
     """Create a MutableLocalFileStorage with one data object per substance.
 
@@ -460,9 +451,9 @@ def test_subset_combined_filters(factory, substance_c):
 
     Expected survivors: pure_c (methane) and mix(C,CC) (methane+ethane).
     """
-    mix_c_cc = _make_mixture("C", "CC")
-    mix_c_o = _make_mixture("C", "O")
-    mix_c_o_cc = _make_mixture("C", "O", "CC")
+    mix_c_cc = Substance.from_components("C", "CC")
+    mix_c_o = Substance.from_components("C", "O")
+    mix_c_o_cc = Substance.from_components("C", "O", "CC")
 
     with tempfile.TemporaryDirectory() as base_dir:
         storage = _make_storage_with_substances(
@@ -472,7 +463,7 @@ def test_subset_combined_filters(factory, substance_c):
             "O",
             "CC",
             mix_c_o,
-            _make_mixture("CC", "O"),
+            Substance.from_components("CC", "O"),
             mix_c_cc,
             mix_c_o_cc,
         )
