@@ -24,6 +24,11 @@ from openff.evaluator.datasets.curation.components import (
     CurationComponent,
     CurationComponentSchema,
 )
+from openff.evaluator.datasets.curation.components.tautomers import (
+    TAUTOMER_RULES,
+    TautomerCategory,
+    match_tautomer_categories,
+)
 from openff.evaluator.datasets.utilities import (
     data_frame_to_substances,
     reorder_data_frame,
@@ -1207,6 +1212,199 @@ class FilterByEnvironments(CurationComponent):
         return data_frame[data_frame.apply(filter_function, axis=1)]
 
 
+class FilterByTautomersSchema(CurationComponentSchema):
+    """Configure tautomer-family filtering for curated data.
+
+    By default, only tautomer categories in `categories_to_include` are retained;
+    components with no recognized tautomer family are always kept. Set exactly one
+    of `categories_to_include` or `categories_to_exclude` to control which families
+    are allowed.
+
+    Notes
+    -----
+    **Suppression**
+
+    Category matching always uses suppression: if a molecule matches both a
+    parent category and a subordinate category, the subordinate is hidden and
+    only the parent is reported. The complete suppression table is defined in
+    ``tautomers._SUPPRESSED_CATEGORY_MATCHES``; the most important cases are:
+
+    * ``BETA_DIKETONE`` suppresses ``KETO_ENOL_ALIPHATIC``,
+      ``CARBOXYLIC_ACID_ENOL``, and ``ESTER_ENOL``. Acetylacetone is
+      therefore classified only as ``BETA_DIKETONE`` — excluding
+      ``KETO_ENOL_ALIPHATIC`` alone does *not* remove it.
+    * ``AMIDE_IMIDIC_ACID`` suppresses ``AMIDE_ENOL`` (and several imine/enamine
+      categories). Specifying ``categories_to_include=["AMIDE_ENOL"]`` alone
+      will therefore remove most amide molecules, which are reclassified as
+      ``AMIDE_IMIDIC_ACID``. Always pair ``AMIDE_ENOL`` with
+      ``AMIDE_IMIDIC_ACID`` — the default whitelist already does this.
+
+    **Dominant-form check (include mode only)**
+
+    In include mode, every matched whitelisted category also requires the
+    stored SMILES to be in the *dominant* tautomeric form. This rejects
+    records where the SMILES encodes a minor tautomer (e.g. storing acetic
+    acid as ``C=C(O)O`` instead of ``CC(=O)O``). Dominant form is defined by
+    the SMARTS in ``tautomers.TAUTOMER_RULES[category].dominant_smarts``.
+    Exclude mode skips this check entirely; it only tests canonical category
+    membership.
+
+    A notable consequence: ``BETA_DIKETONE``'s dominant SMARTS matches the
+    *enol* form (e.g. ``CC(O)=CC(=O)C``) because in non-polar solvents the
+    enol predominates (Hansen 2023, doi:10.3390/encyclopedia3010013). Keto-form
+    records (``CC(=O)CC(=O)C``) are therefore rejected when ``BETA_DIKETONE``
+    is whitelisted. Recommend not whitelisting this category until
+    solvent-aware dominant-form detection is implemented.
+
+    Examples
+    --------
+    Override the default to keep only keto/enol families:
+
+    >>> FilterByTautomersSchema(categories_to_include=["KETO_ENOL_ALIPHATIC", "KETO_ENOL_CYCLIC"])
+
+    Exclude only beta-diketone families while keeping everything else:
+
+    >>> FilterByTautomersSchema(
+    ...     categories_to_include=None,
+    ...     categories_to_exclude=["BETA_DIKETONE"],
+    ... )
+    """
+
+    type: Literal["FilterByTautomers"] = "FilterByTautomers"
+
+    categories_to_include: Optional[List[str]] = Field(
+        [
+            "ALPHA_AMINO_ACID",
+            "AMIDE_IMIDIC_ACID",
+            "IMINE_ENAMINE_PRIMARY",
+            "IMINE_ENAMINE_SECONDARY",
+            "KETO_ENOL_ALIPHATIC",
+            "KETO_ENOL_CYCLIC",
+            "KETO_ENOL_AROMATIC",
+            "KETENE_YNOL",
+            "LACTAM_LACTIM",
+            "OXIME_NITROSO",
+            "CARBOXYLIC_ACID_ENOL",
+            "ESTER_ENOL",
+            "AMIDE_ENOL",
+        ],
+        description="The tautomer categories which are allowed to remain in the data "
+        "set. This option is mutually exclusive with `categories_to_exclude`.",
+    )
+    categories_to_exclude: Optional[List[str]] = Field(
+        None,
+        description="The tautomer categories which should be removed from the data "
+        "set. This option is mutually exclusive with `categories_to_include`.",
+    )
+
+    @model_validator(mode="after")
+    def _validate(self):
+        if (
+            self.categories_to_include is None
+            and self.categories_to_exclude is None
+        ):
+            raise ValueError(
+                "Exactly one of 'categories_to_include' or 'categories_to_exclude' "
+                "must be set; both cannot be None."
+            )
+        if (
+            self.categories_to_include is not None
+            and self.categories_to_exclude is not None
+        ):
+            raise ValueError(
+                "'categories_to_include' and 'categories_to_exclude' are mutually "
+                "exclusive; set exactly one."
+            )
+
+        valid_category_names = set(TautomerCategory.__members__)
+
+        if self.categories_to_include is not None:
+            if len(self.categories_to_include) == 0:
+                raise ValueError("'categories_to_include' must not be empty.")
+            unknown = [
+                c for c in self.categories_to_include
+                if c not in valid_category_names
+            ]
+            if unknown:
+                raise ValueError(
+                    f"Unknown tautomer categories in 'categories_to_include': {unknown}"
+                )
+
+        if self.categories_to_exclude is not None:
+            unknown = [
+                c for c in self.categories_to_exclude
+                if c not in valid_category_names
+            ]
+            if unknown:
+                raise ValueError(
+                    f"Unknown tautomer categories in 'categories_to_exclude': {unknown}"
+                )
+
+        return self
+
+
+class FilterByTautomers(CurationComponent):
+    """A component which filters out measurements for components whose enumerated
+    tautomer families fall outside an allowed category set.
+
+    Notes
+    -----
+    This filter uses pair-based RDKit tautomer enumeration and only considers a
+    category matched when both the dominant and minor SMARTS are found across the
+    enumerated tautomer set. Categories that depend on ring-closure tautomerism may
+    therefore remain unmatched if RDKit does not enumerate the corresponding forms.
+    """
+
+    @classmethod
+    def _apply(
+        cls,
+        data_frame: pandas.DataFrame,
+        schema: FilterByTautomersSchema,
+        n_processes,
+    ) -> pandas.DataFrame:
+        if len(data_frame) == 0:
+            return data_frame
+
+        from openff.toolkit.topology import Molecule
+
+        if schema.categories_to_exclude is not None:
+            excluded = {TautomerCategory[c] for c in schema.categories_to_exclude}
+            allowed_categories = set(TautomerCategory) - excluded
+        else:
+            allowed_categories = {
+                TautomerCategory[c] for c in schema.categories_to_include
+            }
+
+        def filter_function(data_row):
+            n_components = data_row["N Components"]
+
+            for index in range(n_components):
+                smiles = data_row[f"Component {index + 1}"]
+                matched_categories = match_tautomer_categories(smiles)
+
+                if matched_categories - allowed_categories:
+                    return False
+
+                # In include mode only: require the input SMILES to be in
+                # the dominant tautomeric form for each matched category.
+                # This check does not apply in exclude mode — the goal there
+                # is purely to discard disallowed canonical categories.
+                if schema.categories_to_include is not None:
+                    whitelisted_matches = matched_categories & allowed_categories
+                    if whitelisted_matches:
+                        mol = Molecule.from_smiles(smiles, allow_undefined_stereo=True)
+                        for category in whitelisted_matches:
+                            if not mol.chemical_environment_matches(
+                                TAUTOMER_RULES[category].dominant_smarts
+                            ):
+                                return False
+
+            return True
+
+        # noinspection PyTypeChecker
+        return data_frame[data_frame.apply(filter_function, axis=1)]
+
+
 FilterComponentSchema = Union[
     FilterDuplicatesSchema,
     FilterByTemperatureSchema,
@@ -1223,4 +1421,5 @@ FilterComponentSchema = Union[
     FilterByNComponentsSchema,
     FilterBySubstancesSchema,
     FilterByEnvironmentsSchema,
+    FilterByTautomersSchema,
 ]
