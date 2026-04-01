@@ -154,7 +154,9 @@ class MutableLocalFileStorage(LocalFileStorage):
             A new storage instance containing the matching objects.
         """
         if include_substances and exclude_substances:
-            overlap = [s for s in include_substances if any(s == e for e in exclude_substances)]
+            overlap = [
+                s for s in include_substances if any(s == e for e in exclude_substances)
+            ]
             if overlap:
                 raise ValueError(
                     "The same substance cannot appear in both include_substances "

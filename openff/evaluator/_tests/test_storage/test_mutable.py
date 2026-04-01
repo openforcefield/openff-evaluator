@@ -466,8 +466,11 @@ def test_subset_combined_filters(factory, substance_c):
 
     with tempfile.TemporaryDirectory() as base_dir:
         storage = _make_storage_with_substances(
-            base_dir, factory,
-            "C", "O", "CC",
+            base_dir,
+            factory,
+            "C",
+            "O",
+            "CC",
             mix_c_o,
             _make_mixture("CC", "O"),
             mix_c_cc,
@@ -527,7 +530,9 @@ def test_subset_force_field_data_included_when_no_substance_filter():
     """ForceFieldData is included when no include filters are active."""
     with tempfile.TemporaryDirectory() as base_dir:
         storage = MutableLocalFileStorage(os.path.join(base_dir, "storage"))
-        storage.store_force_field(SmirnoffForceFieldSource.from_path("openff-2.2.1.offxml"))
+        storage.store_force_field(
+            SmirnoffForceFieldSource.from_path("openff-2.2.1.offxml")
+        )
 
         result = storage.subset(os.path.join(base_dir, "result"))
 
@@ -535,11 +540,15 @@ def test_subset_force_field_data_included_when_no_substance_filter():
 
 
 @pytest.mark.parametrize("factory", DATA_FACTORIES)
-def test_subset_force_field_excluded_when_include_substance_active(factory, substance_c):
+def test_subset_force_field_excluded_when_include_substance_active(
+    factory, substance_c
+):
     """ForceFieldData is excluded when an include_substances filter is active."""
     with tempfile.TemporaryDirectory() as base_dir:
         storage = MutableLocalFileStorage(os.path.join(base_dir, "storage"))
-        storage.store_force_field(SmirnoffForceFieldSource.from_path("openff-2.2.1.offxml"))
+        storage.store_force_field(
+            SmirnoffForceFieldSource.from_path("openff-2.2.1.offxml")
+        )
         data_dir = os.path.join(base_dir, "data")
         storage.store_object(factory(data_dir, substance_c), data_dir)
 
