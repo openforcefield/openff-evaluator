@@ -14,6 +14,8 @@ from openff.evaluator.datasets import (
 from openff.evaluator.datasets.curation.components.filtering import (
     FilterByCharged,
     FilterByChargedSchema,
+    FilterByCoreAndAdditionalPropertyTypes,
+    FilterByCoreAndAdditionalPropertyTypesSchema,
     FilterByElements,
     FilterByElementsSchema,
     FilterByEnvironments,
@@ -1433,3 +1435,359 @@ def test_filter_by_tautomers_empty_frame_no_failure():
     filtered_frame = FilterByTautomers.apply(data_frame, FilterByTautomersSchema())
 
     assert len(filtered_frame) == 0
+
+
+def _substances_for_property(data_frame: pandas.DataFrame, property_type: str) -> set:
+    col = f"{property_type} Value (unit)"
+    if col not in data_frame.columns:
+        return set()
+    return data_frame_to_substances(data_frame[data_frame[col].notna()])
+
+
+class TestFilterByCoreAndAdditionalPropertyTypes:
+
+    def test_validate_filter_by_core_and_additional(self):
+        # Valid schema
+        FilterByCoreAndAdditionalPropertyTypesSchema(
+            core_property_types={"Density": None},
+            additional_property_types={"SurfaceTension": None},
+        )
+        FilterByCoreAndAdditionalPropertyTypesSchema(
+            core_property_types={"Density": [1]},
+            additional_property_types={"SurfaceTension": None},
+            scale_factor=0.0,
+        )
+
+        # Types must be disjoint
+        with pytest.raises(ValidationError):
+            FilterByCoreAndAdditionalPropertyTypesSchema(
+                core_property_types={"Density": None},
+                additional_property_types={"Density": None},
+            )
+
+        # scale_factor must be non-negative
+        with pytest.raises(ValidationError):
+            FilterByCoreAndAdditionalPropertyTypesSchema(
+                core_property_types={"Density": None},
+                additional_property_types={"SurfaceTension": None},
+                scale_factor=-1.0,
+            )
+
+        # Both dicts must be non-empty
+        with pytest.raises(ValidationError):
+            FilterByCoreAndAdditionalPropertyTypesSchema(
+                core_property_types={},
+                additional_property_types={"SurfaceTension": None},
+            )
+        with pytest.raises(ValidationError):
+            FilterByCoreAndAdditionalPropertyTypesSchema(
+                core_property_types={"Density": None},
+                additional_property_types={},
+            )
+
+        # select_by must be 'similarity' or 'diversity'
+        with pytest.raises(ValidationError):
+            FilterByCoreAndAdditionalPropertyTypesSchema(
+                core_property_types={"Density": None},
+                additional_property_types={"SurfaceTension": None},
+                select_by="random",
+            )
+
+    def test_filter_by_core_and_additional(self):
+        # Core substances = intersection of all core property type substance sets.
+        # Additional substances = overlap (always) + gap-fill up to
+        # int(scale_factor * core_count) per additional type.
+        property_types = ["Density", "SurfaceTension"]
+        substance_entries = [
+            (("CC",),    (True, True)),
+            (("CCC",),   (True, True)),
+            (("CCCC",),  (True, True)),
+            (("CCCCC",), (False, True)),  # additional-only, excluded at target=3
+        ]
+        data_frame = _build_data_frame(property_types, substance_entries)
+
+        filtered = FilterByCoreAndAdditionalPropertyTypes.apply(
+            data_frame,
+            FilterByCoreAndAdditionalPropertyTypesSchema(
+                core_property_types={"Density": None},
+                additional_property_types={"SurfaceTension": None},
+                scale_factor=1.0,
+            ),
+        )
+
+        assert _substances_for_property(filtered, "Density") == {
+            ("CC",), ("CCC",), ("CCCC",)
+        }
+        assert _substances_for_property(filtered, "SurfaceTension") == {
+            ("CC",), ("CCC",), ("CCCC",)
+        }
+        assert ("CCCCC",) not in data_frame_to_substances(filtered)
+
+        # Overlap > target: full overlap is retained without truncation.
+        substance_entries = [
+            (("CC",),    (True, True)),
+            (("CCC",),   (True, True)),
+            (("CCCC",),  (True, True)),
+            (("CCCCC",), (True, True)),
+        ]
+        data_frame = _build_data_frame(property_types, substance_entries)
+
+        filtered = FilterByCoreAndAdditionalPropertyTypes.apply(
+            data_frame,
+            FilterByCoreAndAdditionalPropertyTypesSchema(
+                core_property_types={"Density": None},
+                additional_property_types={"SurfaceTension": None},
+                scale_factor=0.5,  # target=2 but overlap=4 → keep all 4
+            ),
+        )
+
+        assert _substances_for_property(filtered, "SurfaceTension") == {
+            ("CC",), ("CCC",), ("CCCC",), ("CCCCC",)
+        }
+
+        # scale_factor=0: no additional rows selected.
+        substance_entries = [
+            (("CC",),   (True, True)),
+            (("CCC",),  (True, True)),
+            (("CCCC",), (False, True)),
+        ]
+        data_frame = _build_data_frame(property_types, substance_entries)
+
+        filtered = FilterByCoreAndAdditionalPropertyTypes.apply(
+            data_frame,
+            FilterByCoreAndAdditionalPropertyTypesSchema(
+                core_property_types={"Density": None},
+                additional_property_types={"SurfaceTension": None},
+                scale_factor=0.0,
+            ),
+        )
+
+        assert _substances_for_property(filtered, "Density") == {("CC",), ("CCC",)}
+        assert _substances_for_property(filtered, "SurfaceTension") == set()
+
+        # Fewer candidates than target: return all available.
+        substance_entries = [
+            (("CC",),   (True, True)),
+            (("CCC",),  (True, False)),
+            (("CCCC",), (True, False)),
+        ]
+        data_frame = _build_data_frame(property_types, substance_entries)
+
+        filtered = FilterByCoreAndAdditionalPropertyTypes.apply(
+            data_frame,
+            FilterByCoreAndAdditionalPropertyTypesSchema(
+                core_property_types={"Density": None},
+                additional_property_types={"SurfaceTension": None},
+                scale_factor=1.0,
+            ),
+        )
+
+        assert _substances_for_property(filtered, "Density") == {
+            ("CC",), ("CCC",), ("CCCC",)
+        }
+        assert _substances_for_property(filtered, "SurfaceTension") == {("CC",)}
+
+    def test_filter_by_core_and_additional_empty_core(self):
+        # Empty core intersection → empty result.
+        property_types = ["Density", "Viscosity", "SurfaceTension"]
+        substance_entries = [
+            (("CC",),    (True, False, True)),
+            (("CCC",),   (True, False, True)),
+            (("CCCC",),  (False, True, True)),
+            (("CCCCC",), (False, True, False)),
+        ]
+        data_frame = _build_data_frame(property_types, substance_entries)
+
+        filtered = FilterByCoreAndAdditionalPropertyTypes.apply(
+            data_frame,
+            FilterByCoreAndAdditionalPropertyTypesSchema(
+                core_property_types={"Density": None, "Viscosity": None},
+                additional_property_types={"SurfaceTension": None},
+                scale_factor=1.0,
+            ),
+        )
+
+        assert len(filtered) == 0
+
+    def test_filter_by_core_and_additional_multiple_core_types(self):
+        """Strict intersection across multiple core types."""
+        property_types = ["Density", "Viscosity", "SurfaceTension"]
+        substance_entries = [
+            (("CC",),    (True, True, True)),
+            (("CCC",),   (True, True, True)),
+            (("CCCC",),  (True, False, True)),   # Density + ST, not Viscosity
+            (("CCCCC",), (False, True, False)),  # Viscosity only
+        ]
+        data_frame = _build_data_frame(property_types, substance_entries)
+
+        filtered = FilterByCoreAndAdditionalPropertyTypes.apply(
+            data_frame,
+            FilterByCoreAndAdditionalPropertyTypesSchema(
+                core_property_types={"Density": None, "Viscosity": None},
+                additional_property_types={"SurfaceTension": None},
+                scale_factor=1.0,
+            ),
+        )
+
+        assert _substances_for_property(filtered, "Density") == {("CC",), ("CCC",)}
+        assert _substances_for_property(filtered, "Viscosity") == {("CC",), ("CCC",)}
+        assert _substances_for_property(filtered, "SurfaceTension") == {("CC",), ("CCC",)}
+        assert ("CCCC",) not in data_frame_to_substances(filtered)
+
+    def test_filter_by_core_and_additional_n_components(self):
+        """n_components constrains which rows qualify for each type."""
+        property_types = ["Density", "SurfaceTension"]
+
+        # n_components on core: binary Density rows excluded from core set.
+        substance_entries = [
+            (("CC",),       (True, True)),
+            (("CCC",),      (True, True)),
+            (("CC", "CCC"), (True, False)),
+        ]
+        data_frame = _build_data_frame(property_types, substance_entries)
+
+        filtered = FilterByCoreAndAdditionalPropertyTypes.apply(
+            data_frame,
+            FilterByCoreAndAdditionalPropertyTypesSchema(
+                core_property_types={"Density": [1]},
+                additional_property_types={"SurfaceTension": None},
+                scale_factor=1.0,
+            ),
+        )
+
+        assert _substances_for_property(filtered, "Density") == {("CC",), ("CCC",)}
+        assert ("CC", "CCC") not in data_frame_to_substances(filtered)
+
+        # n_components on additional: binary ST rows excluded from candidates.
+        substance_entries = [
+            (("CC",),       (True, True)),
+            (("CCC",),      (True, False)),
+            (("CC", "CCC"), (False, True)),
+        ]
+        data_frame = _build_data_frame(property_types, substance_entries)
+
+        filtered = FilterByCoreAndAdditionalPropertyTypes.apply(
+            data_frame,
+            FilterByCoreAndAdditionalPropertyTypesSchema(
+                core_property_types={"Density": None},
+                additional_property_types={"SurfaceTension": [1]},
+                scale_factor=1.0,
+            ),
+        )
+
+        assert ("CC", "CCC") not in data_frame_to_substances(filtered)
+        assert _substances_for_property(filtered, "SurfaceTension") == {("CC",)}
+
+    def test_filter_by_core_and_additional_gap_fill_similarity(self):
+        """Gap-fill by similarity: substance most similar to core is selected.
+
+        Tanimoto(CC, CCC) > Tanimoto(CC, c1ccccc1) → CCC selected.
+        """
+        property_types = ["Density", "SurfaceTension"]
+        substance_entries = [
+            (("CC",),       (True, False)),
+            (("CCC",),      (False, True)),
+            (("c1ccccc1",), (False, True)),
+        ]
+        data_frame = _build_data_frame(property_types, substance_entries)
+
+        filtered = FilterByCoreAndAdditionalPropertyTypes.apply(
+            data_frame,
+            FilterByCoreAndAdditionalPropertyTypesSchema(
+                core_property_types={"Density": None},
+                additional_property_types={"SurfaceTension": None},
+                scale_factor=1.0,
+                select_by="similarity",
+            ),
+        )
+
+        assert _substances_for_property(filtered, "SurfaceTension") == {("CCC",)}
+
+    def test_filter_by_core_and_additional_gap_fill_diversity(self):
+        """Gap-fill by diversity: substance most dissimilar to core is selected.
+
+        MaxMin from {CC} → c1ccccc1 selected.
+        """
+        property_types = ["Density", "SurfaceTension"]
+        substance_entries = [
+            (("CC",),       (True, False)),
+            (("CCC",),      (False, True)),
+            (("c1ccccc1",), (False, True)),
+        ]
+        data_frame = _build_data_frame(property_types, substance_entries)
+
+        filtered = FilterByCoreAndAdditionalPropertyTypes.apply(
+            data_frame,
+            FilterByCoreAndAdditionalPropertyTypesSchema(
+                core_property_types={"Density": None},
+                additional_property_types={"SurfaceTension": None},
+                scale_factor=1.0,
+                select_by="diversity",
+            ),
+        )
+
+        assert _substances_for_property(filtered, "SurfaceTension") == {("c1ccccc1",)}
+
+    def test_filter_by_core_and_additional_multi_type_coverage(self):
+        """Gap-fill prefers substances covering multiple additional types."""
+        property_types = ["Density", "SurfaceTension", "DielectricConstant"]
+
+        # CCC covers both ST and DC; CCCC/CCCCC cover only one each.
+        # gap = 1 per type → CCC fills both rather than picking CCCC + CCCCC.
+        substance_entries = [
+            (("CC",),    (True, True, True)),
+            (("CCC",),   (False, True, True)),
+            (("CCCC",),  (False, True, False)),
+            (("CCCCC",), (False, False, True)),
+        ]
+        data_frame = _build_data_frame(property_types, substance_entries)
+
+        filtered = FilterByCoreAndAdditionalPropertyTypes.apply(
+            data_frame,
+            FilterByCoreAndAdditionalPropertyTypesSchema(
+                core_property_types={"Density": None},
+                additional_property_types={
+                    "SurfaceTension": None,
+                    "DielectricConstant": None,
+                },
+                scale_factor=2.0,
+            ),
+        )
+
+        assert _substances_for_property(filtered, "SurfaceTension") == {("CC",), ("CCC",)}
+        assert _substances_for_property(filtered, "DielectricConstant") == {
+            ("CC",), ("CCC",)
+        }
+        assert ("CCCC",) not in data_frame_to_substances(filtered)
+        assert ("CCCCC",) not in data_frame_to_substances(filtered)
+
+        # When multi-type candidates are exhausted, fall through to single-type.
+        # ST gap=2, DC gap=2. CCC fills 1 each; then CCCCCC fills DC, ST gets one more.
+        substance_entries = [
+            (("CC",),     (True,  True,  True)),
+            (("CCC",),    (False, True,  True)),
+            (("CCCC",),   (False, True,  False)),
+            (("CCCCC",),  (False, True,  False)),
+            (("CCCCCC",), (False, False, True)),
+        ]
+        data_frame = _build_data_frame(property_types, substance_entries)
+
+        filtered = FilterByCoreAndAdditionalPropertyTypes.apply(
+            data_frame,
+            FilterByCoreAndAdditionalPropertyTypesSchema(
+                core_property_types={"Density": None},
+                additional_property_types={
+                    "SurfaceTension": None,
+                    "DielectricConstant": None,
+                },
+                scale_factor=3.0,
+            ),
+        )
+
+        st_substances = _substances_for_property(filtered, "SurfaceTension")
+        dc_substances = _substances_for_property(filtered, "DielectricConstant")
+
+        assert ("CCC",) in st_substances and ("CCC",) in dc_substances
+        assert ("CCCCCC",) in dc_substances
+        assert len(st_substances) == 3
+        assert len(dc_substances) == 3

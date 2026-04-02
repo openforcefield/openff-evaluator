@@ -1405,6 +1405,245 @@ class FilterByTautomers(CurationComponent):
         return data_frame[data_frame.apply(filter_function, axis=1)]
 
 
+@functools.lru_cache(maxsize=4096)
+def _morgan_fp(smiles: str):
+    """Return the Morgan (radius-2, 2048-bit) fingerprint for *smiles*.
+
+    Returns ``None`` if the SMILES cannot be parsed by RDKit.
+    """
+    from rdkit import Chem
+    from rdkit.Chem import AllChem
+
+    mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        return None
+    return AllChem.GetMorganFingerprintAsBitVect(mol, radius=2, nBits=2048)
+
+
+class FilterByCoreAndAdditionalPropertyTypesSchema(CurationComponentSchema):
+    type: Literal[
+        "FilterByCoreAndAdditionalPropertyTypes"
+    ] = "FilterByCoreAndAdditionalPropertyTypes"
+
+    core_property_types: Dict[constr(min_length=1), Optional[List[PositiveInt]]] = Field(
+        ...,
+        min_length=1,
+        description="Property types that define the core substance set. A substance "
+        "must have data for ALL listed types to be included in the core set. "
+        "Dict values are optional n_components filters; use None for no filter.",
+    )
+    additional_property_types: Dict[constr(min_length=1), Optional[List[PositiveInt]]] = Field(
+        ...,
+        min_length=1,
+        description="Property types for which additional data are retained. For each "
+        "type, up to int(scale_factor * core_count) substance rows are kept. "
+        "Dict values are optional n_components filters; use None for no filter.",
+    )
+    scale_factor: float = Field(
+        1.0,
+        ge=0.0,
+        description="Ratio of additional to core substances. 0 means no additional "
+        "data are retained.",
+    )
+    select_by: Literal["similarity", "diversity"] = Field(
+        "similarity",
+        description="Gap-fill strategy: 'similarity' favours substances most similar "
+        "to the core set; 'diversity' favours dissimilar ones (MaxMin).",
+    )
+
+    @model_validator(mode="after")
+    def _validate_disjoint(self):
+        overlap = set(self.core_property_types) & set(self.additional_property_types)
+        if overlap:
+            raise ValueError(
+                "core_property_types and additional_property_types share keys: "
+                f"{overlap}"
+            )
+        return self
+
+
+class FilterByCoreAndAdditionalPropertyTypes(CurationComponent):
+    """Retain data for core property types and supplement with additional types.
+
+    The *core substance set* is the intersection of substance sets across all
+    ``core_property_types`` (each optionally constrained by ``n_components``).
+    For each additional type, up to ``int(scale_factor * core_count)`` substances
+    are kept: first the overlap with the core set, then gap-fill candidates chosen
+    by the ``select_by`` strategy, with preference for substances that cover
+    multiple additional types at once.
+    """
+
+    @classmethod
+    def _type_substances(
+        cls,
+        data_frame: pandas.DataFrame,
+        property_type: str,
+        n_components_filter: Optional[List[int]],
+    ):
+        val_col = next(
+            (h for h in data_frame.columns if h.startswith(f"{property_type} Value")),
+            None,
+        )
+        if val_col is None:
+            return set()
+        rows = data_frame[data_frame[val_col].notna()]
+        if n_components_filter:
+            rows = rows[rows["N Components"].isin(n_components_filter)]
+        return data_frame_to_substances(rows)
+
+    @classmethod
+    def _apply(
+        cls,
+        data_frame: pandas.DataFrame,
+        schema: FilterByCoreAndAdditionalPropertyTypesSchema,
+        n_processes,  # unused; filtering is CPU-light
+    ) -> pandas.DataFrame:
+        # ── Step 1: S_core = intersection of per-type substance sets ──────────────
+        s_core = None
+        for prop_type, nc_filter in schema.core_property_types.items():
+            subs = cls._type_substances(data_frame, prop_type, nc_filter)
+            s_core = subs if s_core is None else s_core & subs
+        if not s_core:
+            return data_frame.iloc[0:0]
+
+        core_count = len(s_core)
+
+        # ── Step 2: pre-compute substance tuples (used in both row masks) ─────────
+        def _sub_tuple(row):
+            n = int(row["N Components"])
+            return tuple(sorted(row[f"Component {i + 1}"] for i in range(n)))
+
+        substance_col = data_frame.apply(_sub_tuple, axis=1)
+
+        # ── Step 3: core rows ─────────────────────────────────────────────────────
+        # Keep rows whose substance is in S_core and that carry at least one
+        # core-type value.  Additional-type rows for core substances are only
+        # retained when scale_factor > 0 (assembled in Steps 5–6 via type_overlap).
+        core_val_cols = [
+            next((h for h in data_frame.columns if h.startswith(f"{t} Value")), None)
+            for t in schema.core_property_types
+        ]
+        core_val_cols = [c for c in core_val_cols if c is not None]
+
+        core_rows = data_frame[
+            substance_col.isin(s_core) & data_frame[core_val_cols].notna().any(axis=1)
+        ]
+
+        # ── Step 4: target and per-type substance sets ────────────────────────────
+        target = int(schema.scale_factor * core_count)
+        if target == 0:
+            return core_rows
+
+        type_overlap = {}  # add_type -> S_core ∩ S_a
+        type_candidates = {}  # add_type -> S_a \ S_core
+        for add_type, nc_filter in schema.additional_property_types.items():
+            s_a = cls._type_substances(data_frame, add_type, nc_filter)
+            type_overlap[add_type] = s_core & s_a
+            type_candidates[add_type] = s_a - s_core
+
+        gap = {
+            a: max(0, target - len(type_overlap[a]))
+            for a in schema.additional_property_types
+        }
+
+        # ── Step 5: greedy gap-fill ───────────────────────────────────────────────
+        selected_set: set = set()
+        if any(g > 0 for g in gap.values()):
+            from rdkit import DataStructs
+
+            s_core_smiles = frozenset(smi for sub in s_core for smi in sub)
+            ref_fps = [
+                fp for fp in (_morgan_fp(s) for s in s_core_smiles) if fp is not None
+            ]
+            if schema.select_by == "diversity":
+                selected_smiles: set = set(s_core_smiles)
+
+            def fp_score(substance):
+                fps_sub = [
+                    fp for fp in (_morgan_fp(s) for s in substance) if fp is not None
+                ]
+                if not fps_sub:
+                    return 0.0
+                if schema.select_by == "similarity":
+                    fps_ref = ref_fps
+                    if not fps_ref:
+                        return 0.0
+                else:  # diversity — MaxMin: score = 1 - nearest-neighbour Tanimoto
+                    fps_ref = [
+                        fp
+                        for fp in (_morgan_fp(s) for s in selected_smiles)
+                        if fp is not None
+                    ]
+                    if not fps_ref:
+                        return 1.0
+                nn_sim = max(
+                    DataStructs.TanimotoSimilarity(fp, r)
+                    for fp in fps_sub
+                    for r in fps_ref
+                )
+                return nn_sim if schema.select_by == "similarity" else 1.0 - nn_sim
+
+            all_candidates: set = set().union(*type_candidates.values())
+            coverage_map = {
+                sub: [a for a, cands in type_candidates.items() if sub in cands]
+                for sub in all_candidates
+            }
+
+            for add_type in schema.additional_property_types:
+                if gap[add_type] <= 0:
+                    continue
+                if schema.select_by == "similarity":
+                    # Scores are static; sort once and iterate.
+                    cands = sorted(
+                        [
+                            sub
+                            for sub in type_candidates[add_type]
+                            if sub not in selected_set
+                        ],
+                        key=lambda c: (-len(coverage_map[c]), -fp_score(c)),
+                    )
+                    for sub in cands:
+                        if gap[add_type] <= 0:
+                            break
+                        if sub in selected_set:
+                            continue
+                        for b in coverage_map[sub]:
+                            gap[b] = max(0, gap[b] - 1)
+                        selected_set.add(sub)
+                else:  # diversity — re-rank after each pick for correct MaxMin behaviour
+                    remaining = [
+                        sub
+                        for sub in type_candidates[add_type]
+                        if sub not in selected_set
+                    ]
+                    while gap[add_type] > 0 and remaining:
+                        best = max(
+                            remaining,
+                            key=lambda c: (-len(coverage_map[c]), fp_score(c)),
+                        )
+                        for b in coverage_map[best]:
+                            gap[b] = max(0, gap[b] - 1)
+                        selected_set.add(best)
+                        selected_smiles.update(best)
+                        remaining = [s for s in remaining if s not in selected_set]
+
+        # ── Step 6: assemble result ───────────────────────────────────────────────
+        additional_substances = set().union(*type_overlap.values()) | selected_set
+
+        add_val_cols = [
+            next((h for h in data_frame.columns if h.startswith(f"{t} Value")), None)
+            for t in schema.additional_property_types
+        ]
+        add_val_cols = [c for c in add_val_cols if c is not None]
+
+        additional_rows = data_frame[
+            substance_col.isin(additional_substances)
+            & data_frame[add_val_cols].notna().any(axis=1)
+        ]
+
+        return pandas.concat([core_rows, additional_rows], ignore_index=True)
+
+
 FilterComponentSchema = Union[
     FilterDuplicatesSchema,
     FilterByTemperatureSchema,
@@ -1422,4 +1661,5 @@ FilterComponentSchema = Union[
     FilterBySubstancesSchema,
     FilterByEnvironmentsSchema,
     FilterByTautomersSchema,
+    FilterByCoreAndAdditionalPropertyTypesSchema,
 ]
