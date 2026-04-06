@@ -31,6 +31,6 @@ repos:
     - id: nbstripout
       files: ^docs/tutorial
 - repo: https://github.com/tox-dev/pyproject-fmt
-  rev: v2.18.1
+  rev: v2.21.0
   hooks:
     - id: pyproject-fmt
