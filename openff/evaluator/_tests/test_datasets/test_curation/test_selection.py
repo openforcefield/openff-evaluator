@@ -16,6 +16,8 @@ from openff.evaluator.datasets.curation.components.selection import (
     SelectDataPointsSchema,
     SelectNumRepresentation,
     SelectNumRepresentationSchema,
+    SelectStratifiedSplit,
+    SelectStratifiedSplitSchema,
     SelectSubstances,
     SelectSubstancesSchema,
     State,
@@ -386,6 +388,467 @@ def test_select_num_representation():
     assert len(selected_data_frame) == 1
     assert selected_data_frame["Component 1"].iloc[0] == "CCO"
     assert selected_data_frame["N Components"].iloc[0] == 1
+
+
+def _df(smiles_list):
+    """Minimal one-row-per-substance DataFrame."""
+    return pandas.DataFrame(
+        [{"N Components": 1, "Component 1": smi} for smi in smiles_list]
+    )
+
+
+def test_select_stratified_split_fraction():
+    df = _df(["CC", "CCC", "CCCC", "CCO", "CCOCC", "CC(C)O"])
+    result = SelectStratifiedSplit.apply(df, SelectStratifiedSplitSchema(keep_fraction=0.5, seed=0))
+    assert len(result["Component 1"].unique()) == 3
+
+
+def test_select_stratified_split_deterministic():
+    df = _df(["CC", "CCC", "CCCC", "CCO", "CCOCC", "CC(C)O"])
+    schema = SelectStratifiedSplitSchema(keep_fraction=0.5, seed=42)
+    a = SelectStratifiedSplit.apply(df, schema)
+    b = SelectStratifiedSplit.apply(df, schema)
+    assert set(a["Component 1"].unique()) == set(b["Component 1"].unique())
+
+
+def test_select_stratified_split_smiles_strata():
+    # Global budget: round(5 * 0.5) = 2.
+    # "O" has a higher priority score than the rest and should always be selected.
+    df = _df(["CCCC", "CCCCC", "CCCO", "CC(O)C", "O"])
+    result = SelectStratifiedSplit.apply(
+        df, SelectStratifiedSplitSchema(keep_fraction=0.5, seed=0, smiles_strata=["O"])
+    )
+    result_smiles = set(result["Component 1"].unique())
+    assert len(result_smiles) == 2
+    assert "O" in result_smiles
+
+
+def test_select_stratified_split_custom_smiles_weight_priority():
+    # All three substances match exactly one smiles stratum and are otherwise
+    # equivalent. Custom weight should prioritize water.
+    df = _df(["O", "CC", "CCC"])
+    result = SelectStratifiedSplit.apply(
+        df,
+        SelectStratifiedSplitSchema(
+            keep_fraction=1 / 3,
+            seed=0,
+            diversity_selection=False,
+            smiles_strata=["O", "CC", "CCC"],
+            strata_weights={"O": 2.0},
+        ),
+    )
+    result_smiles = set(result["Component 1"].unique())
+    assert result_smiles == {"O"}
+
+
+def test_select_stratified_split_smiles_strata_canonicalized_for_comparison():
+    # "CCO" in schema must match "OCC" in data; DataFrame not mutated.
+    df = _df(["OCC", "CCCC", "CCCCC", "CCCCCC"])
+    result = SelectStratifiedSplit.apply(
+        df, SelectStratifiedSplitSchema(keep_fraction=0.5, seed=0, smiles_strata=["CCO"])
+    )
+    assert "OCC" in set(result["Component 1"].unique())
+    assert df["Component 1"].tolist() == ["OCC", "CCCC", "CCCCC", "CCCCCC"]
+
+
+def test_select_stratified_split_target_environment_strata():
+    # Global budget: round(8 * 0.5) = 4.
+    # NCCO / NCCCO match both requested environments and should be prioritized.
+    df = _df(["NCCO", "NCCCO", "CCO", "CCCO", "CCN", "CCCN", "CC", "CCC"])
+    result = SelectStratifiedSplit.apply(
+        df,
+        SelectStratifiedSplitSchema(
+            keep_fraction=0.5,
+            seed=0,
+            target_environment_strata=[ChemicalEnvironment.Alcohol, ChemicalEnvironment.Amine],
+        ),
+    )
+    result_smiles = set(result["Component 1"].unique())
+    assert len(result_smiles) == 4
+    assert {"NCCO", "NCCCO"}.issubset(result_smiles)
+
+
+def test_select_stratified_split_property_type_strata():
+    # Global budget: round(4 * 0.5) = 2.
+    # Density-covered substances should be preferred.
+    df = pandas.DataFrame([
+        {"N Components": 1, "Component 1": "CCCC",    "Density Value (g / ml)": 0.7},
+        {"N Components": 1, "Component 1": "CCCCC",   "Density Value (g / ml)": 0.7},
+        {"N Components": 1, "Component 1": "CCCCCC",  "Density Value (g / ml)": None},
+        {"N Components": 1, "Component 1": "CCCCCCC", "Density Value (g / ml)": None},
+    ])
+    result = SelectStratifiedSplit.apply(
+        df, SelectStratifiedSplitSchema(keep_fraction=0.5, seed=0, property_type_strata=["Density"])
+    )
+    result_smiles = set(result["Component 1"].unique())
+    assert len(result_smiles) == 2
+    assert result_smiles == {"CCCC", "CCCCC"}
+
+
+def test_select_stratified_split_combined_strata():
+    # Global budget: round(6 * 0.5) = 3.
+    # O and CCO have the highest combined scores and should be selected,
+    # with the final slot taken from the next priority tier.
+    df = pandas.DataFrame([
+        {"N Components": 1, "Component 1": "O",    "Density Value (g / ml)": 1.0},
+        {"N Components": 1, "Component 1": "CCO",  "Density Value (g / ml)": 0.7},
+        {"N Components": 1, "Component 1": "CCCO", "Density Value (g / ml)": None},
+        {"N Components": 1, "Component 1": "CC",   "Density Value (g / ml)": None},
+        {"N Components": 1, "Component 1": "CCC",  "Density Value (g / ml)": None},
+        {"N Components": 1, "Component 1": "CCCC", "Density Value (g / ml)": None},
+    ])
+    result = SelectStratifiedSplit.apply(
+        df,
+        SelectStratifiedSplitSchema(
+            keep_fraction=0.5,
+            seed=0,
+            smiles_strata=["O"],
+            target_environment_strata=[ChemicalEnvironment.Alcohol],
+            property_type_strata=["Density"],
+        ),
+    )
+    result_smiles = set(result["Component 1"].unique())
+    assert len(result_smiles) == 3
+    assert {"O", "CCO", "CCCO"}.issubset(result_smiles)
+
+
+def test_select_stratified_split_priority_tiers_smiles_and_properties():
+    # Global budget: round(6 * 0.5) = 3.
+    # Priority score is the sum of matched smiles_strata and property_type_strata flags.
+    # The two mixtures that cover both properties should be selected first.
+    df = pandas.DataFrame(
+        [
+            {
+                "N Components": 2,
+                "Component 1": "CO",
+                "Component 2": "O",
+                "Density Value (g / ml)": 0.99,
+                "EnthalpyOfMixing Value (kJ / mol)": -1.1,
+            },
+            {
+                "N Components": 2,
+                "Component 1": "CCO",
+                "Component 2": "O",
+                "Density Value (g / ml)": 0.95,
+                "EnthalpyOfMixing Value (kJ / mol)": -0.8,
+            },
+            {
+                "N Components": 2,
+                "Component 1": "CCO",
+                "Component 2": "CO",
+                "Density Value (g / ml)": 0.90,
+                "EnthalpyOfMixing Value (kJ / mol)": None,
+            },
+            {
+                "N Components": 2,
+                "Component 1": "O",
+                "Component 2": "CCN",
+                "Density Value (g / ml)": 0.98,
+                "EnthalpyOfMixing Value (kJ / mol)": None,
+            },
+            {
+                "N Components": 2,
+                "Component 1": "CO",
+                "Component 2": "CCN",
+                "Density Value (g / ml)": None,
+                "EnthalpyOfMixing Value (kJ / mol)": -0.3,
+            },
+            {
+                "N Components": 2,
+                "Component 1": "CC",
+                "Component 2": "CCC",
+                "Density Value (g / ml)": 0.72,
+                "EnthalpyOfMixing Value (kJ / mol)": None,
+            },
+        ]
+    )
+
+    result = SelectStratifiedSplit.apply(
+        df,
+        SelectStratifiedSplitSchema(
+            keep_fraction=0.5,
+            seed=0,
+            smiles_strata=["O", "CO", "CCO"],
+            property_type_strata=["Density", "EnthalpyOfMixing"],
+            diversity_selection=False,
+            property_balance=False,
+        ),
+    )
+
+    selected_substances = set(
+        tuple(sorted([row["Component 1"], row["Component 2"]]))
+        for _, row in result[["Component 1", "Component 2"]].drop_duplicates().iterrows()
+    )
+
+    assert len(selected_substances) == 3
+    assert tuple(sorted(["O", "CO"])) in selected_substances
+    assert tuple(sorted(["O", "CCO"])) in selected_substances
+
+
+def test_select_stratified_split_diversity():
+    df = _df(["CCCC", "CCCCC", "CCCCCC", "CCO", "CCOCC", "CC(C)O"])
+    result = SelectStratifiedSplit.apply(
+        df, SelectStratifiedSplitSchema(keep_fraction=0.5, seed=0, diversity_selection=True)
+    )
+    assert len(result["Component 1"].unique()) == 3
+
+
+def test_select_stratified_split_include_subset_substances():
+    # round(4 * 0.25) = 1 selected substance. The top-priority substance is a binary
+    # with both requested property types; include_subset_substances should also retain
+    # pure-component rows whose substance keys are subsets of that binary.
+    df = pandas.DataFrame(
+        [
+            {
+                "N Components": 2,
+                "Component 1": "O",
+                "Component 2": "CCO",
+                "Density Value (g / ml)": 0.95,
+                "EnthalpyOfMixing Value (kJ / mol)": -0.7,
+            },
+            {
+                "N Components": 1,
+                "Component 1": "O",
+                "Density Value (g / ml)": 1.0,
+                "EnthalpyOfMixing Value (kJ / mol)": None,
+            },
+            {
+                "N Components": 1,
+                "Component 1": "CCO",
+                "Density Value (g / ml)": 0.79,
+                "EnthalpyOfMixing Value (kJ / mol)": None,
+            },
+            {
+                "N Components": 1,
+                "Component 1": "CCCC",
+                "Density Value (g / ml)": 0.71,
+                "EnthalpyOfMixing Value (kJ / mol)": None,
+            },
+        ]
+    )
+
+    base = SelectStratifiedSplit.apply(
+        df,
+        SelectStratifiedSplitSchema(
+            keep_fraction=0.25,
+            seed=0,
+            property_type_strata=["Density", "EnthalpyOfMixing"],
+            diversity_selection=False,
+            property_balance=False,
+            include_subset_substances=False,
+        ),
+    )
+    assert len(base) == 1
+    base_key = tuple(
+        sorted(
+            base.loc[base.index[0], f"Component {j + 1}"]
+            for j in range(int(base.loc[base.index[0], "N Components"]))
+        )
+    )
+
+    with_subsets = SelectStratifiedSplit.apply(
+        df,
+        SelectStratifiedSplitSchema(
+            keep_fraction=0.25,
+            seed=0,
+            property_type_strata=["Density", "EnthalpyOfMixing"],
+            diversity_selection=False,
+            property_balance=False,
+            include_subset_substances=True,
+        ),
+    )
+
+    selected_keys = {
+        tuple(
+            sorted(
+                with_subsets.loc[i, f"Component {j + 1}"]
+                for j in range(int(with_subsets.loc[i, "N Components"]))
+            )
+        )
+        for i in with_subsets.index
+    }
+
+    # include_subset_substances should never drop the initially selected key.
+    assert base_key in selected_keys
+
+    # If the selected key is the binary, include its pure subsets.
+    if base_key == ("CCO", "O"):
+        assert ("O",) in selected_keys
+        assert ("CCO",) in selected_keys
+
+    assert ("CCCC",) not in selected_keys
+
+
+def test_select_stratified_split_property_balance_row_mode_after_refill():
+    # 6 unique substances -> round(6 * 0.83) = 5 selected substances.
+    # Substance-level counts are initially balanced (3 vs 3), but row-level
+    # counts are heavily skewed toward density due to repeated pure-density rows.
+    rows = [
+        {
+            "N Components": 1,
+            "Component 1": "O",
+            "Density Value (g / ml)": 1.0,
+            "EnthalpyOfMixing Value (kJ / mol)": None,
+        },
+        {
+            "N Components": 1,
+            "Component 1": "O",
+            "Density Value (g / ml)": None,
+            "EnthalpyOfMixing Value (kJ / mol)": -0.1,
+        },
+    ]
+
+    rows.extend(
+        {
+            "N Components": 1,
+            "Component 1": "CC",
+            "Density Value (g / ml)": 0.7,
+            "EnthalpyOfMixing Value (kJ / mol)": None,
+        }
+        for _ in range(8)
+    )
+    rows.extend(
+        {
+            "N Components": 1,
+            "Component 1": "CCC",
+            "Density Value (g / ml)": 0.72,
+            "EnthalpyOfMixing Value (kJ / mol)": None,
+        }
+        for _ in range(8)
+    )
+    rows.append(
+        {
+            "N Components": 1,
+            "Component 1": "N",
+            "Density Value (g / ml)": None,
+            "EnthalpyOfMixing Value (kJ / mol)": -0.2,
+        }
+    )
+    rows.append(
+        {
+            "N Components": 1,
+            "Component 1": "CO",
+            "Density Value (g / ml)": None,
+            "EnthalpyOfMixing Value (kJ / mol)": -0.3,
+        }
+    )
+    rows.append(
+        {
+            "N Components": 1,
+            "Component 1": "CCO",
+            "Density Value (g / ml)": None,
+            "EnthalpyOfMixing Value (kJ / mol)": None,
+        }
+    )
+
+    df = pandas.DataFrame(rows)
+
+    substance_mode = SelectStratifiedSplit.apply(
+        df,
+        SelectStratifiedSplitSchema(
+            keep_fraction=0.83,
+            seed=0,
+            property_type_strata=["Density", "EnthalpyOfMixing"],
+            diversity_selection=False,
+            property_balance=True,
+            property_balance_mode="substance",
+            max_property_ratio=1.2,
+        ),
+    )
+    substance_density_rows = int(substance_mode["Density Value (g / ml)"].notna().sum())
+    substance_hmix_rows = int(
+        substance_mode["EnthalpyOfMixing Value (kJ / mol)"].notna().sum()
+    )
+    assert substance_density_rows > int(1.2 * substance_hmix_rows)
+
+    row_mode = SelectStratifiedSplit.apply(
+        df,
+        SelectStratifiedSplitSchema(
+            keep_fraction=0.83,
+            seed=0,
+            property_type_strata=["Density", "EnthalpyOfMixing"],
+            diversity_selection=False,
+            property_balance=True,
+            property_balance_mode="row",
+            max_property_ratio=1.2,
+        ),
+    )
+
+    row_density_rows = int(row_mode["Density Value (g / ml)"].notna().sum())
+    row_hmix_rows = int(row_mode["EnthalpyOfMixing Value (kJ / mol)"].notna().sum())
+
+    assert row_hmix_rows > 0
+    assert row_density_rows <= int(1.2 * row_hmix_rows)
+
+
+def test_select_stratified_split_property_balance_by_n_components():
+    # Pure bucket is balanced (1 density + 1 hmix), binary bucket is density-heavy.
+    # With per-n_components balancing on, binary trimming should not remove pure rows.
+    df = pandas.DataFrame(
+        [
+            {
+                "N Components": 1,
+                "Component 1": "O",
+                "Density Value (g / ml)": 1.0,
+                "EnthalpyOfMixing Value (kJ / mol)": None,
+            },
+            {
+                "N Components": 1,
+                "Component 1": "N",
+                "Density Value (g / ml)": None,
+                "EnthalpyOfMixing Value (kJ / mol)": -0.2,
+            },
+            {
+                "N Components": 2,
+                "Component 1": "O",
+                "Component 2": "CC",
+                "Density Value (g / ml)": 0.92,
+                "EnthalpyOfMixing Value (kJ / mol)": None,
+            },
+            {
+                "N Components": 2,
+                "Component 1": "O",
+                "Component 2": "CCC",
+                "Density Value (g / ml)": 0.90,
+                "EnthalpyOfMixing Value (kJ / mol)": None,
+            },
+            {
+                "N Components": 2,
+                "Component 1": "N",
+                "Component 2": "CC",
+                "Density Value (g / ml)": None,
+                "EnthalpyOfMixing Value (kJ / mol)": -0.3,
+            },
+        ]
+    )
+
+    result = SelectStratifiedSplit.apply(
+        df,
+        SelectStratifiedSplitSchema(
+            keep_fraction=1.0,
+            seed=0,
+            property_type_strata=["Density", "EnthalpyOfMixing"],
+            diversity_selection=False,
+            property_balance=True,
+            property_balance_mode="substance",
+            property_balance_by_n_components=True,
+            max_property_ratio=1.2,
+        ),
+    )
+
+    selected_keys = {
+        tuple(
+            sorted(
+                result.loc[i, f"Component {j + 1}"]
+                for j in range(int(result.loc[i, "N Components"]))
+            )
+        )
+        for i in result.index
+    }
+
+    # Pure rows should remain because the pure bucket is already balanced.
+    assert ("O",) in selected_keys
+    assert ("N",) in selected_keys
 
 
 @pytest.mark.skipif(
