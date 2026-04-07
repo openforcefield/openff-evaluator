@@ -596,7 +596,7 @@ def test_remove_object_removes_from_registry(factory):
 
 
 def test_remove_object_clears_hash_index():
-    """For HashableStoredData, the corresponding hash entry is removed."""
+    """For MutableLocalFileStorage, the corresponding hash entry is removed."""
     ff = SmirnoffForceFieldSource.from_path("openff-2.2.1.offxml")
     with tempfile.TemporaryDirectory() as base_dir:
         storage_dir = os.path.join(base_dir, "storage")
