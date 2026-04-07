@@ -5,9 +5,14 @@ A mutable, extensible local file storage backend.
 import json
 import shutil
 from os import path
+from typing import TYPE_CHECKING, Iterable
 
 from openff.evaluator.storage.localfile import LocalFileStorage
 from openff.evaluator.utils.serialization import TypedJSONEncoder
+
+if TYPE_CHECKING:
+    from openff.evaluator.substances import Substance
+    from openff.evaluator.substances.components import Component
 
 
 class MutableLocalFileStorage(LocalFileStorage):
@@ -20,11 +25,6 @@ class MutableLocalFileStorage(LocalFileStorage):
       :meth:`update` or ``+=``.
     - **Subset**: create a new storage containing only objects whose
       substance matches a set of include/exclude filters.
-    - **Search**: retrieve objects grouped by substance or component
-      using :meth:`retrieve_by_substance` and
-      :meth:`retrieve_by_component`.
-    - **Remove**: delete individual stored objects with
-      :meth:`remove_object`.
 
     Parameters
     ----------
@@ -81,3 +81,113 @@ class MutableLocalFileStorage(LocalFileStorage):
                 object_to_store,
                 ancillary_data_path,
             )
+
+    @staticmethod
+    def _substance_passes_filters(
+        substance: "Substance | None",
+        include_substances: "Iterable[Substance] | None",
+        include_components: "Iterable[Component] | None",
+        exclude_substances: "Iterable[Substance] | None",
+        exclude_components: "Iterable[Component] | None",
+    ) -> bool:
+        """Return True if *substance* passes all active filters.
+
+        Objects whose substance is ``None`` (e.g. :class:`ForceFieldData`)
+        are included only when no *include* filters are active.
+        """
+        if substance is None:
+            return include_substances is None and include_components is None
+
+        component_ids = {c.identifier for c in substance.components}
+
+        if include_substances is not None:
+            if not any(substance == s for s in include_substances):
+                return False
+
+        if include_components is not None:
+            if not all(c.identifier in component_ids for c in include_components):
+                return False
+
+        if exclude_substances is not None:
+            if any(substance == s for s in exclude_substances):
+                return False
+
+        if exclude_components is not None:
+            if any(c.identifier in component_ids for c in exclude_components):
+                return False
+
+        return True
+
+    def subset(
+        self,
+        directory: str,
+        include_substances: "Iterable[Substance] | None" = None,
+        include_components: "Iterable[Component] | None" = None,
+        exclude_substances: "Iterable[Substance] | None" = None,
+        exclude_components: "Iterable[Component] | None" = None,
+    ) -> "MutableLocalFileStorage":
+        """Return a new :class:`MutableLocalFileStorage` at *directory*
+        containing only objects that match the given filters.
+
+        Parameters
+        ----------
+        directory:
+            Root directory for the new storage.
+        include_substances:
+            If given, only include objects whose substance exactly matches
+            one of the listed
+            :class:`~openff.evaluator.substances.Substance` instances.
+        include_components:
+            If given, only include objects whose substance contains
+            *every* listed
+            :class:`~openff.evaluator.substances.components.Component`.
+        exclude_substances:
+            Exclude objects whose substance exactly matches any listed
+            substance.
+        exclude_components:
+            Exclude objects whose substance contains *any* listed
+            component.
+
+        Returns
+        -------
+        MutableLocalFileStorage
+            A new storage instance containing the matching objects.
+        """
+        if include_substances and exclude_substances:
+            overlap = [
+                s for s in include_substances if any(s == e for e in exclude_substances)
+            ]
+            if overlap:
+                raise ValueError(
+                    "The same substance cannot appear in both include_substances "
+                    "and exclude_substances."
+                )
+
+        if include_components is not None and exclude_components is not None:
+            inc_ids = {c.identifier for c in include_components}
+            exc_ids = {c.identifier for c in exclude_components}
+            if inc_ids & exc_ids:
+                raise ValueError(
+                    "The same component cannot appear in both include_components "
+                    "and exclude_components."
+                )
+
+        result = MutableLocalFileStorage(directory)
+
+        for type_name, keys in self._stored_object_keys.items():
+            for key in list(keys):
+                obj, ancillary = self.retrieve_object(key)
+                substance = getattr(obj, "substance", None)
+
+                if not self._substance_passes_filters(
+                    substance,
+                    include_substances,
+                    include_components,
+                    exclude_substances,
+                    exclude_components,
+                ):
+                    continue
+
+                result.store_object(obj, ancillary)
+
+        return result
