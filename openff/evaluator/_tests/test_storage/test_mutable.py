@@ -1,5 +1,6 @@
 import os
 import tempfile
+import uuid
 
 import pytest
 
@@ -551,3 +552,134 @@ def test_subset_force_field_excluded_when_include_substance_active(
         assert len(result._stored_object_keys.get(ForceFieldData.__name__, [])) == 0
         # But the data object is present
         assert len(_data_keys(result)) == 1
+
+
+@pytest.mark.parametrize("factory", DATA_FACTORIES)
+def test_remove_object_deletes_json_and_directory(factory):
+    """remove_object() deletes both the JSON file and the ancillary directory."""
+    substance = Substance.from_components("C")
+    with tempfile.TemporaryDirectory() as base_dir:
+        storage_dir = os.path.join(base_dir, "storage")
+        data_dir = os.path.join(base_dir, "data")
+
+        obj = factory(data_dir, substance)
+        storage = MutableLocalFileStorage(storage_dir)
+        key = storage.store_object(obj, data_dir)
+
+        json_path = os.path.join(storage_dir, f"{key}.json")
+        ancillary_path = os.path.join(storage_dir, key)
+        assert os.path.isfile(json_path)
+        assert os.path.isdir(ancillary_path)
+
+        storage.remove_object(key)
+
+        assert not os.path.isfile(json_path)
+        assert not os.path.isdir(ancillary_path)
+
+
+@pytest.mark.parametrize("factory", DATA_FACTORIES)
+def test_remove_object_removes_from_registry(factory):
+    """Key is absent from _stored_object_keys after removal."""
+    substance = Substance.from_components("C")
+    with tempfile.TemporaryDirectory() as base_dir:
+        storage_dir = os.path.join(base_dir, "storage")
+        data_dir = os.path.join(base_dir, "data")
+
+        obj = factory(data_dir, substance)
+        storage = MutableLocalFileStorage(storage_dir)
+        key = storage.store_object(obj, data_dir)
+
+        type_name = type(obj).__name__
+        assert key in storage._stored_object_keys[type_name]
+        storage.remove_object(key)
+        assert key not in storage._stored_object_keys.get(type_name, [])
+
+
+def test_remove_object_clears_hash_index():
+    """For MutableLocalFileStorage, the corresponding hash entry is removed."""
+    ff = SmirnoffForceFieldSource.from_path("openff-2.2.1.offxml")
+    with tempfile.TemporaryDirectory() as base_dir:
+        storage_dir = os.path.join(base_dir, "storage")
+        storage = MutableLocalFileStorage(storage_dir)
+        key = storage.store_force_field(ff)
+
+        assert any(k == key for k in storage._object_hashes.values())
+        storage.remove_object(key)
+        assert not any(k == key for k in storage._object_hashes.values())
+
+
+@pytest.mark.parametrize("factory", DATA_FACTORIES)
+def test_remove_object_clears_cache(factory):
+    """With cache_objects_in_memory=True, the cache entry is evicted."""
+    substance = Substance.from_components("C")
+    with tempfile.TemporaryDirectory() as base_dir:
+        storage_dir = os.path.join(base_dir, "storage")
+        data_dir = os.path.join(base_dir, "data")
+
+        obj = factory(data_dir, substance)
+        storage = MutableLocalFileStorage(storage_dir, cache_objects_in_memory=True)
+        key = storage.store_object(obj, data_dir)
+
+        # Warm the cache
+        storage.retrieve_object(key)
+        assert key in storage._cached_retrieved_objects
+
+        storage.remove_object(key)
+        assert key not in storage._cached_retrieved_objects
+
+
+def test_remove_object_key_not_found_raises():
+    """remove_object raises KeyError for an unregistered key."""
+    with tempfile.TemporaryDirectory() as base_dir:
+        storage = MutableLocalFileStorage(os.path.join(base_dir, "storage"))
+        with pytest.raises(KeyError):
+            storage.remove_object("nonexistent_key")
+
+
+@pytest.mark.parametrize("factory", DATA_FACTORIES)
+def test_remove_object_then_store_again(factory):
+    """After removal an object can be re-stored and retrieved correctly."""
+    substance = Substance.from_components("C")
+    with tempfile.TemporaryDirectory() as base_dir:
+        storage_dir = os.path.join(base_dir, "storage")
+        data_dir_1 = os.path.join(base_dir, "data1")
+        data_dir_2 = os.path.join(base_dir, "data2")
+
+        obj1 = factory(data_dir_1, substance, calculation_id=str(uuid.uuid4()))
+        storage = MutableLocalFileStorage(storage_dir)
+        key1 = storage.store_object(obj1, data_dir_1)
+
+        storage.remove_object(key1)
+
+        # Re-store with a fresh ancillary directory
+        obj2 = factory(data_dir_2, substance, calculation_id=str(uuid.uuid4()))
+        key2 = storage.store_object(obj2, data_dir_2)
+
+        retrieved, _ = storage.retrieve_object(key2)
+        assert retrieved is not None
+        assert retrieved.substance == substance
+
+
+@pytest.mark.parametrize("factory", DATA_FACTORIES)
+def test_remove_object_only_affects_target(factory):
+    """Removing one object does not disturb other stored objects."""
+    substance_c = Substance.from_components("C")
+    substance_o = Substance.from_components("O")
+
+    with tempfile.TemporaryDirectory() as base_dir:
+        storage_dir = os.path.join(base_dir, "storage")
+        data_c = os.path.join(base_dir, "data_c")
+        data_o = os.path.join(base_dir, "data_o")
+
+        obj_c = factory(data_c, substance_c)
+        obj_o = factory(data_o, substance_o)
+
+        storage = MutableLocalFileStorage(storage_dir)
+        key_c = storage.store_object(obj_c, data_c)
+        key_o = storage.store_object(obj_o, data_o)
+
+        storage.remove_object(key_c)
+
+        retrieved_o, _ = storage.retrieve_object(key_o)
+        assert retrieved_o is not None
+        assert retrieved_o.substance == substance_o

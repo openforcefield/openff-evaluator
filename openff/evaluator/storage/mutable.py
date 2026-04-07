@@ -3,6 +3,7 @@ A mutable, extensible local file storage backend.
 """
 
 import json
+import os
 import shutil
 from os import path
 from typing import TYPE_CHECKING, Iterable
@@ -58,6 +59,64 @@ class MutableLocalFileStorage(LocalFileStorage):
         """Merge *other* into this storage in-place (``self += other``)."""
         self.update(other)
         return self
+
+    def _remove_object(self, storage_key: str) -> None:
+        """Delete the JSON file and ancillary directory for *storage_key*."""
+        file_path = path.join(self._root_directory, f"{storage_key}.json")
+        directory_path = path.join(self._root_directory, f"{storage_key}")
+
+        if path.isfile(file_path):
+            os.remove(file_path)
+        if path.isdir(directory_path):
+            shutil.rmtree(directory_path)
+
+    def remove_object(self, storage_key: str) -> None:
+        """Remove a stored object by *storage_key*.
+
+        Removes the object from the key registry, hash index, and
+        in-memory cache, then deletes its files from disk.
+
+        Parameters
+        ----------
+        storage_key:
+            The storage key returned by :meth:`store_object`.
+
+        Raises
+        ------
+        KeyError
+            If *storage_key* is not registered in this storage.
+        """
+        # Find which type owns this key.
+        type_name_found = None
+        for type_name, keys in self._stored_object_keys.items():
+            if storage_key in keys:
+                type_name_found = type_name
+                break
+
+        if type_name_found is None:
+            raise KeyError(
+                f"No stored object with key {storage_key!r} found in this storage."
+            )
+
+        with self._lock:
+            # Remove from key registry.
+            self._stored_object_keys[type_name_found].remove(storage_key)
+
+            # Remove from hash index (any hash pointing to this key).
+            hashes_to_remove = [
+                h for h, k in self._object_hashes.items() if k == storage_key
+            ]
+            for h in hashes_to_remove:
+                del self._object_hashes[h]
+
+            # Remove from in-memory cache.
+            self._cached_retrieved_objects.pop(storage_key, None)
+
+            # Delete files from disk.
+            self._remove_object(storage_key)
+
+        # Persist the updated key registry.
+        self._save_stored_object_keys()
 
     def _store_object(
         self, object_to_store, storage_key=None, ancillary_data_path=None
