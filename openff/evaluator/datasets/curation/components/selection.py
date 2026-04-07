@@ -585,12 +585,12 @@ class SelectDataPoints(CurationComponent):
             as_index=False,
         ).agg({"Property Type": pandas.Series.nunique})
 
-        selected_data = [False] * len(data_frame)
+        selected_data = pandas.Series(False, index=data_frame.index)
 
         for cluster_index in range(len(target_state.states)):
             # Calculate the distance between each clustered state and
             # the center of the cluster (i.e the clustered state).
-            cluster_data = grouped_data[grouped_data["Cluster"] == cluster_index]
+            cluster_data = grouped_data[grouped_data["Cluster"] == cluster_index].copy()
             cluster_data["Distance"] = cls._distances_to_state(
                 cluster_data, target_state.states[cluster_index]
             )
