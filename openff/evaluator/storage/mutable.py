@@ -5,9 +5,14 @@ A mutable, extensible local file storage backend.
 import json
 import shutil
 from os import path
+from typing import TYPE_CHECKING, Iterable
 
 from openff.evaluator.storage.localfile import LocalFileStorage
 from openff.evaluator.utils.serialization import TypedJSONEncoder
+
+if TYPE_CHECKING:
+    from openff.evaluator.substances import Substance
+    from openff.evaluator.substances.components import Component
 
 
 class MutableLocalFileStorage(LocalFileStorage):
@@ -79,11 +84,11 @@ class MutableLocalFileStorage(LocalFileStorage):
 
     @staticmethod
     def _substance_passes_filters(
-        substance,
-        include_substances,
-        include_components,
-        exclude_substances,
-        exclude_components,
+        substance: "Substance | None",
+        include_substances: "Iterable[Substance] | None",
+        include_components: "Iterable[Component] | None",
+        exclude_substances: "Iterable[Substance] | None",
+        exclude_components: "Iterable[Component] | None",
     ) -> bool:
         """Return True if *substance* passes all active filters.
 
@@ -116,10 +121,10 @@ class MutableLocalFileStorage(LocalFileStorage):
     def subset(
         self,
         directory: str,
-        include_substances=None,
-        include_components=None,
-        exclude_substances=None,
-        exclude_components=None,
+        include_substances: "Iterable[Substance] | None" = None,
+        include_components: "Iterable[Component] | None" = None,
+        exclude_substances: "Iterable[Substance] | None" = None,
+        exclude_components: "Iterable[Component] | None" = None,
     ) -> "MutableLocalFileStorage":
         """Return a new :class:`MutableLocalFileStorage` at *directory*
         containing only objects that match the given filters.
