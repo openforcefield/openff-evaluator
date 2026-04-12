@@ -50,10 +50,13 @@ class MutableLocalFileStorage(LocalFileStorage):
             Storage instance whose contents are merged into this one.
             *other* is not modified.
         """
-        for _, keys in other._stored_object_keys.items():
-            for key in keys:
-                obj, ancillary = other.retrieve_object(key)
-                self.store_object(obj, ancillary)
+        with other._lock:
+            keys_snapshot = [
+                key for keys in other._stored_object_keys.values() for key in list(keys)
+            ]
+        for key in keys_snapshot:
+            obj, ancillary = other.retrieve_object(key)
+            self.store_object(obj, ancillary)
 
     def __iadd__(self, other: LocalFileStorage) -> "MutableLocalFileStorage":
         """Merge *other* into this storage in-place (``self += other``)."""
@@ -86,19 +89,19 @@ class MutableLocalFileStorage(LocalFileStorage):
         KeyError
             If *storage_key* is not registered in this storage.
         """
-        # Find which type owns this key.
-        type_name_found = None
-        for type_name, keys in self._stored_object_keys.items():
-            if storage_key in keys:
-                type_name_found = type_name
-                break
-
-        if type_name_found is None:
-            raise KeyError(
-                f"No stored object with key {storage_key!r} found in this storage."
-            )
-
         with self._lock:
+            # Find which type owns this key.
+            type_name_found = None
+            for type_name, keys in self._stored_object_keys.items():
+                if storage_key in keys:
+                    type_name_found = type_name
+                    break
+
+            if type_name_found is None:
+                raise KeyError(
+                    f"No stored object with key {storage_key!r} found in this storage."
+                )
+
             # Remove from key registry.
             self._stored_object_keys[type_name_found].remove(storage_key)
 
@@ -115,8 +118,8 @@ class MutableLocalFileStorage(LocalFileStorage):
             # Delete files from disk.
             self._remove_object(storage_key)
 
-        # Persist the updated key registry.
-        self._save_stored_object_keys()
+            # Persist the updated key registry.
+            self._save_stored_object_keys()
 
     def _store_object(
         self, object_to_store, storage_key=None, ancillary_data_path=None
@@ -136,9 +139,14 @@ class MutableLocalFileStorage(LocalFileStorage):
             shutil.copytree(ancillary_data_path, directory_path)
 
         if self._cache_objects_in_memory:
+            cached_ancillary = (
+                path.join(self._root_directory, f"{storage_key}")
+                if object_to_store.has_ancillary_data()
+                else None
+            )
             self._cached_retrieved_objects[storage_key] = (
                 object_to_store,
-                ancillary_data_path,
+                cached_ancillary,
             )
 
     @staticmethod
@@ -184,6 +192,7 @@ class MutableLocalFileStorage(LocalFileStorage):
         include_components: "Iterable[Component] | None" = None,
         exclude_substances: "Iterable[Substance] | None" = None,
         exclude_components: "Iterable[Component] | None" = None,
+        require_empty_directory: bool = True,
     ) -> "MutableLocalFileStorage":
         """Return a new :class:`MutableLocalFileStorage` at *directory*
         containing only objects that match the given filters.
@@ -206,12 +215,24 @@ class MutableLocalFileStorage(LocalFileStorage):
         exclude_components:
             Exclude objects whose substance contains *any* listed
             component.
+        require_empty_directory:
+            If ``True`` (the default), raise a :exc:`ValueError` when
+            *directory* already exists and is non-empty, ensuring the
+            returned storage contains only the filtered objects.  Set to
+            ``False`` to allow merging into a pre-populated directory.
 
         Returns
         -------
         MutableLocalFileStorage
             A new storage instance containing the matching objects.
         """
+        if require_empty_directory and path.isdir(directory) and os.listdir(directory):
+            raise ValueError(
+                f"Target directory {directory!r} already exists and is non-empty. "
+                "Pass an empty or non-existent directory, or set "
+                "require_empty_directory=False to allow merging."
+            )
+
         if include_substances and exclude_substances:
             overlap = [
                 s for s in include_substances if any(s == e for e in exclude_substances)
@@ -233,20 +254,23 @@ class MutableLocalFileStorage(LocalFileStorage):
 
         result = MutableLocalFileStorage(directory)
 
-        for type_name, keys in self._stored_object_keys.items():
-            for key in list(keys):
-                obj, ancillary = self.retrieve_object(key)
-                substance = getattr(obj, "substance", None)
+        with self._lock:
+            keys_snapshot = [
+                key for keys in self._stored_object_keys.values() for key in list(keys)
+            ]
+        for key in keys_snapshot:
+            obj, ancillary = self.retrieve_object(key)
+            substance = getattr(obj, "substance", None)
 
-                if not self._substance_passes_filters(
-                    substance,
-                    include_substances,
-                    include_components,
-                    exclude_substances,
-                    exclude_components,
-                ):
-                    continue
+            if not self._substance_passes_filters(
+                substance,
+                include_substances,
+                include_components,
+                exclude_substances,
+                exclude_components,
+            ):
+                continue
 
-                result.store_object(obj, ancillary)
+            result.store_object(obj, ancillary)
 
         return result
