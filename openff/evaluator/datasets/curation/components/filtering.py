@@ -1225,8 +1225,8 @@ class FilterByTautomersSchema(CurationComponentSchema):
     **Suppression**
 
     Category matching always uses suppression: if a molecule matches both a
-    parent category and a subordinate category, the subordinate is hidden and
-    only the parent is reported. The complete suppression table is defined in
+    parent category and a subordinate category, its match with the subordinate is hidden and
+    only its match with the parent is reported. The complete suppression table is defined in
     ``tautomers._SUPPRESSED_CATEGORY_MATCHES``; the most important cases are:
 
     * ``BETA_DIKETONE`` suppresses ``KETO_ENOL_ALIPHATIC``,
