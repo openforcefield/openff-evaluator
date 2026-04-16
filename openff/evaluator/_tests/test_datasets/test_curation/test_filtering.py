@@ -38,6 +38,8 @@ from openff.evaluator.datasets.curation.components.filtering import (
     FilterByStereochemistrySchema,
     FilterBySubstances,
     FilterBySubstancesSchema,
+    FilterByTautomers,
+    FilterByTautomersSchema,
     FilterByTemperature,
     FilterByTemperatureSchema,
     FilterDuplicates,
@@ -1212,3 +1214,224 @@ def test_curation_does_not_alter_precision():
     )
 
     assert list(data_frame["Mole Fraction 1"]) == list(filtered["Mole Fraction 1"])
+
+
+def test_validate_filter_by_tautomers():
+    FilterByTautomersSchema()
+    FilterByTautomersSchema(categories_to_include=None, categories_to_exclude=[])
+    FilterByTautomersSchema(categories_to_include=["AMIDE_IMIDIC_ACID"])
+
+    with pytest.raises(ValidationError):
+        FilterByTautomersSchema(categories_to_include=None, categories_to_exclude=None)
+
+    with pytest.raises(ValidationError):
+        FilterByTautomersSchema(
+            categories_to_include=["AMIDE_IMIDIC_ACID"],
+            categories_to_exclude=["BETA_DIKETONE"],
+        )
+
+    with pytest.raises(ValidationError):
+        FilterByTautomersSchema(categories_to_include=["NOT_A_CATEGORY"])
+
+
+def test_filter_by_tautomers_schema_default_whitelist():
+    schema = FilterByTautomersSchema()
+
+    assert set(schema.categories_to_include) == {
+        "ALPHA_AMINO_ACID",
+        "AMIDE_ENOL",
+        "AMIDE_IMIDIC_ACID",
+        "CARBOXYLIC_ACID_ENOL",
+        "ESTER_ENOL",
+        "IMINE_ENAMINE_PRIMARY",
+        "IMINE_ENAMINE_SECONDARY",
+        "KETO_ENOL_ALIPHATIC",
+        "KETO_ENOL_CYCLIC",
+        "KETO_ENOL_AROMATIC",
+        "KETENE_YNOL",
+        "LACTAM_LACTIM",
+        "OXIME_NITROSO",
+    }
+
+
+def test_filter_by_tautomers_via_workflow():
+    data_frame = pandas.DataFrame(
+        [
+            {"N Components": 1, "Component 1": "C"},
+            {
+                "N Components": 1,
+                "Component 1": "CC(=O)CC(=O)C",
+            },  # beta-diketone, not in whitelist
+        ]
+    )
+
+    schema = CurationWorkflowSchema(component_schemas=[FilterByTautomersSchema()])
+    filtered_frame = CurationWorkflow.apply(data_frame, schema)
+
+    assert len(filtered_frame) == 1
+    assert filtered_frame.iloc[0]["Component 1"] == "C"
+
+
+def test_filter_by_tautomers_no_match_removed_default():
+    data_frame = pandas.DataFrame(
+        # ensure we don't start picking anything up crazy like ethanol
+        [
+            {"N Components": 1, "Component 1": "C"},
+            {"N Components": 1, "Component 1": "CCO"},
+        ]
+    )
+
+    filtered_frame = FilterByTautomers.apply(data_frame, FilterByTautomersSchema())
+
+    assert len(filtered_frame) == len(data_frame)
+
+
+def test_filter_by_tautomers_whitelist_keto_enol_aliphatic_kept():
+    """Acetone (KETO_ENOL_ALIPHATIC) must survive the default filter."""
+    data_frame = pandas.DataFrame([{"N Components": 1, "Component 1": "CC(C)=O"}])
+
+    filtered_frame = FilterByTautomers.apply(data_frame, FilterByTautomersSchema())
+
+    assert len(filtered_frame) == 1
+
+
+def test_filter_by_tautomers_default_whitelist_only():
+    data_frame = pandas.DataFrame(
+        [
+            {"N Components": 1, "Component 1": "C"},
+            {"N Components": 1, "Component 1": "CC(=O)N"},  # amide → kept
+            {
+                "N Components": 1,
+                "Component 1": "CC(=O)CC(=O)C",
+            },  # beta-diketone → removed
+            {"N Components": 1, "Component 1": "O=C1CCCCC1"},  # cyclic keto/enol → kept
+        ]
+    )
+
+    filtered_frame = FilterByTautomers.apply(data_frame, FilterByTautomersSchema())
+
+    assert len(filtered_frame) == 3
+    assert set(filtered_frame["Component 1"]) == {"C", "CC(=O)N", "O=C1CCCCC1"}
+
+
+def test_filter_by_tautomers_explicit_include():
+    data_frame = pandas.DataFrame(
+        [
+            {"N Components": 1, "Component 1": "C"},
+            {"N Components": 1, "Component 1": "CC(=O)N"},
+            {"N Components": 1, "Component 1": "CC(=O)CC(=O)C"},
+        ]
+    )
+
+    filtered_frame = FilterByTautomers.apply(
+        data_frame,
+        FilterByTautomersSchema(categories_to_include=["AMIDE_IMIDIC_ACID"]),
+    )
+
+    assert len(filtered_frame) == 2
+    assert set(filtered_frame["Component 1"]) == {"C", "CC(=O)N"}
+
+
+def test_filter_by_tautomers_explicit_exclude():
+    data_frame = pandas.DataFrame(
+        [
+            {"N Components": 1, "Component 1": "CC(=O)N"},
+            {"N Components": 1, "Component 1": "C[N+](=O)[O-]"},
+        ]
+    )
+
+    filtered_frame = FilterByTautomers.apply(
+        data_frame,
+        FilterByTautomersSchema(
+            categories_to_include=None, categories_to_exclude=["AMIDE_IMIDIC_ACID"]
+        ),
+    )
+
+    assert len(filtered_frame) == 1
+    assert filtered_frame.iloc[0]["Component 1"] == "C[N+](=O)[O-]"
+
+
+def test_filter_by_tautomers_exclude_suppression_canonical():
+    """Acetylacetone is canonically BETA_DIKETONE (suppression hides KETO_ENOL_ALIPHATIC).
+    Excluding KETO_ENOL_ALIPHATIC should therefore keep it; excluding BETA_DIKETONE
+    should remove it."""
+    data_frame = pandas.DataFrame([{"N Components": 1, "Component 1": "CC(=O)CC(=O)C"}])
+
+    # KETO_ENOL_ALIPHATIC is suppressed → molecule is kept
+    kept = FilterByTautomers.apply(
+        data_frame,
+        FilterByTautomersSchema(
+            categories_to_include=None,
+            categories_to_exclude=["KETO_ENOL_ALIPHATIC"],
+        ),
+    )
+    assert len(kept) == 1
+
+    # BETA_DIKETONE is its canonical category → molecule is removed
+    removed = FilterByTautomers.apply(
+        data_frame,
+        FilterByTautomersSchema(
+            categories_to_include=None,
+            categories_to_exclude=["BETA_DIKETONE"],
+        ),
+    )
+    assert len(removed) == 0
+
+
+def test_filter_by_tautomers_include_suppression_applied():
+    """In include mode, suppression must apply: enol-acetylacetone matches both
+    BETA_DIKETONE and KETO_ENOL_ALIPHATIC, but BETA_DIKETONE suppresses the
+    latter, so specifying categories_to_include=["BETA_DIKETONE"] must keep it.
+    The enol form CC(O)=CC(=O)C is used because BETA_DIKETONE's dominant form
+    is the enol."""
+    data_frame = pandas.DataFrame([{"N Components": 1, "Component 1": "CC(O)=CC(=O)C"}])
+
+    filtered_frame = FilterByTautomers.apply(
+        data_frame,
+        FilterByTautomersSchema(categories_to_include=["BETA_DIKETONE"]),
+    )
+
+    assert len(filtered_frame) == 1
+
+
+def test_filter_by_tautomers_minor_form_rejected():
+    """A molecule in the minor tautomeric form must be rejected even if its
+    category is whitelisted. CC(=O)O (acetic acid) is the dominant form and
+    passes; C=C(O)O (the enol/minor form) must be removed."""
+    data_frame = pandas.DataFrame(
+        [
+            {"N Components": 1, "Component 1": "CC(=O)O"},  # dominant — kept
+            {"N Components": 1, "Component 1": "C=C(O)O"},  # minor — removed
+        ]
+    )
+
+    filtered_frame = FilterByTautomers.apply(data_frame, FilterByTautomersSchema())
+
+    assert len(filtered_frame) == 1
+    assert filtered_frame.iloc[0]["Component 1"] == "CC(=O)O"
+
+
+def test_filter_by_tautomers_multi_component_row_removed():
+    data_frame = pandas.DataFrame(
+        [
+            {"N Components": 2, "Component 1": "C", "Component 2": "CCO"},
+            {
+                "N Components": 2,
+                "Component 1": "C",
+                "Component 2": "CC(=O)CC(=O)C",
+            },
+        ]
+    )
+
+    filtered_frame = FilterByTautomers.apply(data_frame, FilterByTautomersSchema())
+
+    assert len(filtered_frame) == 1
+    assert filtered_frame.iloc[0]["Component 2"] == "CCO"
+
+
+def test_filter_by_tautomers_empty_frame_no_failure():
+    data_frame = pandas.DataFrame(columns=["N Components", "Component 1"])
+
+    filtered_frame = FilterByTautomers.apply(data_frame, FilterByTautomersSchema())
+
+    assert len(filtered_frame) == 0
