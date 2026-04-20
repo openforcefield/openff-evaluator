@@ -186,10 +186,7 @@ def _enumerate_tautomers_cached(smiles: str) -> tuple:
         smi = Chem.MolToSmiles(t, isomericSmiles=True)
         if smi not in seen:
             seen.add(smi)
-            try:
-                tautomers.append(Molecule.from_smiles(smi, allow_undefined_stereo=True))
-            except Exception:
-                pass
+            tautomers.append(Molecule.from_smiles(smi, allow_undefined_stereo=True))
 
     return tuple(tautomers)
 
