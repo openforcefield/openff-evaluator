@@ -1245,7 +1245,8 @@ class FilterByCoreAndAdditionalPropertyTypesSchema(CurationComponentSchema):
         1.0,
         ge=0.0,
         description="Ratio of additional to core substances. 0 means no additional "
-        "data are retained.",
+        "data are retained, including additional-type rows for substances that are "
+        "already in the core set.",
     )
     select_by: Literal["similarity", "diversity"] = Field(
         "similarity",
@@ -1426,6 +1427,8 @@ class FilterByCoreAndAdditionalPropertyTypes(CurationComponent):
                         for b in coverage_map[best]:
                             gap[b] = max(0, gap[b] - 1)
                         selected_set.add(best)
+                        # best is a tuple of SMILES strings; update adds each
+                        # string individually to selected_smiles.
                         selected_smiles.update(best)
                         remaining = [s for s in remaining if s not in selected_set]
 
@@ -1441,6 +1444,7 @@ class FilterByCoreAndAdditionalPropertyTypes(CurationComponent):
         additional_rows = data_frame[
             substance_col.isin(additional_substances)
             & data_frame[add_val_cols].notna().any(axis=1)
+            & ~data_frame.index.isin(core_rows.index)
         ]
 
         return pandas.concat([core_rows, additional_rows], ignore_index=True)
