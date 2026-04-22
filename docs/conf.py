@@ -14,6 +14,7 @@
 #
 import os
 import sys
+from importlib.util import find_spec as find_import_spec
 
 sys.path.insert(0, os.path.abspath("."))
 
@@ -164,8 +165,6 @@ html_static_path = ["_static"]
 # sphinx-notfound-page
 # https://github.com/readthedocs/sphinx-notfound-page
 # Renders a 404 page with absolute links
-from importlib.util import find_spec as find_import_spec
-
 if find_import_spec("notfound"):
     extensions.append("notfound.extension")
 

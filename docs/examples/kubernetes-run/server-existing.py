@@ -6,17 +6,19 @@ The script will start an EvaluatorServer instance and listen for incoming reques
 
 import argparse
 import logging
+import os
 import sys
 
-import os
-
-from openff.evaluator.backends.dask_kubernetes import DaskKubernetesExistingBackend, KubernetesPersistentVolumeClaim
-from openff.evaluator.backends.backends import ComputeResources, PodResources
 from openff.toolkit.utils import OPENEYE_AVAILABLE
-from openff.evaluator.server import EvaluatorServer
-import openff.evaluator
 from openff.units import unit
 
+import openff.evaluator
+from openff.evaluator.backends.backends import ComputeResources, PodResources
+from openff.evaluator.backends.dask_kubernetes import (
+    DaskKubernetesExistingBackend,
+    KubernetesPersistentVolumeClaim,
+)
+from openff.evaluator.server import EvaluatorServer
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -26,10 +28,10 @@ parser.add_argument("--cluster-name", type=str, default="evaluator-lw")
 parser.add_argument("--namespace", type=str, default="openforcefield")
 parser.add_argument("--storage-path", type=str, default="/evaluator-storage")
 parser.add_argument("--memory", type=int, default=8, help="Memory limit in GB")
-parser.add_argument("--ephemeral-storage", type=int, default=20, help="Ephemeral storage limit in GB")
+parser.add_argument(
+    "--ephemeral-storage", type=int, default=20, help="Ephemeral storage limit in GB"
+)
 parser.add_argument("--port", type=int, default=8998)
-
-
 
 
 if __name__ == "__main__":
@@ -49,7 +51,6 @@ if __name__ == "__main__":
         name="evaluator-storage-lw",
         mount_path=args.storage_path,
     )
-
 
     calculation_backend = DaskKubernetesExistingBackend(
         cluster_name=args.cluster_name,
@@ -77,4 +78,3 @@ if __name__ == "__main__":
         )
         logger.info("Starting server")
         evaluator_server.start(asynchronous=False)
-        
