@@ -8,12 +8,38 @@ import tempfile
 import pytest
 
 from openff.evaluator._tests.test_storage.data import HashableData, SimpleData
-from openff.evaluator._tests.utils import create_dummy_simulation_data
+from openff.evaluator._tests.utils import (
+    create_dummy_equilibration_data,
+    create_dummy_simulation_data,
+)
 from openff.evaluator.forcefield import SmirnoffForceFieldSource
 from openff.evaluator.storage import LocalFileStorage
-from openff.evaluator.storage.data import StoredSimulationData
-from openff.evaluator.storage.query import SimulationDataQuery, SubstanceQuery
+from openff.evaluator.storage.data import StoredEquilibrationData, StoredSimulationData
+from openff.evaluator.storage.query import (
+    EquilibrationDataQuery,
+    SimulationDataQuery,
+    SubstanceQuery,
+)
 from openff.evaluator.substances import Substance
+
+# ---------------------------------------------------------------------------
+# Parametrize helpers
+# ---------------------------------------------------------------------------
+
+DATA_VARIANTS = [
+    pytest.param(
+        create_dummy_simulation_data,
+        StoredSimulationData,
+        SimulationDataQuery,
+        id="simulation",
+    ),
+    pytest.param(
+        create_dummy_equilibration_data,
+        StoredEquilibrationData,
+        EquilibrationDataQuery,
+        id="equilibration",
+    ),
+]
 
 
 @pytest.mark.parametrize("data_class", [SimpleData, HashableData])
@@ -66,12 +92,13 @@ def test_force_field_storage():
         assert new_force_field_id == force_field_id
 
 
-def test_base_simulation_data_storage():
+@pytest.mark.parametrize("factory,data_class,query_class", DATA_VARIANTS)
+def test_base_data_storage(factory, data_class, query_class):
     substance = Substance.from_components("C")
 
     with tempfile.TemporaryDirectory() as base_directory:
         data_directory = os.path.join(base_directory, "data_directory")
-        data_object = create_dummy_simulation_data(data_directory, substance)
+        data_object = factory(data_directory, substance)
 
         backend_directory = os.path.join(base_directory, "storage_dir")
 
@@ -85,7 +112,7 @@ def test_base_simulation_data_storage():
         assert storage_key == storage.store_object(data_object, data_directory)
 
         retrieved_object, retrieved_directory = storage.retrieve_object(
-            storage_key, StoredSimulationData
+            storage_key, data_class
         )
 
         assert backend_directory in retrieved_directory
@@ -94,12 +121,13 @@ def test_base_simulation_data_storage():
         assert not storage._cached_retrieved_objects
 
 
-def test_cached_simulation_data_storage():
+@pytest.mark.parametrize("factory,data_class,query_class", DATA_VARIANTS)
+def test_cached_data_storage(factory, data_class, query_class):
     substance = Substance.from_components("C")
 
     with tempfile.TemporaryDirectory() as base_directory:
         data_directory = os.path.join(base_directory, "data_directory")
-        data_object = create_dummy_simulation_data(data_directory, substance)
+        data_object = factory(data_directory, substance)
 
         backend_directory = os.path.join(base_directory, "storage_dir")
 
@@ -123,7 +151,7 @@ def test_cached_simulation_data_storage():
 
         # assert identity of retrieved object
         retrieved_object, retrieved_directory = storage1.retrieve_object(
-            storage_key, StoredSimulationData
+            storage_key, data_class
         )
         assert retrieved_object is storage1._cached_retrieved_objects[storage_key][0]
 
@@ -136,7 +164,8 @@ def test_cached_simulation_data_storage():
         )
 
 
-def test_base_simulation_data_query():
+@pytest.mark.parametrize("factory,data_class,query_class", DATA_VARIANTS)
+def test_base_data_query(factory, data_class, query_class):
     substance_a = Substance.from_components("C")
     substance_b = Substance.from_components("CO")
 
@@ -150,19 +179,19 @@ def test_base_simulation_data_query():
 
         for substance in substances:
             data_directory = os.path.join(base_directory, f"{substance.identifier}")
-            data_object = create_dummy_simulation_data(data_directory, substance)
+            data_object = factory(data_directory, substance)
 
             storage.store_object(data_object, data_directory)
 
         for substance in substances:
-            substance_query = SimulationDataQuery()
+            substance_query = query_class()
             substance_query.substance = substance
 
             results = storage.query(substance_query)
             assert results is not None and len(results) == 1
             assert len(next(iter(results.values()))[0]) == 3
 
-        component_query = SimulationDataQuery()
+        component_query = query_class()
         component_query.substance = substance_full
         component_query.substance_query = SubstanceQuery()
         component_query.substance_query.components_only = True
@@ -172,7 +201,14 @@ def test_base_simulation_data_query():
 
 
 @pytest.mark.parametrize("reverse_order", [True, False])
-def test_duplicate_simulation_data_storage(reverse_order):
+@pytest.mark.parametrize(
+    "factory",
+    [
+        pytest.param(create_dummy_simulation_data, id="simulation"),
+        pytest.param(create_dummy_equilibration_data, id="equilibration"),
+    ],
+)
+def test_duplicate_data_storage(factory, reverse_order):
     substance = Substance.from_components("CO")
 
     with tempfile.TemporaryDirectory() as base_directory_path:
@@ -187,7 +223,7 @@ def test_duplicate_simulation_data_storage(reverse_order):
             data_directory = os.path.join(base_directory_path, f"data_{index}")
             coordinate_name = f"data_{index}.pdb"
 
-            data_object = create_dummy_simulation_data(
+            data_object = factory(
                 directory_path=data_directory,
                 substance=substance,
                 force_field_id="ff_id_1",
@@ -218,14 +254,14 @@ def test_duplicate_simulation_data_storage(reverse_order):
 
             # Handle the case where we haven't reversed the order of
             # the data to store. Here only the first object in the list
-            # should be stored an never replaced as it has the lowest
+            # should be stored and never replaced as it has the lowest
             # statistical inefficiency.
             if not reverse_order:
                 expected_index = 0
             # Handle the case where we have reversed the order of
-            # the data to store. Here only the each new piece of
-            # data should replace the last, as it will have a lower
-            # statistical inefficiency.
+            # the data to store. Here each new piece of data should
+            # replace the last, as it will have a lower statistical
+            # inefficiency.
             else:
                 expected_index = index
 
@@ -238,6 +274,5 @@ def test_duplicate_simulation_data_storage(reverse_order):
             )
             assert os.path.isfile(coordinate_path)
 
-        # Make sure all pieces of data got assigned the same key if
-        # reverse order.
+        # Make sure all pieces of data got assigned the same key.
         assert len(all_storage_keys) == 1

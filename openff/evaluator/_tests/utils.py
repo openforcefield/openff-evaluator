@@ -15,7 +15,7 @@ from openff.evaluator.datasets import (
 )
 from openff.evaluator.forcefield import SmirnoffForceFieldSource
 from openff.evaluator.properties import Density, DielectricConstant, EnthalpyOfMixing
-from openff.evaluator.storage.data import StoredSimulationData
+from openff.evaluator.storage.data import StoredEquilibrationData, StoredSimulationData
 from openff.evaluator.substances import Component, MoleFraction, Substance
 from openff.evaluator.thermodynamics import ThermodynamicState
 from openff.evaluator.utils import get_data_filename
@@ -152,6 +152,69 @@ def create_dummy_simulation_data(
     data.statistical_inefficiency = statistical_inefficiency
 
     data.number_of_molecules = number_of_molecules
+
+    if calculation_id is None:
+        calculation_id = str(uuid.uuid4())
+
+    data.source_calculation_id = calculation_id
+
+    return data
+
+
+def create_dummy_equilibration_data(
+    directory_path,
+    substance,
+    force_field_id="dummy_ff_id",
+    coordinate_file_name="output.pdb",
+    statistical_inefficiency=1.0,
+    phase=PropertyPhase.Liquid,
+    number_of_molecules=1,
+    max_number_of_molecules=1,
+    calculation_layer=None,
+    calculation_id=None,
+):
+    """Creates a dummy `StoredEquilibrationData` object and
+    the corresponding data directory.
+
+    Parameters
+    ----------
+    directory_path: str
+        The path to the dummy data directory to create.
+    substance: Substance
+    force_field_id
+    coordinate_file_name
+    statistical_inefficiency
+    phase
+    number_of_molecules
+    max_number_of_molecules
+    calculation_layer
+    calculation_id
+
+    Returns
+    -------
+    StoredEquilibrationData
+        The dummy stored data object.
+    """
+    os.makedirs(directory_path, exist_ok=True)
+
+    data = StoredEquilibrationData()
+
+    data.substance = substance
+    data.force_field_id = force_field_id
+    data.thermodynamic_state = ThermodynamicState(1.0 * unit.kelvin)
+    data.property_phase = phase
+
+    data.coordinate_file_name = coordinate_file_name
+
+    with open(os.path.join(directory_path, coordinate_file_name), "w") as file:
+        file.write("")
+
+    data.statistical_inefficiency = statistical_inefficiency
+    data.number_of_molecules = number_of_molecules
+    data.max_number_of_molecules = max_number_of_molecules
+
+    if calculation_layer is not None:
+        data.calculation_layer = calculation_layer
 
     if calculation_id is None:
         calculation_id = str(uuid.uuid4())

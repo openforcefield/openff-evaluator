@@ -383,7 +383,7 @@ class SelectSubstances(CurationComponent):
                     }
                 )
 
-                environment_data = FilterByEnvironments.apply(
+                environment_data = FilterByEnvironments._apply(
                     component_data, environment_filter, n_processes
                 )
 
@@ -410,7 +410,7 @@ class SelectSubstances(CurationComponent):
                 selected_n_substances.update(environment_selected_substances)
 
                 # Remove the newly selected substances from the pool to select from.
-                component_data = FilterBySubstances.apply(
+                component_data = FilterBySubstances._apply(
                     component_data,
                     FilterBySubstancesSchema(
                         substances_to_exclude=environment_selected_substances
@@ -421,7 +421,7 @@ class SelectSubstances(CurationComponent):
             selected_substances.extend(selected_n_substances)
 
         # Filter the data frame to retain only the selected substances.
-        data_frame = FilterBySubstances.apply(
+        data_frame = FilterBySubstances._apply(
             data_frame,
             FilterBySubstancesSchema(substances_to_include=selected_substances),
             n_processes=n_processes,
@@ -437,7 +437,7 @@ class SelectSubstances(CurationComponent):
         cls._check_oe_available()
 
         # Filter out any substances which should be excluded
-        data_frame = FilterBySubstances.apply(
+        data_frame = FilterBySubstances._apply(
             data_frame,
             FilterBySubstancesSchema(
                 substances_to_exclude=schema.substances_to_exclude
@@ -585,12 +585,12 @@ class SelectDataPoints(CurationComponent):
             as_index=False,
         ).agg({"Property Type": pandas.Series.nunique})
 
-        selected_data = [False] * len(data_frame)
+        selected_data = pandas.Series(False, index=data_frame.index)
 
         for cluster_index in range(len(target_state.states)):
             # Calculate the distance between each clustered state and
             # the center of the cluster (i.e the clustered state).
-            cluster_data = grouped_data[grouped_data["Cluster"] == cluster_index]
+            cluster_data = grouped_data[grouped_data["Cluster"] == cluster_index].copy()
             cluster_data["Distance"] = cls._distances_to_state(
                 cluster_data, target_state.states[cluster_index]
             )
