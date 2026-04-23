@@ -1225,15 +1225,18 @@ def _substances_for_property(data_frame: pandas.DataFrame, property_type: str) -
 
 class TestFilterByCoreAndAdditionalPropertyTypes:
 
+    property_types = ["Density", "EnthalpyOfMixing"]
+
     def test_validate_filter_by_core_and_additional(self):
+        """Generally test valid arguments for schema and set expectations"""
         # Valid schema
         FilterByCoreAndAdditionalPropertyTypesSchema(
             core_property_types={"Density": None},
-            additional_property_types={"SurfaceTension": None},
+            additional_property_types={"EnthalpyOfMixing": None},
         )
         FilterByCoreAndAdditionalPropertyTypesSchema(
             core_property_types={"Density": [1]},
-            additional_property_types={"SurfaceTension": None},
+            additional_property_types={"EnthalpyOfMixing": None},
             scale_factor=0.0,
         )
 
@@ -1248,7 +1251,7 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
         with pytest.raises(ValidationError):
             FilterByCoreAndAdditionalPropertyTypesSchema(
                 core_property_types={"Density": None},
-                additional_property_types={"SurfaceTension": None},
+                additional_property_types={"EnthalpyOfMixing": None},
                 scale_factor=-1.0,
             )
 
@@ -1256,7 +1259,7 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
         with pytest.raises(ValidationError):
             FilterByCoreAndAdditionalPropertyTypesSchema(
                 core_property_types={},
-                additional_property_types={"SurfaceTension": None},
+                additional_property_types={"EnthalpyOfMixing": None},
             )
         with pytest.raises(ValidationError):
             FilterByCoreAndAdditionalPropertyTypesSchema(
@@ -1268,95 +1271,110 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
         with pytest.raises(ValidationError):
             FilterByCoreAndAdditionalPropertyTypesSchema(
                 core_property_types={"Density": None},
-                additional_property_types={"SurfaceTension": None},
+                additional_property_types={"EnthalpyOfMixing": None},
                 select_by="random",
             )
 
-    def test_filter_by_core_and_additional(self):
+    def test_filter_by_core_and_additional_truncates_correctly(self):
         # Core substances = intersection of all core property type substance sets.
         # Additional substances = overlap (always) + gap-fill up to
         # int(scale_factor * core_count) per additional type.
-        property_types = ["Density", "SurfaceTension"]
         substance_entries = [
-            (("CC",),    (True, True)),
-            (("CCC",),   (True, True)),
-            (("CCCC",),  (True, True)),
-            (("CCCCC",), (False, True)),  # additional-only, excluded at target=3
+            (("CC",),       (True, False)),
+            (("CC", "O"),   (True, True)),
+            (("CCC",),      (True, False)),
+            (("CCC", "O"),  (False, True)),
+            (("CCCC",),     (True, False)),
+            (("CCCC", "O"), (True, True)),
+            (("CCCCC", "O"), (False, True)),  # no density -- not in core
         ]
-        data_frame = _build_data_frame(property_types, substance_entries)
+        data_frame = _build_data_frame(self.property_types, substance_entries)
 
         filtered = FilterByCoreAndAdditionalPropertyTypes.apply(
             data_frame,
             FilterByCoreAndAdditionalPropertyTypesSchema(
-                core_property_types={"Density": None},
-                additional_property_types={"SurfaceTension": None},
+                core_property_types={"EnthalpyOfMixing": None},
+                additional_property_types={"Density": None},
                 scale_factor=1.0,
             ),
         )
-
         assert _substances_for_property(filtered, "Density") == {
-            ("CC",), ("CCC",), ("CCCC",)
+            ("CC",), ("CCC",), ("CCCC",),
+            ("CC", "O"), ("CCC", "O"), ("CCCC", "O")
         }
-        assert _substances_for_property(filtered, "SurfaceTension") == {
-            ("CC",), ("CCC",), ("CCCC",)
+        assert _substances_for_property(filtered, "EnthalpyOfMixing") == {
+            ("CC", "O"), ("CCC", "O"), ("CCCC", "O")
         }
-        assert ("CCCCC",) not in data_frame_to_substances(filtered)
+        assert ("CCCCC", "O") not in data_frame_to_substances(filtered)
 
+    def test_filter_by_core_and_additional_full_overlap_ignore_scale_factor(self):
         # Overlap > target: full overlap is retained without truncation.
         substance_entries = [
-            (("CC",),    (True, True)),
-            (("CCC",),   (True, True)),
-            (("CCCC",),  (True, True)),
-            (("CCCCC",), (True, True)),
+            (("CC",),       (True, False)),
+            (("CC", "O"),   (True, True)),
+            (("CCC",),      (True, False)),
+            (("CCC", "O"),  (True, True)),
+            (("CCCC",),     (True, False)),
+            (("CCCC", "O"), (True, True)),
+            (("CCCCC",),    (True, False)),
+            (("CCCCC", "O"), (True, True)),
         ]
-        data_frame = _build_data_frame(property_types, substance_entries)
+        data_frame = _build_data_frame(self.property_types, substance_entries)
 
         filtered = FilterByCoreAndAdditionalPropertyTypes.apply(
             data_frame,
             FilterByCoreAndAdditionalPropertyTypesSchema(
-                core_property_types={"Density": None},
-                additional_property_types={"SurfaceTension": None},
+                core_property_types={"EnthalpyOfMixing": None},
+                additional_property_types={"Density": None},
                 scale_factor=0.5,  # target=2 but overlap=4 → keep all 4
             ),
         )
 
-        assert _substances_for_property(filtered, "SurfaceTension") == {
-            ("CC",), ("CCC",), ("CCCC",), ("CCCCC",)
+        assert _substances_for_property(filtered, "EnthalpyOfMixing") == {
+            ("CC", "O"), ("CCC", "O"), ("CCCC", "O"), ("CCCCC", "O")
         }
 
+    def test_filter_by_core_and_additional_no_overlap(self):
         # scale_factor=0: no additional rows selected.
         substance_entries = [
-            (("CC",),   (True, True)),
-            (("CCC",),  (True, True)),
-            (("CCCC",), (False, True)),
+            (("CC",),       (True, False)),
+            (("CC", "O"),   (True, True)),
+            (("CCC",),      (True, False)),
+            (("CCC", "O"),  (True, False)),
+            (("CCCC",),     (True, False)),
+            (("CCCC", "O"), (True, False)),
         ]
-        data_frame = _build_data_frame(property_types, substance_entries)
+        data_frame = _build_data_frame(self.property_types, substance_entries)
 
         filtered = FilterByCoreAndAdditionalPropertyTypes.apply(
             data_frame,
             FilterByCoreAndAdditionalPropertyTypesSchema(
-                core_property_types={"Density": None},
-                additional_property_types={"SurfaceTension": None},
+                core_property_types={"EnthalpyOfMixing": None},
+                additional_property_types={"Density": None},
                 scale_factor=0.0,
             ),
         )
 
         assert _substances_for_property(filtered, "Density") == {("CC",), ("CCC",)}
-        assert _substances_for_property(filtered, "SurfaceTension") == set()
+        assert _substances_for_property(filtered, "EnthalpyOfMixing") == set()
 
+    def test_filter_by_core_and_additional_fewer_candidates_than_target(self):
         # Fewer candidates than target: return all available.
         substance_entries = [
-            (("CC",),   (True, True)),
-            (("CCC",),  (True, False)),
-            (("CCCC",), (True, False)),
+            (("CC",),       (True, False)),
+            (("CC", "O"),   (False, True)),
+            (("CCC",),      (True, False)),
+            (("CCC", "O"),  (False, True)),
+            (("CCCC",),     (True, False)),
+            (("CCCC", "O"), (False, False)),
         ]
-        data_frame = _build_data_frame(property_types, substance_entries)
+        data_frame = _build_data_frame(self.property_types, substance_entries)
 
         filtered = FilterByCoreAndAdditionalPropertyTypes.apply(
             data_frame,
             FilterByCoreAndAdditionalPropertyTypesSchema(
                 core_property_types={"Density": None},
-                additional_property_types={"SurfaceTension": None},
+                additional_property_types={"EnthalpyOfMixing": None},
                 scale_factor=1.0,
             ),
         )
@@ -1364,16 +1382,19 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
         assert _substances_for_property(filtered, "Density") == {
             ("CC",), ("CCC",), ("CCCC",)
         }
-        assert _substances_for_property(filtered, "SurfaceTension") == {("CC",)}
+        assert _substances_for_property(filtered, "EnthalpyOfMixing") == {("CC", "O")}
 
     def test_filter_by_core_and_additional_empty_core(self):
-        # Empty core intersection → empty result.
-        property_types = ["Density", "Viscosity", "SurfaceTension"]
+        # Empty core intersection of density and enthalpy of vaporization --> empty result.
+        property_types = ["Density", "EnthalpyOfVaporization", "EnthalpyOfMixing"]
         substance_entries = [
-            (("CC",),    (True, False, True)),
-            (("CCC",),   (True, False, True)),
-            (("CCCC",),  (False, True, True)),
-            (("CCCCC",), (False, True, False)),
+            (("CC",),       (True, False, False)),
+            (("CCC",),      (True, False, False)),
+            (("CCCC",),     (False, True, False)),
+            (("CCCCC",),    (False, True, False)),
+            (("CC", "O"),   (False, False, True)),
+            (("CCC", "O"),  (False, False, True)),
+            (("CCCC", "O"), (False, False, True)),
         ]
         data_frame = _build_data_frame(property_types, substance_entries)
 
@@ -1381,7 +1402,7 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
             data_frame,
             FilterByCoreAndAdditionalPropertyTypesSchema(
                 core_property_types={"Density": None, "Viscosity": None},
-                additional_property_types={"SurfaceTension": None},
+                additional_property_types={"EnthalpyOfMixing": None},
                 scale_factor=1.0,
             ),
         )
@@ -1390,37 +1411,42 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
 
     def test_filter_by_core_and_additional_multiple_core_types(self):
         """Strict intersection across multiple core types."""
-        property_types = ["Density", "Viscosity", "SurfaceTension"]
+        property_types = ["Density", "EnthalpyOfVaporization", "EnthalpyOfMixing"]
         substance_entries = [
-            (("CC",),    (True, True, True)),
-            (("CCC",),   (True, True, True)),
-            (("CCCC",),  (True, False, True)),   # Density + ST, not Viscosity
-            (("CCCCC",), (False, True, False)),  # Viscosity only
+            (("CC",),       (True, True, False)),
+            (("CC", "O"),   (False, False, True)),
+            (("CCC",),      (True, True, False)),
+            (("CCC", "O"),  (False, False, True)),
+            (("CCCC",),     (True, False, False)),   # Density only, not EnthalpyOfVaporization
+            (("CCCC", "O"), (False, False, True)),   # EOM only
+            (("CCCCC",),    (False, True, False)),   # EnthalpyOfVaporization only
         ]
         data_frame = _build_data_frame(property_types, substance_entries)
 
         filtered = FilterByCoreAndAdditionalPropertyTypes.apply(
             data_frame,
             FilterByCoreAndAdditionalPropertyTypesSchema(
-                core_property_types={"Density": None, "Viscosity": None},
-                additional_property_types={"SurfaceTension": None},
+                core_property_types={"Density": None, "EnthalpyOfVaporization": None},
+                additional_property_types={"EnthalpyOfMixing": None},
                 scale_factor=1.0,
             ),
         )
 
         assert _substances_for_property(filtered, "Density") == {("CC",), ("CCC",)}
-        assert _substances_for_property(filtered, "Viscosity") == {("CC",), ("CCC",)}
-        assert _substances_for_property(filtered, "SurfaceTension") == {("CC",), ("CCC",)}
+        assert _substances_for_property(filtered, "EnthalpyOfVaporization") == {("CC",), ("CCC",)}
+        assert _substances_for_property(filtered, "EnthalpyOfMixing") == {("CC", "O"), ("CCC", "O")}
         assert ("CCCC",) not in data_frame_to_substances(filtered)
 
     def test_filter_by_core_and_additional_n_components(self):
         """n_components constrains which rows qualify for each type."""
-        property_types = ["Density", "SurfaceTension"]
+        property_types = ["Density", "EnthalpyOfMixing"]
 
         # n_components on core: binary Density rows excluded from core set.
         substance_entries = [
-            (("CC",),       (True, True)),
-            (("CCC",),      (True, True)),
+            (("CC",),       (True, False)),
+            (("CC", "O"),   (False, True)),
+            (("CCC",),      (True, False)),
+            (("CCC", "O"),  (False, True)),
             (("CC", "CCC"), (True, False)),
         ]
         data_frame = _build_data_frame(property_types, substance_entries)
@@ -1429,7 +1455,7 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
             data_frame,
             FilterByCoreAndAdditionalPropertyTypesSchema(
                 core_property_types={"Density": [1]},
-                additional_property_types={"SurfaceTension": None},
+                additional_property_types={"EnthalpyOfMixing": None},
                 scale_factor=1.0,
             ),
         )
@@ -1437,36 +1463,17 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
         assert _substances_for_property(filtered, "Density") == {("CC",), ("CCC",)}
         assert ("CC", "CCC") not in data_frame_to_substances(filtered)
 
-        # n_components on additional: binary ST rows excluded from candidates.
-        substance_entries = [
-            (("CC",),       (True, True)),
-            (("CCC",),      (True, False)),
-            (("CC", "CCC"), (False, True)),
-        ]
-        data_frame = _build_data_frame(property_types, substance_entries)
-
-        filtered = FilterByCoreAndAdditionalPropertyTypes.apply(
-            data_frame,
-            FilterByCoreAndAdditionalPropertyTypesSchema(
-                core_property_types={"Density": None},
-                additional_property_types={"SurfaceTension": [1]},
-                scale_factor=1.0,
-            ),
-        )
-
-        assert ("CC", "CCC") not in data_frame_to_substances(filtered)
-        assert _substances_for_property(filtered, "SurfaceTension") == {("CC",)}
 
     def test_filter_by_core_and_additional_gap_fill_similarity(self):
         """Gap-fill by similarity: substance most similar to core is selected.
 
-        Tanimoto(CC, CCC) > Tanimoto(CC, c1ccccc1) → CCC selected.
+        Tanimoto(CC, CCC) > Tanimoto(CC, c1ccccc1) → CCC+O selected.
         """
-        property_types = ["Density", "SurfaceTension"]
+        property_types = ["Density", "EnthalpyOfMixing"]
         substance_entries = [
-            (("CC",),       (True, False)),
-            (("CCC",),      (False, True)),
-            (("c1ccccc1",), (False, True)),
+            (("CC",),          (True, False)),
+            (("CCC", "O"),     (False, True)),
+            (("c1ccccc1", "O"), (False, True)),
         ]
         data_frame = _build_data_frame(property_types, substance_entries)
 
@@ -1474,24 +1481,24 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
             data_frame,
             FilterByCoreAndAdditionalPropertyTypesSchema(
                 core_property_types={"Density": None},
-                additional_property_types={"SurfaceTension": None},
+                additional_property_types={"EnthalpyOfMixing": None},
                 scale_factor=1.0,
                 select_by="similarity",
             ),
         )
 
-        assert _substances_for_property(filtered, "SurfaceTension") == {("CCC",)}
+        assert _substances_for_property(filtered, "EnthalpyOfMixing") == {("CCC", "O")}
 
     def test_filter_by_core_and_additional_gap_fill_diversity(self):
         """Gap-fill by diversity: substance most dissimilar to core is selected.
 
-        MaxMin from {CC} → c1ccccc1 selected.
+        MaxMin from {CC} → c1ccccc1+O selected.
         """
-        property_types = ["Density", "SurfaceTension"]
+        property_types = ["Density", "EnthalpyOfMixing"]
         substance_entries = [
-            (("CC",),       (True, False)),
-            (("CCC",),      (False, True)),
-            (("c1ccccc1",), (False, True)),
+            (("CC",),          (True, False)),
+            (("CCC", "O"),     (False, True)),
+            (("c1ccccc1", "O"), (False, True)),
         ]
         data_frame = _build_data_frame(property_types, substance_entries)
 
@@ -1499,74 +1506,87 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
             data_frame,
             FilterByCoreAndAdditionalPropertyTypesSchema(
                 core_property_types={"Density": None},
-                additional_property_types={"SurfaceTension": None},
+                additional_property_types={"EnthalpyOfMixing": None},
                 scale_factor=1.0,
                 select_by="diversity",
             ),
         )
 
-        assert _substances_for_property(filtered, "SurfaceTension") == {("c1ccccc1",)}
+        assert _substances_for_property(filtered, "EnthalpyOfMixing") == {("c1ccccc1", "O")}
 
     def test_filter_by_core_and_additional_multi_type_coverage(self):
         """Gap-fill prefers substances covering multiple additional types."""
-        property_types = ["Density", "SurfaceTension", "DielectricConstant"]
+        property_types = ["Density", "EnthalpyOfMixing", "DielectricConstant"]
 
-        # CCC covers both ST and DC; CCCC/CCCCC cover only one each.
-        # gap = 1 per type → CCC fills both rather than picking CCCC + CCCCC.
+        # Core: {CC+O, CCC+O, CCCC+O} with EOM data
+        # Additional types: Density (pure) and DielectricConstant (mixed/pure)
+        # CCC+O candidates fill both DC and nothing else (DC=T, Density=F);
+        # CCCC covers only DC; CCCCC covers only Density.
+        # Greedy prefers candidates covering multiple types.
         substance_entries = [
-            (("CC",),    (True, True, True)),
-            (("CCC",),   (False, True, True)),
-            (("CCCC",),  (False, True, False)),
-            (("CCCCC",), (False, False, True)),
+            (("CC",),       (True, False, False)),
+            (("CC", "O"),   (True, True, True)),
+            (("CCC",),      (True, False, False)),
+            (("CCC", "O"),  (False, True, True)),
+            (("CCCC",),     (True, False, False)),
+            (("CCCC", "O"), (False, True, False)),
+            (("CCCCC",),    (True, False, False)),
+            (("CCCCC", "O"), (False, False, True)),
         ]
         data_frame = _build_data_frame(property_types, substance_entries)
 
         filtered = FilterByCoreAndAdditionalPropertyTypes.apply(
             data_frame,
             FilterByCoreAndAdditionalPropertyTypesSchema(
-                core_property_types={"Density": None},
+                core_property_types={"EnthalpyOfMixing": None},
                 additional_property_types={
-                    "SurfaceTension": None,
+                    "Density": None,
                     "DielectricConstant": None,
                 },
                 scale_factor=2.0,
             ),
         )
 
-        assert _substances_for_property(filtered, "SurfaceTension") == {("CC",), ("CCC",)}
-        assert _substances_for_property(filtered, "DielectricConstant") == {
-            ("CC",), ("CCC",)
-        }
-        assert ("CCCC",) not in data_frame_to_substances(filtered)
+        assert _substances_for_property(filtered, "EnthalpyOfMixing") == {("CC", "O"), ("CCC", "O"), ("CCCC", "O")}
+        assert _substances_for_property(filtered, "Density") == {("CC",), ("CCC",), ("CCCC",), ("CCCCC",)}
+        assert _substances_for_property(filtered, "DielectricConstant") == {("CC", "O"), ("CCC", "O"), ("CCCCC", "O")}
         assert ("CCCCC",) not in data_frame_to_substances(filtered)
 
-        # When multi-type candidates are exhausted, fall through to single-type.
-        # ST gap=2, DC gap=2. CCC fills 1 each; then CCCCCC fills DC, ST gets one more.
+        # When candidates exhausted: core-only substances may be retained for core property.
+        # Core: {CC+O, CCC+O, CCCC+O, CCCCC+O}; scale_factor=3.0 → target=12 per additional type.
+        # Density candidates: {CC, CCC, CCCC, CCCCC, CCCCCC} (5 available, need 12 → take all)
+        # DC candidates: {CCCCCC+O} overlap + any non-core substances
         substance_entries = [
-            (("CC",),     (True,  True,  True)),
-            (("CCC",),    (False, True,  True)),
-            (("CCCC",),   (False, True,  False)),
-            (("CCCCC",),  (False, True,  False)),
-            (("CCCCCC",), (False, False, True)),
+            (("CC",),        (True,  False, False)),
+            (("CC", "O"),     (False, True,  True)),
+            (("CCC",),       (True,  False, False)),
+            (("CCC", "O"),    (False, True,  True)),
+            (("CCCC",),      (True,  False, False)),
+            (("CCCC", "O"),   (False, True,  False)),
+            (("CCCCC",),     (True,  False, False)),
+            (("CCCCC", "O"),  (False, True,  False)),
+            (("CCCCCC",),    (True,  False, False)),
+            (("CCCCCC", "O"), (False, False, True)),
         ]
         data_frame = _build_data_frame(property_types, substance_entries)
 
         filtered = FilterByCoreAndAdditionalPropertyTypes.apply(
             data_frame,
             FilterByCoreAndAdditionalPropertyTypesSchema(
-                core_property_types={"Density": None},
+                core_property_types={"EnthalpyOfMixing": None},
                 additional_property_types={
-                    "SurfaceTension": None,
+                    "Density": None,
                     "DielectricConstant": None,
                 },
                 scale_factor=3.0,
             ),
         )
 
-        st_substances = _substances_for_property(filtered, "SurfaceTension")
+        eom_substances = _substances_for_property(filtered, "EnthalpyOfMixing")
+        density_substances = _substances_for_property(filtered, "Density")
         dc_substances = _substances_for_property(filtered, "DielectricConstant")
 
-        assert ("CCC",) in st_substances and ("CCC",) in dc_substances
-        assert ("CCCCCC",) in dc_substances
-        assert len(st_substances) == 3
-        assert len(dc_substances) == 3
+        assert ("CC", "O") in eom_substances and ("CCC", "O") in eom_substances
+        assert len(density_substances) == 5  # all pure candidates selected
+        assert ("CCCCCC", "O") in dc_substances
+        assert len(eom_substances) == 4  # core set
