@@ -12,6 +12,7 @@ from openff.evaluator.datasets import (
     PropertyPhase,
 )
 from openff.evaluator.datasets.curation.components.filtering import (
+    AdditionalPropertyTypeConfig,
     FilterByCharged,
     FilterByChargedSchema,
     FilterByCoreAndAdditionalPropertyTypes,
@@ -1244,7 +1245,7 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
         with pytest.raises(ValidationError):
             FilterByCoreAndAdditionalPropertyTypesSchema(
                 core_property_types={"Density": None},
-                additional_property_types={"Density": None},
+                additional_property_types={"Density": AdditionalPropertyTypeConfig()},
             )
 
         # scale_factor must be non-negative
@@ -1441,7 +1442,7 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
         """n_components constrains which rows qualify for each type."""
         property_types = ["Density", "EnthalpyOfMixing"]
 
-        # n_components on core: binary Density rows excluded from core set.
+        # Restrict core to pure Density only; the binary mixture is excluded.
         substance_entries = [
             (("CC",),       (True, False)),
             (("CC", "O"),   (False, True)),
@@ -1511,6 +1512,7 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
                 select_by="diversity",
             ),
         )
+        assert _substances_for_property(filtered, "EnthalpyOfMixing") == {("CCC", "O")}
 
         assert _substances_for_property(filtered, "EnthalpyOfMixing") == {("c1ccccc1", "O")}
 
@@ -1543,7 +1545,6 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
                     "Density": None,
                     "DielectricConstant": None,
                 },
-                scale_factor=2.0,
             ),
         )
 
@@ -1578,7 +1579,6 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
                     "Density": None,
                     "DielectricConstant": None,
                 },
-                scale_factor=3.0,
             ),
         )
 
