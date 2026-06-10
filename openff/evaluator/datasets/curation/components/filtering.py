@@ -1393,7 +1393,7 @@ class FilterByCoreAndAdditionalPropertyTypes(CurationComponent):
                     take(
                         max(
                             remaining,
-                            key=lambda c: (-len(coverage_map[c]), fp_score(c)),
+                            key=lambda c: (len(coverage_map[c]), fp_score(c)),
                         )
                     )
                     remaining = [sub for sub in remaining if sub not in selected]
