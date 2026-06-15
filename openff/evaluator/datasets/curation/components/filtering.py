@@ -1299,6 +1299,14 @@ class FilterByCoreAndAdditionalPropertyTypes(CurationComponent):
     are kept: first the overlap with the core set, then gap-fill candidates chosen
     by the ``select_by`` strategy, with preference for substances that cover
     multiple additional types at once.
+
+    This acts very similarly to the FilterByPropertyTypes component when ``scale_factor``
+    is 0 for all additional types, but with the added guarantee that all core substances
+    are retained, even if they don't have data for all additional types.
+    With a positive ``scale_factor``, this component can be used to curate a data set
+    with good coverage of the core set across multiple properties,
+    while supplementing with additional data for substances in the same or diverse
+    chemical space.
     """
 
     @staticmethod

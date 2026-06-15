@@ -1303,8 +1303,8 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
             )
 
     def test_filter_by_core_and_additional_truncates_correctly(self):
-        """Headline happy path: the gap-fill count truncates to
-        int(scale_factor * core_count) when more candidates are available.
+        """gap-fill count truncates to int(scale_factor * core_count)
+        when more candidates are available.
 
         This focuses on the count arithmetic (4 core, scale_factor=0.5 -> 2)
         with three candidates competing for two slots. The complementary
