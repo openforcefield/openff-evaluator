@@ -1,6 +1,5 @@
 import contextlib
 import logging
-import copy
 import os
 import pathlib
 import subprocess
@@ -8,19 +7,19 @@ import sys
 import time
 
 import click
-from kubernetes import client, config
 import yaml
+from kubernetes import client, config
+from openff.units import unit
 
 from openff.evaluator.backends.dask_kubernetes import (
-    KubernetesPersistentVolumeClaim, KubernetesSecret,
     DaskKubernetesBackend,
+    KubernetesPersistentVolumeClaim,
+    KubernetesSecret,
 )
-from openff.units import unit
+from openff.evaluator.client import ConnectionOptions, EvaluatorClient, RequestOptions
 from openff.evaluator.datasets import PhysicalPropertyDataSet
-from openff.evaluator.properties import Density, EnthalpyOfMixing
-from openff.evaluator.client import RequestOptions
-from openff.evaluator.client import EvaluatorClient, RequestOptions, ConnectionOptions
 from openff.evaluator.forcefield import SmirnoffForceFieldSource
+from openff.evaluator.properties import Density, EnthalpyOfMixing
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -28,14 +27,14 @@ logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
 def _save_script(contents: str, path: str):
     """Save a script to a path.
-    
+
     Parameters
     ----------
     contents : str
         The contents of the script.
     path : str
         The path to save the script to.
-    
+
     """
     with open(path, "w") as f:
         f.write(contents)
@@ -61,7 +60,9 @@ def copy_file_to_storage(
     """
     with open(input_file, "r") as f:
         data = f.read()
-    future = evaluator_backend._client.submit(_save_script, data, output_file, resources={"notGPU": 1, "GPU": 0})
+    future = evaluator_backend._client.submit(
+        _save_script, data, output_file, resources={"notGPU": 1, "GPU": 0}
+    )
     future.result()
     logger.info(f"Copied {input_file} to {output_file}")
 
@@ -89,7 +90,7 @@ def wait_for_pod(
     polling_interval : int
         The interval to poll the pod status.
 
-    
+
     Raises
     ------
     TimeoutError
@@ -103,9 +104,10 @@ def wait_for_pod(
         if pod.status.phase == status:
             return pod
         time.sleep(polling_interval)
-    
-    raise TimeoutError(f"Pod {pod_name} did not reach status {status} within {timeout} seconds.")
-    
+
+    raise TimeoutError(
+        f"Pod {pod_name} did not reach status {status} within {timeout} seconds."
+    )
 
 
 def get_pod_name(
@@ -131,18 +133,24 @@ def get_pod_name(
     """
     apps_v1 = client.AppsV1Api()
     core_v1 = client.CoreV1Api()
-    
+
     # Get the deployment's labels
-    deployment = apps_v1.read_namespaced_deployment(name=deployment_name, namespace=namespace)
+    deployment = apps_v1.read_namespaced_deployment(
+        name=deployment_name, namespace=namespace
+    )
     deployment_labels = deployment.spec.selector.match_labels
 
     # List pods with the deployment's labels
-    label_selector = ",".join([f"{key}={value}" for key, value in deployment_labels.items()])
-    pods = core_v1.list_namespaced_pod(namespace=namespace, label_selector=label_selector).items
+    label_selector = ",".join(
+        [f"{key}={value}" for key, value in deployment_labels.items()]
+    )
+    pods = core_v1.list_namespaced_pod(
+        namespace=namespace, label_selector=label_selector
+    ).items
     pod_name = pods[0].metadata.name.split("_")[0]
     return pod_name
 
-    
+
 @contextlib.contextmanager
 def forward_port(
     deployment_name,
@@ -170,8 +178,12 @@ def forward_port(
     # Wait for the pod to be running
     wait_for_pod(pod_name, namespace, status="Running")
     command = [
-        "kubectl", "port-forward", f"pod/{pod_name}", f"{port}:{port}",
-        "-n", namespace,
+        "kubectl",
+        "port-forward",
+        f"pod/{pod_name}",
+        f"{port}:{port}",
+        "-n",
+        namespace,
     ]
     logger.info(f"Forwarding port {port} to pod {pod_name}")
     proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -185,7 +197,6 @@ def forward_port(
         yield
     finally:
         proc.terminate()
-
 
 
 def create_pvc(
@@ -222,7 +233,7 @@ def create_pvc(
         The name of the PVC.
     """
     core_v1 = client.CoreV1Api()
-    
+
     pvc_spec = client.V1PersistentVolumeClaimSpec(
         access_modes=["ReadWriteMany"],
         storage_class_name=storage_class_name,
@@ -232,7 +243,6 @@ def create_pvc(
             }
         ),
     )
-
 
     pvc_name = f"evaluator-storage-{job_name}"
     metadata = client.V1ObjectMeta(name=pvc_name)
@@ -244,21 +254,24 @@ def create_pvc(
     )
     if apply_pvc:
         api_response = core_v1.create_namespaced_persistent_volume_claim(
-            namespace=namespace,
-            body=pvc
+            namespace=namespace, body=pvc
         )
         logger.info(
             f"Created PVC {pvc.metadata.name}. State={api_response.status.phase}"
         )
-    
+
         # wait
         end_time = time.time() + timeout
         while time.time() < end_time:
-            pvc = core_v1.read_namespaced_persistent_volume_claim(name=pvc_name, namespace=namespace)
+            pvc = core_v1.read_namespaced_persistent_volume_claim(
+                name=pvc_name, namespace=namespace
+            )
             if pvc.status.phase == "Bound":
                 logger.info(f"PVC '{pvc_name}' is Bound.")
                 return pvc_name
-            logger.info(f"Waiting for PVC '{pvc_name}' to become Bound. Current phase: {pvc.status.phase}")
+            logger.info(
+                f"Waiting for PVC '{pvc_name}' to become Bound. Current phase: {pvc.status.phase}"
+            )
             time.sleep(5)
     return pvc_name
 
@@ -303,7 +316,7 @@ def create_deployment(
     """
     server_name = f"evaluator-server-{job_name}-deployment"
     apps_v1 = client.AppsV1Api()
-    
+
     metadata = client.V1ObjectMeta(
         name=f"evaluator-server-{job_name}",
         labels={"k8s-app": server_name},
@@ -312,7 +325,7 @@ def create_deployment(
     # generate volume mounts and volumes
     k8s_volume_mounts = []
     k8s_volumes = []
-    
+
     if volumes is None:
         volumes = []
     if secrets is None:
@@ -327,8 +340,7 @@ def create_deployment(
         k8s_env.update(env)
 
     k8s_env_objects = [
-        client.V1EnvVar(name=key, value=value)
-        for key, value in k8s_env.items()
+        client.V1EnvVar(name=key, value=value) for key, value in k8s_env.items()
     ]
     resources = calculation_backend._resources_per_worker
 
@@ -346,10 +358,10 @@ def create_deployment(
         "--storage-path",
         remote_storage_path,
         "--port",
-        str(port)
+        str(port),
     ]
     logger.info(f"Command: {command}")
-    
+
     container = client.V1Container(
         name=server_name,
         image=image,
@@ -364,15 +376,13 @@ def create_deployment(
 
     deployment_spec = client.V1DeploymentSpec(
         replicas=1,
-        selector=client.V1LabelSelector(
-            match_labels={"k8s-app": server_name}
-        ),
+        selector=client.V1LabelSelector(match_labels={"k8s-app": server_name}),
         template=client.V1PodTemplateSpec(
             metadata=metadata,
             spec=client.V1PodSpec(
                 containers=[container],
                 volumes=k8s_volumes,
-            )
+            ),
         ),
     )
 
@@ -392,13 +402,13 @@ def create_deployment(
         f"Created deployment {deployment.metadata.name}. State={api_response.status}"
     )
     return deployment.metadata.name
-    
+
 
 def simulate(
     dataset_path: str = "dataset.json",
     n_molecules: int = 256,
     force_field: str = "openff-2.1.0.offxml",
-    port: int = 8000
+    port: int = 8000,
 ):
     """
     Simulate and run a dataset.
@@ -428,14 +438,10 @@ def simulate(
 
     options.add_schema("SimulationLayer", "Density", density_schema)
     options.add_schema("SimulationLayer", "EnthalpyOfMixing", dhmix_schema)
-    
-    force_field_source = SmirnoffForceFieldSource.from_path(
-        force_field
-    )
 
-    client = EvaluatorClient(
-        connection_options=ConnectionOptions(server_port=port)
-    )
+    force_field_source = SmirnoffForceFieldSource.from_path(force_field)
+
+    client = EvaluatorClient(connection_options=ConnectionOptions(server_port=port))
 
     # we first request the equilibration data
     # this can be copied between different runs to avoid re-running
@@ -452,7 +458,7 @@ def simulate(
     results, exception = request.results(synchronous=True, polling_interval=30)
     assert exception is None, exception
 
-    print(f"Simulation complete")
+    print("Simulation complete")
     print(f"# estimated: {len(results.estimated_properties)}")
     print(f"# unsuccessful: {len(results.unsuccessful_properties)}")
     print(f"# exceptions: {len(results.exceptions)}")
@@ -461,15 +467,32 @@ def simulate(
         f.write(results.json())
 
 
-
 @click.command()
-@click.option("--namespace", default="openforcefield", help="The namespace to operate in.")
+@click.option(
+    "--namespace", default="openforcefield", help="The namespace to operate in."
+)
 @click.option("--job-name", default="lw", help="The name of the job.")
-@click.option("--storage-class-name", default="rook-cephfs-central", help="The name of the storage class to use for the PVC.")
-@click.option("--storage-path", default="/evaluator-storage", help="The path to local filesystem storage for Evaluator.")
-@click.option("--script-file", default="server-existing.py", help="The path to the script to copy over and run to execute an EvaluatorServer.")
+@click.option(
+    "--storage-class-name",
+    default="rook-cephfs-central",
+    help="The name of the storage class to use for the PVC.",
+)
+@click.option(
+    "--storage-path",
+    default="/evaluator-storage",
+    help="The path to local filesystem storage for Evaluator.",
+)
+@click.option(
+    "--script-file",
+    default="server-existing.py",
+    help="The path to the script to copy over and run to execute an EvaluatorServer.",
+)
 @click.option("--port", default=8998, help="The port to forward from the deployment.")
-@click.option("--image", default="ghcr.io/lilyminium/openff-images:tmp-evaluator-dask-v2", help="The image to use for the deployment.")
+@click.option(
+    "--image",
+    default="ghcr.io/lilyminium/openff-images:tmp-evaluator-dask-v2",
+    help="The image to use for the deployment.",
+)
 def main(
     namespace: str = "openforcefield",
     job_name: str = "lw",
@@ -516,15 +539,14 @@ def main(
         The port to forward from the deployment.
     image : str
         The image to use for the deployment.
-    
+
     """
     config.load_kube_config()
     core_v1 = client.CoreV1Api()
 
-    from openff.evaluator.backends.backends import PodResources, ComputeResources
+    from openff.evaluator.backends.backends import ComputeResources, PodResources
 
-
-    results = None
+    results = None  # noqa
 
     # run in a try/except to clean up on error
     try:
@@ -578,12 +600,12 @@ def main(
                 "DASK_LOGGING__DISTRIBUTED": "debug",
                 "DASK__TEMPORARY_DIRECTORY": "/evaluator-storage",
                 "STORAGE_DIRECTORY": "/evaluator-storage",
-                "EXTRA_PIP_PACKAGES": "jupyterlab"
+                "EXTRA_PIP_PACKAGES": "jupyterlab",
             },
             volumes=[volume],
             secrets=[secret],
             annotate_resources=True,
-            cluster_kwargs={"resource_timeout": 300}
+            cluster_kwargs={"resource_timeout": 300},
         )
 
         spec = calculation_backend._generate_cluster_spec()
@@ -595,13 +617,7 @@ def main(
 
         # 3. copy script to storage
         remote_script_file = os.path.join(storage_path, pathlib.Path(script_file).name)
-        copy_file_to_storage(
-            calculation_backend,
-            script_file,
-            remote_script_file
-        )
-
-
+        copy_file_to_storage(calculation_backend, script_file, remote_script_file)
 
         # 4. create and submit deployment
         deployment_name = create_deployment(
@@ -630,7 +646,7 @@ def main(
                 dataset_path="dataset.json",
                 n_molecules=256,
                 force_field="openff-2.1.0.offxml",
-                port=port
+                port=port,
             )
 
     except Exception as e:
@@ -639,8 +655,7 @@ def main(
 
     finally:
 
-
-        print(f"Cleaning up")
+        print("Cleaning up")
         # clean up deployment
         apps_v1 = client.AppsV1Api()
         apps_v1.delete_namespaced_deployment(
@@ -654,8 +669,6 @@ def main(
             name=pvc_name,
             namespace=namespace,
         )
-        
-    
 
 
 if __name__ == "__main__":

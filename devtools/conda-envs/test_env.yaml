@@ -18,6 +18,7 @@ dependencies:
     # Standard dependencies
   - openff-toolkit
   - openff-interchange >=0.5.1
+  - ambertools
   - openmm
   - pymbar
   - dask >=2.7.0
