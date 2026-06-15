@@ -1291,6 +1291,15 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
                 select_by="random",
             )
 
+        # Unknown config keys (e.g. typos) are rejected
+        with pytest.raises(ValidationError):
+            FilterByCoreAndAdditionalPropertyTypesSchema(
+                core_property_types={"Density": None},
+                additional_property_types={
+                    "EnthalpyOfMixing": {"scale_facto": 0.5}
+                },
+            )
+
     def test_filter_by_core_and_additional_truncates_correctly(self):
         # Core substances = intersection of all core property type substance sets.
         # Additional substances = overlap (always) + gap-fill up to
@@ -1508,7 +1517,6 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
         assert ("CC", "CCC") not in data_frame_to_substances(filtered)
         assert ("CCCCC",) not in data_frame_to_substances(filtered)
 
-
     def test_filter_by_core_and_additional_gap_fill_similarity(self):
         """Gap-fill by similarity: substance most similar to core is selected.
 
@@ -1638,7 +1646,62 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
         dc_substances = _substances_for_property(filtered, "DielectricConstant")
 
         assert eom_substances == {
-            ("CC", "O"), ("CCC", "O"), ("CCCC", "O"), ("CCCCC", "O")
+            ("CC", "O"),
+            ("CCC", "O"),
+            ("CCCC", "O"),
+            ("CCCCC", "O"),
         }
         assert len(density_substances) == 5  # all pure candidates selected
         assert dc_substances == {("CC", "O"), ("CCC", "O"), ("CCCCCC", "O")}
+
+    def test_filter_by_core_and_additional_no_cross_type_leak(self):
+        """A substance kept for one additional type must not drag along its
+        rows for another additional type whose n_components filter excludes it.
+        """
+        property_types = ["EnthalpyOfMixing", "Density", "DielectricConstant"]
+        substance_entries = [
+            # Core substance (binary): also carries binary Density data, which
+            # the Density n_components=[1] filter must exclude, and
+            # DielectricConstant data, which is kept as overlap.
+            (("CC", "O"), (True, True, True)),
+            # Legitimate pure Density gap-fill candidate.
+            (("CCC",), (False, True, False)),
+        ]
+        data_frame = _build_data_frame(property_types, substance_entries)
+
+        filtered = FilterByCoreAndAdditionalPropertyTypes.apply(
+            data_frame,
+            FilterByCoreAndAdditionalPropertyTypesSchema(
+                core_property_types={"EnthalpyOfMixing": None},
+                additional_property_types={
+                    "Density": AdditionalPropertyTypeConfig(n_components=[1]),
+                    "DielectricConstant": AdditionalPropertyTypeConfig(),
+                },
+            ),
+        )
+
+        assert _substances_for_property(filtered, "EnthalpyOfMixing") == {("CC", "O")}
+        # The binary core substance's Density row is excluded by n_components=[1].
+        assert _substances_for_property(filtered, "Density") == {("CCC",)}
+        assert _substances_for_property(filtered, "DielectricConstant") == {("CC", "O")}
+
+    def test_filter_by_core_and_additional_empty_n_components(self):
+        """An empty n_components list means no restriction, same as None."""
+        substance_entries = [
+            (("CC", "O"), (False, True)),
+            (("CCC",), (True, False)),
+        ]
+        data_frame = _build_data_frame(self.property_types, substance_entries)
+
+        filtered = FilterByCoreAndAdditionalPropertyTypes.apply(
+            data_frame,
+            FilterByCoreAndAdditionalPropertyTypesSchema(
+                core_property_types={"EnthalpyOfMixing": []},
+                additional_property_types={
+                    "Density": AdditionalPropertyTypeConfig(n_components=[])
+                },
+            ),
+        )
+
+        assert _substances_for_property(filtered, "EnthalpyOfMixing") == {("CC", "O")}
+        assert _substances_for_property(filtered, "Density") == {("CCC",)}
