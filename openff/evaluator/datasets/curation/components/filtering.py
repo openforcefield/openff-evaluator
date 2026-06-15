@@ -1448,14 +1448,10 @@ class FilterByCoreAndAdditionalPropertyTypes(CurationComponent):
             type_overlap[add_type] = s_core & s_a
             type_candidates[add_type] = s_a - s_core
 
-        gap = {
-            a: max(
-                0,
-                int(schema.additional_property_types[a].scale_factor * len(s_core))
-                - len(overlap),
-            )
-            for a, overlap in type_overlap.items()
-        }
+        gap = {}
+        for a, overlap in type_overlap.items():
+            target = int(schema.additional_property_types[a].scale_factor * len(s_core))
+            gap[a] = max(0, target - len(overlap))
         selected = cls._gap_fill(schema, s_core, type_candidates, gap)
 
         # Mask rows per additional type so that a substance kept for one type

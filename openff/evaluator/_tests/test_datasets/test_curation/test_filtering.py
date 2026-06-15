@@ -1301,6 +1301,15 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
             )
 
     def test_filter_by_core_and_additional_truncates_correctly(self):
+        """Headline happy path: the gap-fill count truncates to
+        int(scale_factor * core_count) when more candidates are available.
+
+        This focuses on the count arithmetic (4 core, scale_factor=0.5 -> 2)
+        with three candidates competing for two slots. The complementary
+        ``gap_fill_similarity`` / ``gap_fill_diversity`` tests instead isolate
+        *which* candidate wins under each ``select_by`` strategy, using a
+        minimal two-candidate set where the count is not the point.
+        """
         # Core substances = intersection of all core property type substance sets.
         # Additional substances = overlap (always) + gap-fill up to
         # int(scale_factor * core_count) per additional type.
@@ -1395,36 +1404,6 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
         assert _substances_for_property(filtered, "EnthalpyOfMixing") == {("CC", "O")}
         assert _substances_for_property(filtered, "Density") == {("CC", "O")}
         assert ("CC",) not in data_frame_to_substances(filtered)
-
-    def test_filter_by_core_and_additional_fewer_candidates_than_target(self):
-        # Fewer candidates than target: return all available.
-        substance_entries = [
-            (("CC",),       (True, False)),
-            (("CC", "O"),   (False, True)),
-            (("CCC",),      (True, False)),
-            (("CCC", "O"),  (False, True)),
-            (("CCCC",),     (True, False)),
-            (("CCCC", "O"), (False, False)),
-        ]
-        data_frame = _build_data_frame(self.property_types, substance_entries)
-
-        filtered = FilterByCoreAndAdditionalPropertyTypes.apply(
-            data_frame,
-            FilterByCoreAndAdditionalPropertyTypesSchema(
-                core_property_types={"Density": None},
-                additional_property_types={
-                    "EnthalpyOfMixing": AdditionalPropertyTypeConfig(scale_factor=1.0)
-                },
-            ),
-        )
-
-        assert _substances_for_property(filtered, "Density") == {
-            ("CC",), ("CCC",), ("CCCC",)
-        }
-        # target = 3 but only 2 candidates have data → both are taken.
-        assert _substances_for_property(filtered, "EnthalpyOfMixing") == {
-            ("CC", "O"), ("CCC", "O")
-        }
 
     def test_filter_by_core_and_additional_empty_core(self):
         # Empty core intersection of density and enthalpy of vaporization --> empty result.
@@ -1521,6 +1500,11 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
         """Gap-fill by similarity: substance most similar to core is selected.
 
         Tanimoto(CC, CCC) > Tanimoto(CC, c1ccccc1) → CCC+O selected.
+
+        Unlike ``truncates_correctly`` (which exercises the gap-fill *count*),
+        this isolates the ``select_by`` ranking: a minimal two-candidate set
+        where the count is irrelevant and only the similarity ordering decides
+        the winner. It is the counterpart to ``gap_fill_diversity``.
         """
         property_types = ["Density", "EnthalpyOfMixing"]
         substance_entries = [
