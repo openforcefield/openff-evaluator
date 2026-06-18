@@ -39,7 +39,7 @@ jobs:
     needs:
       - start-aws-runner
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Schedule auto-shutdown after 24 hours 
         # This is the failsafe if timeout-minutes above fails
