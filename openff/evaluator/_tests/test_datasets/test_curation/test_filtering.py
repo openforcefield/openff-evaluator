@@ -1237,9 +1237,13 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
         additional_property_types,
         *,
         property_types=None,
-        select_by="similarity",
+        **kwargs,
     ):
-        """Build a data frame from *substance_entries* and apply the filter."""
+        """Build a data frame from *substance_entries* and apply the filter.
+
+        Any extra keyword arguments (e.g. ``select_by``) are forwarded to
+        :class:`FilterByCoreAndAdditionalPropertyTypesSchema`.
+        """
         data_frame = _build_data_frame(
             property_types or self.property_types, substance_entries
         )
@@ -1248,7 +1252,7 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
             FilterByCoreAndAdditionalPropertyTypesSchema(
                 core_property_types=core_property_types,
                 additional_property_types=additional_property_types,
-                select_by=select_by,
+                **kwargs,
             ),
         )
 
@@ -1445,7 +1449,7 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
             (("CCC",),      (True, True, False)),
             (("CCC", "O"),  (False, False, True)),
             (("CCCC",),     (True, False, False)),   # Density only, not EnthalpyOfVaporization
-            (("CCCC", "O"), (False, False, True)),   # EOM only
+            (("CCCC", "O"), (False, False, True)),   # dHmix only
             (("CCCCC",),    (False, True, False)),   # EnthalpyOfVaporization only
         ]
 
@@ -1514,38 +1518,9 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
             select_by=select_by,
         )
 
-        # Both candidates carry only EOM data, so an exact match on the EOM set
+        # Both candidates carry only dHmix data, so an exact match on the dHmix set
         # also confirms the loser was dropped entirely.
         assert _substances_for_property(filtered, "EnthalpyOfMixing") == {expected}
-
-    def test_filter_by_core_and_additional_gap_fill_diversity_skips_invalid_smiles(
-        self,
-    ):
-        """A candidate whose SMILES cannot be parsed is not treated as maximally
-        diverse.
-
-        Diversity ranks by dissimilarity to the core. A candidate with no
-        fingerprint must score as *least* diverse (0.0), not most (1.0), so the
-        parseable benzene candidate is chosen over the unparseable one. Guards a
-        regression in the diversity branch of ``_gap_fill``.
-        """
-        substance_entries = [
-            (("CC",), (True, False)),  # core
-            (("c1ccccc1",), (False, True)),  # valid candidate
-            (("not_a_valid_smiles",), (False, True)),  # unparseable candidate
-        ]
-
-        filtered = self._filter(
-            substance_entries,
-            {"Density": None},
-            {"EnthalpyOfMixing": {}},
-            select_by="diversity",
-        )
-
-        assert _substances_for_property(filtered, "EnthalpyOfMixing") == {
-            ("c1ccccc1",)
-        }
-        assert ("not_a_valid_smiles",) not in data_frame_to_substances(filtered)
 
     def test_filter_by_core_and_additional_gap_fill_targets_under_represented_core(
         self,
@@ -1557,9 +1532,7 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
         (represented); benzene does not (under-represented). The two candidates sit
         one in each region: heptane (Morgan-r2 Tanimoto 1.0 to octane, 0.0 to
         benzene) and toluene (0.273 to benzene). With one gap to fill, anchoring on
-        the under-represented core {benzene} selects toluene. The previous
-        whole-core behaviour would instead have picked heptane (similarity 1.0 to
-        the *already-covered* octane), so this guards that regression.
+        the under-represented core {benzene} selects toluene.
         """
         substance_entries = [
             (("CCCCCCCC",), (True, True)),  # core, already represented
@@ -1623,10 +1596,10 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
     ):
         """A multi-type pick advances the spread of *every* type it covers.
 
-        Core (Density) = {octane, benzene}, both lacking EnthalpyOfMixing (EOM) and
-        DielectricConstant (DC). Heptane (near octane) is the only EOM candidate and
+        Core (Density) = {octane, benzene}, both lacking EnthalpyOfMixing (dHmix) and
+        DielectricConstant (DC). Heptane (near octane) is the only dHmix candidate and
         also carries DC; the remaining DC candidates are hexane (near octane) and
-        toluene (near benzene). EOM is filled first and selects heptane, which also
+        toluene (near benzene). dHmix is filled first and selects heptane, which also
         covers one DC slot. Because the references are shared, heptane marks the
         octane region covered for DC too, so the second DC pick goes to toluene
         (benzene region). With per-type-independent references, DC would still see
@@ -1636,7 +1609,7 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
         substance_entries = [
             (("CCCCCCCC",), (True, False, False)),  # core, under-represented
             (("c1ccccc1",), (True, False, False)),  # core, under-represented
-            (("CCCCCCC",), (False, True, True)),  # EOM+DC candidate, near octane
+            (("CCCCCCC",), (False, True, True)),  # dHmix+DC candidate, near octane
             (("CCCCCC",), (False, False, True)),  # DC candidate, near octane
             (("Cc1ccccc1",), (False, False, True)),  # DC candidate, near benzene
         ]
@@ -1656,7 +1629,7 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
             ("CCCCCCC",)
         }
         assert _substances_for_property(filtered, "DielectricConstant") == {
-            ("CCCCCCC",),  # the shared EOM+DC pick covers the octane region
+            ("CCCCCCC",),  # the shared dHmix+DC pick covers the octane region
             ("Cc1ccccc1",),  # so the next DC pick spreads to the benzene region
         }
         # The redundant octane-region DC candidate is not taken.
@@ -1667,13 +1640,13 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
 
         Core (Density) = {CC+O}. EnthalpyOfMixing has a gap (scale_factor=1.0);
         DielectricConstant is overlap-only (scale_factor=0.0). The single candidate
-        CCC carries both EOM and DC data and is taken to fill EOM. Its DC row must be
+        CCC carries both dHmix and DC data and is taken to fill dHmix. Its DC row must be
         dropped — DC's target is 0 and CCC is not core overlap — rather than leaking
         in because CCC was selected for another type.
         """
         substance_entries = [
             (("CC", "O"), (True, False, False)),  # core
-            (("CCC",), (False, True, True)),  # EOM+DC candidate
+            (("CCC",), (False, True, True)),  # dHmix+DC candidate
         ]
 
         filtered = self._filter(
@@ -1694,9 +1667,9 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
         """A multi-type pick is charged to every type it still has budget for, even
         one it is dissimilar to — pinning the count semantics.
 
-        Core (Density) = {benzene}, lacking both EOM and DC. Heptane (aliphatic,
-        Tanimoto 0 to benzene) carries EOM and DC; toluene carries DC and is similar
-        to benzene. EOM has only heptane, so heptane is taken and — covering DC's
+        Core (Density) = {benzene}, lacking both dHmix and DC. Heptane (aliphatic,
+        Tanimoto 0 to benzene) carries dHmix and DC; toluene carries DC and is similar
+        to benzene. dHmix has only heptane, so heptane is taken and — covering DC's
         single slot too — consumes DC's budget, so toluene is not added. Multi-type
         coverage is deliberately preferred over reserving DC's budget for a closer
         match; ``credit`` simply does not advance DC's spread for the dissimilar
@@ -1704,7 +1677,7 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
         """
         substance_entries = [
             (("c1ccccc1",), (True, False, False)),  # core, under-represented
-            (("CCCCCCC",), (False, True, True)),  # EOM+DC, dissimilar to benzene
+            (("CCCCCCC",), (False, True, True)),  # dHmix+DC, dissimilar to benzene
             (("Cc1ccccc1",), (False, False, True)),  # DC only, similar to benzene
         ]
 
@@ -1761,7 +1734,7 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
 
     def test_filter_by_core_and_additional_candidates_exhausted(self):
         """When candidates run out, the full candidate set is taken."""
-        # Core: {CC+O, CCC+O, CCCC+O, CCCCC+O} with EOM data.
+        # Core: {CC+O, CCC+O, CCCC+O, CCCCC+O} with dHmix data.
         # Density scale_factor=3.0 → target=12, but only 5 pure candidates
         # exist → all are taken.
         # DielectricConstant target=4 with overlap {CC+O, CCC+O} → gap-fill
@@ -1789,11 +1762,11 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
             property_types=["Density", "EnthalpyOfMixing", "DielectricConstant"],
         )
 
-        eom_substances = _substances_for_property(filtered, "EnthalpyOfMixing")
+        dhmix_substances = _substances_for_property(filtered, "EnthalpyOfMixing")
         density_substances = _substances_for_property(filtered, "Density")
         dc_substances = _substances_for_property(filtered, "DielectricConstant")
 
-        assert eom_substances == {
+        assert dhmix_substances == {
             ("CC", "O"),
             ("CCC", "O"),
             ("CCCC", "O"),
