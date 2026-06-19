@@ -1230,6 +1230,28 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
 
     property_types = ["Density", "EnthalpyOfMixing"]
 
+    def _filter(
+        self,
+        substance_entries,
+        core_property_types,
+        additional_property_types,
+        *,
+        property_types=None,
+        select_by="similarity",
+    ):
+        """Build a data frame from *substance_entries* and apply the filter."""
+        data_frame = _build_data_frame(
+            property_types or self.property_types, substance_entries
+        )
+        return FilterByCoreAndAdditionalPropertyTypes.apply(
+            data_frame,
+            FilterByCoreAndAdditionalPropertyTypesSchema(
+                core_property_types=core_property_types,
+                additional_property_types=additional_property_types,
+                select_by=select_by,
+            ),
+        )
+
     def test_validate_filter_by_core_and_additional(self):
         """Generally test valid arguments for schema and set expectations"""
         # Valid schema
@@ -1308,9 +1330,9 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
 
         This focuses on the count arithmetic (4 core, scale_factor=0.5 -> 2)
         with three candidates competing for two slots. The complementary
-        ``gap_fill_similarity`` / ``gap_fill_diversity`` tests instead isolate
-        *which* candidate wins under each ``select_by`` strategy, using a
-        minimal two-candidate set where the count is not the point.
+        ``gap_fill_select_by`` test instead isolates *which* candidate wins under
+        each ``select_by`` strategy, using a minimal two-candidate set where the
+        count is not the point.
         """
         # Core substances = intersection of all core property type substance sets.
         # Additional substances = overlap (always) + gap-fill up to
@@ -1324,18 +1346,13 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
             (("CCC", "O"),  (False, True)),
             (("c1ccccc1", "O"), (False, True)),
         ]
-        data_frame = _build_data_frame(self.property_types, substance_entries)
 
         # 4 core substances, scale_factor=0.5 -> target of 2 EnthalpyOfMixing
         # substances; the alkane mixtures outrank the dissimilar aromatic one.
-        filtered = FilterByCoreAndAdditionalPropertyTypes.apply(
-            data_frame,
-            FilterByCoreAndAdditionalPropertyTypesSchema(
-                core_property_types={"Density": None},
-                additional_property_types={
-                    "EnthalpyOfMixing": AdditionalPropertyTypeConfig(scale_factor=0.5)
-                },
-            ),
+        filtered = self._filter(
+            substance_entries,
+            {"Density": None},
+            {"EnthalpyOfMixing": {"scale_factor": 0.5}},
         )
         assert _substances_for_property(filtered, "Density") == {
             ("CC",), ("CCC",), ("CCCC",), ("CCCCC",)
@@ -1357,17 +1374,14 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
             (("CCCCC",),    (True, False)),
             (("CCCCC", "O"), (True, True)),
         ]
-        data_frame = _build_data_frame(self.property_types, substance_entries)
 
-        filtered = FilterByCoreAndAdditionalPropertyTypes.apply(
-            data_frame,
-            FilterByCoreAndAdditionalPropertyTypesSchema(
-                core_property_types={"EnthalpyOfMixing": None},
-                additional_property_types={
-                    # target=2 but overlap=4 → keep all 4
-                    "Density": AdditionalPropertyTypeConfig(scale_factor=0.5)
-                },
-            ),
+        filtered = self._filter(
+            substance_entries,
+            {"EnthalpyOfMixing": None},
+            {
+                # target=2 but overlap=4 → keep all 4
+                "Density": {"scale_factor": 0.5}
+            },
         )
 
         assert _substances_for_property(filtered, "EnthalpyOfMixing") == {
@@ -1389,16 +1403,11 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
             (("CCCC",),     (True, False)),
             (("CCCC", "O"), (True, False)),
         ]
-        data_frame = _build_data_frame(self.property_types, substance_entries)
 
-        filtered = FilterByCoreAndAdditionalPropertyTypes.apply(
-            data_frame,
-            FilterByCoreAndAdditionalPropertyTypesSchema(
-                core_property_types={"EnthalpyOfMixing": None},
-                additional_property_types={
-                    "Density": AdditionalPropertyTypeConfig(scale_factor=0.0)
-                },
-            ),
+        filtered = self._filter(
+            substance_entries,
+            {"EnthalpyOfMixing": None},
+            {"Density": {"scale_factor": 0.0}},
         )
 
         # Core = {CC+O}; its density data are overlap and survive, but no
@@ -1409,7 +1418,6 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
 
     def test_filter_by_core_and_additional_empty_core(self):
         # Empty core intersection of density and enthalpy of vaporization --> empty result.
-        property_types = ["Density", "EnthalpyOfVaporization", "EnthalpyOfMixing"]
         substance_entries = [
             (("CC",),       (True, False, False)),
             (("CCC",),      (True, False, False)),
@@ -1419,23 +1427,18 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
             (("CCC", "O"),  (False, False, True)),
             (("CCCC", "O"), (False, False, True)),
         ]
-        data_frame = _build_data_frame(property_types, substance_entries)
 
-        filtered = FilterByCoreAndAdditionalPropertyTypes.apply(
-            data_frame,
-            FilterByCoreAndAdditionalPropertyTypesSchema(
-                core_property_types={"Density": None, "Viscosity": None},
-                additional_property_types={
-                    "EnthalpyOfMixing": AdditionalPropertyTypeConfig()
-                },
-            ),
+        filtered = self._filter(
+            substance_entries,
+            {"Density": None, "Viscosity": None},
+            {"EnthalpyOfMixing": {}},
+            property_types=["Density", "EnthalpyOfVaporization", "EnthalpyOfMixing"],
         )
 
         assert len(filtered) == 0
 
     def test_filter_by_core_and_additional_multiple_core_types(self):
         """Strict intersection across multiple core types."""
-        property_types = ["Density", "EnthalpyOfVaporization", "EnthalpyOfMixing"]
         substance_entries = [
             (("CC",),       (True, True, False)),
             (("CC", "O"),   (False, False, True)),
@@ -1445,16 +1448,12 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
             (("CCCC", "O"), (False, False, True)),   # EOM only
             (("CCCCC",),    (False, True, False)),   # EnthalpyOfVaporization only
         ]
-        data_frame = _build_data_frame(property_types, substance_entries)
 
-        filtered = FilterByCoreAndAdditionalPropertyTypes.apply(
-            data_frame,
-            FilterByCoreAndAdditionalPropertyTypesSchema(
-                core_property_types={"Density": None, "EnthalpyOfVaporization": None},
-                additional_property_types={
-                    "EnthalpyOfMixing": AdditionalPropertyTypeConfig()
-                },
-            ),
+        filtered = self._filter(
+            substance_entries,
+            {"Density": None, "EnthalpyOfVaporization": None},
+            {"EnthalpyOfMixing": {}},
+            property_types=["Density", "EnthalpyOfVaporization", "EnthalpyOfMixing"],
         )
 
         assert _substances_for_property(filtered, "Density") == {("CC",), ("CCC",)}
@@ -1464,8 +1463,6 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
 
     def test_filter_by_core_and_additional_n_components(self):
         """n_components constrains which rows qualify for each type."""
-        property_types = ["Density", "EnthalpyOfMixing"]
-
         # Restrict core to pure Density only; the binary mixture is excluded.
         # Restrict the additional type to binary mixtures; the (unphysical)
         # pure-substance enthalpy of mixing entry is excluded.
@@ -1477,18 +1474,11 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
             (("CC", "CCC"), (True, False)),
             (("CCCCC",),    (False, True)),
         ]
-        data_frame = _build_data_frame(property_types, substance_entries)
 
-        filtered = FilterByCoreAndAdditionalPropertyTypes.apply(
-            data_frame,
-            FilterByCoreAndAdditionalPropertyTypesSchema(
-                core_property_types={"Density": [1]},
-                additional_property_types={
-                    "EnthalpyOfMixing": AdditionalPropertyTypeConfig(
-                        n_components=[2]
-                    )
-                },
-            ),
+        filtered = self._filter(
+            substance_entries,
+            {"Density": [1]},
+            {"EnthalpyOfMixing": {"n_components": [2]}},
         )
 
         assert _substances_for_property(filtered, "Density") == {("CC",), ("CCC",)}
@@ -1498,71 +1488,249 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
         assert ("CC", "CCC") not in data_frame_to_substances(filtered)
         assert ("CCCCC",) not in data_frame_to_substances(filtered)
 
-    def test_filter_by_core_and_additional_gap_fill_similarity(self):
-        """Gap-fill by similarity: substance most similar to core is selected.
-
-        Tanimoto(CC, CCC) > Tanimoto(CC, c1ccccc1) → CCC+O selected.
-
-        Unlike ``truncates_correctly`` (which exercises the gap-fill *count*),
-        this isolates the ``select_by`` ranking: a minimal two-candidate set
-        where the count is irrelevant and only the similarity ordering decides
-        the winner. It is the counterpart to ``gap_fill_diversity``.
+    @pytest.mark.parametrize(
+        "select_by, expected",
+        [("similarity", ("CCC", "O")), ("diversity", ("O", "c1ccccc1"))],
+    )
+    def test_filter_by_core_and_additional_gap_fill_select_by(
+        self, select_by, expected
+    ):
+        """``select_by`` picks the right gap-fill candidate from {CCC+O, benzene+O}
+        against core {CC}: 'similarity' takes the nearer CCC+O
+        (Tanimoto(CC, CCC) > Tanimoto(CC, c1ccccc1)); 'diversity' takes the farther
+        benzene+O (MaxMin). A minimal two-candidate set where only the ranking, not
+        the count, decides the winner.
         """
-        property_types = ["Density", "EnthalpyOfMixing"]
         substance_entries = [
-            (("CC",),          (True, False)),
-            (("CCC", "O"),     (False, True)),
+            (("CC",), (True, False)),
+            (("CCC", "O"), (False, True)),
             (("c1ccccc1", "O"), (False, True)),
         ]
-        data_frame = _build_data_frame(property_types, substance_entries)
 
-        filtered = FilterByCoreAndAdditionalPropertyTypes.apply(
-            data_frame,
-            FilterByCoreAndAdditionalPropertyTypesSchema(
-                core_property_types={"Density": None},
-                additional_property_types={
-                    "EnthalpyOfMixing": AdditionalPropertyTypeConfig()
-                },
-                select_by="similarity",
-            ),
+        filtered = self._filter(
+            substance_entries,
+            {"Density": None},
+            {"EnthalpyOfMixing": {}},
+            select_by=select_by,
         )
 
-        assert _substances_for_property(filtered, "EnthalpyOfMixing") == {("CCC", "O")}
-        assert ("O", "c1ccccc1") not in data_frame_to_substances(filtered)
+        # Both candidates carry only EOM data, so an exact match on the EOM set
+        # also confirms the loser was dropped entirely.
+        assert _substances_for_property(filtered, "EnthalpyOfMixing") == {expected}
 
-    def test_filter_by_core_and_additional_gap_fill_diversity(self):
-        """Gap-fill by diversity: substance most dissimilar to core is selected.
+    def test_filter_by_core_and_additional_gap_fill_diversity_skips_invalid_smiles(
+        self,
+    ):
+        """A candidate whose SMILES cannot be parsed is not treated as maximally
+        diverse.
 
-        MaxMin from {CC} → c1ccccc1+O selected.
+        Diversity ranks by dissimilarity to the core. A candidate with no
+        fingerprint must score as *least* diverse (0.0), not most (1.0), so the
+        parseable benzene candidate is chosen over the unparseable one. Guards a
+        regression in the diversity branch of ``_gap_fill``.
         """
-        property_types = ["Density", "EnthalpyOfMixing"]
         substance_entries = [
-            (("CC",),          (True, False)),
-            (("CCC", "O"),     (False, True)),
-            (("c1ccccc1", "O"), (False, True)),
+            (("CC",), (True, False)),  # core
+            (("c1ccccc1",), (False, True)),  # valid candidate
+            (("not_a_valid_smiles",), (False, True)),  # unparseable candidate
         ]
-        data_frame = _build_data_frame(property_types, substance_entries)
 
-        filtered = FilterByCoreAndAdditionalPropertyTypes.apply(
-            data_frame,
-            FilterByCoreAndAdditionalPropertyTypesSchema(
-                core_property_types={"Density": None},
-                additional_property_types={
-                    "EnthalpyOfMixing": AdditionalPropertyTypeConfig()
-                },
-                select_by="diversity",
-            ),
+        filtered = self._filter(
+            substance_entries,
+            {"Density": None},
+            {"EnthalpyOfMixing": {}},
+            select_by="diversity",
         )
+
         assert _substances_for_property(filtered, "EnthalpyOfMixing") == {
-            ("O", "c1ccccc1")
+            ("c1ccccc1",)
         }
-        assert ("CCC", "O") not in data_frame_to_substances(filtered)
+        assert ("not_a_valid_smiles",) not in data_frame_to_substances(filtered)
+
+    def test_filter_by_core_and_additional_gap_fill_targets_under_represented_core(
+        self,
+    ):
+        """Similarity gap-fill anchors on the core substances that *lack* the
+        additional type, not the whole core.
+
+        Core (Density) = {octane, benzene}. Octane already has EnthalpyOfMixing
+        (represented); benzene does not (under-represented). The two candidates sit
+        one in each region: heptane (Morgan-r2 Tanimoto 1.0 to octane, 0.0 to
+        benzene) and toluene (0.273 to benzene). With one gap to fill, anchoring on
+        the under-represented core {benzene} selects toluene. The previous
+        whole-core behaviour would instead have picked heptane (similarity 1.0 to
+        the *already-covered* octane), so this guards that regression.
+        """
+        substance_entries = [
+            (("CCCCCCCC",), (True, True)),  # core, already represented
+            (("c1ccccc1",), (True, False)),  # core, under-represented
+            (("CCCCCCC",), (False, True)),  # candidate near octane
+            (("Cc1ccccc1",), (False, True)),  # candidate near benzene
+        ]
+
+        filtered = self._filter(
+            substance_entries,
+            {"Density": None},
+            {"EnthalpyOfMixing": {}},
+            select_by="similarity",
+        )
+
+        assert _substances_for_property(filtered, "EnthalpyOfMixing") == {
+            ("CCCCCCCC",),  # core overlap (always kept)
+            ("Cc1ccccc1",),  # gap-fill near the under-represented benzene
+        }
+        # The candidate near the already-covered octane is not pulled in.
+        assert ("CCCCCCC",) not in data_frame_to_substances(filtered)
+
+    def test_filter_by_core_and_additional_gap_fill_spreads_across_under_represented_core(
+        self,
+    ):
+        """Similarity gap-fill spreads picks across the under-represented core
+        rather than piling into its densest region.
+
+        Core (Density) = {octane, benzene}, both lacking EnthalpyOfMixing. Two
+        candidates sit near octane (heptane @1.0, hexane @0.875) and one near
+        benzene (toluene @0.273). With two gaps, the dynamic strategy picks one
+        aliphatic and then — having marked octane covered — switches to toluene for
+        the benzene region, giving {heptane, toluene}. A static reference would take
+        the two highest-scoring aliphatics {heptane, hexane} and leave benzene
+        uncovered, so this pins the spreading behaviour.
+        """
+        substance_entries = [
+            (("CCCCCCCC",), (True, False)),  # core, under-represented
+            (("c1ccccc1",), (True, False)),  # core, under-represented
+            (("CCCCCCC",), (False, True)),  # aliphatic candidate (near octane)
+            (("CCCCCC",), (False, True)),  # aliphatic candidate (near octane)
+            (("Cc1ccccc1",), (False, True)),  # aromatic candidate (near benzene)
+        ]
+
+        filtered = self._filter(
+            substance_entries,
+            {"Density": None},
+            {"EnthalpyOfMixing": {}},
+            select_by="similarity",
+        )
+
+        assert _substances_for_property(filtered, "EnthalpyOfMixing") == {
+            ("CCCCCCC",),  # one aliphatic, covering the octane region
+            ("Cc1ccccc1",),  # one aromatic, covering the benzene region
+        }
+        # The second aliphatic is not taken — a static reference would have.
+        assert ("CCCCCC",) not in data_frame_to_substances(filtered)
+
+    def test_filter_by_core_and_additional_gap_fill_spread_is_shared_across_types(
+        self,
+    ):
+        """A multi-type pick advances the spread of *every* type it covers.
+
+        Core (Density) = {octane, benzene}, both lacking EnthalpyOfMixing (EOM) and
+        DielectricConstant (DC). Heptane (near octane) is the only EOM candidate and
+        also carries DC; the remaining DC candidates are hexane (near octane) and
+        toluene (near benzene). EOM is filled first and selects heptane, which also
+        covers one DC slot. Because the references are shared, heptane marks the
+        octane region covered for DC too, so the second DC pick goes to toluene
+        (benzene region). With per-type-independent references, DC would still see
+        octane as uncovered and pick hexane, leaving benzene unrepresented — so this
+        guards the shared-reference behaviour.
+        """
+        substance_entries = [
+            (("CCCCCCCC",), (True, False, False)),  # core, under-represented
+            (("c1ccccc1",), (True, False, False)),  # core, under-represented
+            (("CCCCCCC",), (False, True, True)),  # EOM+DC candidate, near octane
+            (("CCCCCC",), (False, False, True)),  # DC candidate, near octane
+            (("Cc1ccccc1",), (False, False, True)),  # DC candidate, near benzene
+        ]
+
+        filtered = self._filter(
+            substance_entries,
+            {"Density": None},
+            {
+                "EnthalpyOfMixing": {"scale_factor": 0.5},
+                "DielectricConstant": {"scale_factor": 1.0},
+            },
+            property_types=["Density", "EnthalpyOfMixing", "DielectricConstant"],
+            select_by="similarity",
+        )
+
+        assert _substances_for_property(filtered, "EnthalpyOfMixing") == {
+            ("CCCCCCC",)
+        }
+        assert _substances_for_property(filtered, "DielectricConstant") == {
+            ("CCCCCCC",),  # the shared EOM+DC pick covers the octane region
+            ("Cc1ccccc1",),  # so the next DC pick spreads to the benzene region
+        }
+        # The redundant octane-region DC candidate is not taken.
+        assert ("CCCCCC",) not in data_frame_to_substances(filtered)
+
+    def test_filter_by_core_and_additional_zero_gap_type_not_pulled_in(self):
+        """A multi-type pick does not retain rows for a type whose gap is zero.
+
+        Core (Density) = {CC+O}. EnthalpyOfMixing has a gap (scale_factor=1.0);
+        DielectricConstant is overlap-only (scale_factor=0.0). The single candidate
+        CCC carries both EOM and DC data and is taken to fill EOM. Its DC row must be
+        dropped — DC's target is 0 and CCC is not core overlap — rather than leaking
+        in because CCC was selected for another type.
+        """
+        substance_entries = [
+            (("CC", "O"), (True, False, False)),  # core
+            (("CCC",), (False, True, True)),  # EOM+DC candidate
+        ]
+
+        filtered = self._filter(
+            substance_entries,
+            {"Density": None},
+            {
+                "EnthalpyOfMixing": {"scale_factor": 1.0},
+                "DielectricConstant": {"scale_factor": 0.0},
+            },
+            property_types=["Density", "EnthalpyOfMixing", "DielectricConstant"],
+        )
+
+        assert _substances_for_property(filtered, "EnthalpyOfMixing") == {("CCC",)}
+        # DC target is 0 and CCC is not overlap → no DC rows retained.
+        assert _substances_for_property(filtered, "DielectricConstant") == set()
+
+    def test_filter_by_core_and_additional_cross_fill_consumes_dissimilar_budget(self):
+        """A multi-type pick is charged to every type it still has budget for, even
+        one it is dissimilar to — pinning the count semantics.
+
+        Core (Density) = {benzene}, lacking both EOM and DC. Heptane (aliphatic,
+        Tanimoto 0 to benzene) carries EOM and DC; toluene carries DC and is similar
+        to benzene. EOM has only heptane, so heptane is taken and — covering DC's
+        single slot too — consumes DC's budget, so toluene is not added. Multi-type
+        coverage is deliberately preferred over reserving DC's budget for a closer
+        match; ``credit`` simply does not advance DC's spread for the dissimilar
+        pick.
+        """
+        substance_entries = [
+            (("c1ccccc1",), (True, False, False)),  # core, under-represented
+            (("CCCCCCC",), (False, True, True)),  # EOM+DC, dissimilar to benzene
+            (("Cc1ccccc1",), (False, False, True)),  # DC only, similar to benzene
+        ]
+
+        filtered = self._filter(
+            substance_entries,
+            {"Density": None},
+            {
+                "EnthalpyOfMixing": {"scale_factor": 1.0},
+                "DielectricConstant": {"scale_factor": 1.0},
+            },
+            property_types=["Density", "EnthalpyOfMixing", "DielectricConstant"],
+            select_by="similarity",
+        )
+
+        assert _substances_for_property(filtered, "EnthalpyOfMixing") == {
+            ("CCCCCCC",)
+        }
+        # Heptane fills DC's single slot too; the closer toluene is not added.
+        assert _substances_for_property(filtered, "DielectricConstant") == {
+            ("CCCCCCC",)
+        }
+        assert ("Cc1ccccc1",) not in data_frame_to_substances(filtered)
 
     @pytest.mark.parametrize("select_by", ["similarity", "diversity"])
     def test_filter_by_core_and_additional_multi_type_coverage(self, select_by):
         """Gap-fill prefers substances covering multiple additional types."""
-        property_types = ["Density", "EnthalpyOfMixing", "DielectricConstant"]
-
         # Core: {CC+O} (EnthalpyOfMixing). Targets: 1 Density + 1
         # DielectricConstant substance. CCC covers both additional types and
         # fills both gaps at once, so it is preferred over CCCC (Density only)
@@ -1573,18 +1741,16 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
             (("CCCC",),      (True, False, False)),
             (("CCCCC", "O"), (False, False, True)),
         ]
-        data_frame = _build_data_frame(property_types, substance_entries)
 
-        filtered = FilterByCoreAndAdditionalPropertyTypes.apply(
-            data_frame,
-            FilterByCoreAndAdditionalPropertyTypesSchema(
-                core_property_types={"EnthalpyOfMixing": None},
-                additional_property_types={
-                    "Density": AdditionalPropertyTypeConfig(),
-                    "DielectricConstant": AdditionalPropertyTypeConfig(),
-                },
-                select_by=select_by,
-            ),
+        filtered = self._filter(
+            substance_entries,
+            {"EnthalpyOfMixing": None},
+            {
+                "Density": {},
+                "DielectricConstant": {},
+            },
+            property_types=["Density", "EnthalpyOfMixing", "DielectricConstant"],
+            select_by=select_by,
         )
 
         assert _substances_for_property(filtered, "EnthalpyOfMixing") == {("CC", "O")}
@@ -1595,8 +1761,6 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
 
     def test_filter_by_core_and_additional_candidates_exhausted(self):
         """When candidates run out, the full candidate set is taken."""
-        property_types = ["Density", "EnthalpyOfMixing", "DielectricConstant"]
-
         # Core: {CC+O, CCC+O, CCCC+O, CCCCC+O} with EOM data.
         # Density scale_factor=3.0 → target=12, but only 5 pure candidates
         # exist → all are taken.
@@ -1614,17 +1778,15 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
             (("CCCCCC",),    (True,  False, False)),
             (("CCCCCC", "O"), (False, False, True)),
         ]
-        data_frame = _build_data_frame(property_types, substance_entries)
 
-        filtered = FilterByCoreAndAdditionalPropertyTypes.apply(
-            data_frame,
-            FilterByCoreAndAdditionalPropertyTypesSchema(
-                core_property_types={"EnthalpyOfMixing": None},
-                additional_property_types={
-                    "Density": AdditionalPropertyTypeConfig(scale_factor=3.0),
-                    "DielectricConstant": AdditionalPropertyTypeConfig(),
-                },
-            ),
+        filtered = self._filter(
+            substance_entries,
+            {"EnthalpyOfMixing": None},
+            {
+                "Density": {"scale_factor": 3.0},
+                "DielectricConstant": {},
+            },
+            property_types=["Density", "EnthalpyOfMixing", "DielectricConstant"],
         )
 
         eom_substances = _substances_for_property(filtered, "EnthalpyOfMixing")
@@ -1644,7 +1806,6 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
         """A substance kept for one additional type must not drag along its
         rows for another additional type whose n_components filter excludes it.
         """
-        property_types = ["EnthalpyOfMixing", "Density", "DielectricConstant"]
         substance_entries = [
             # Core substance (binary): also carries binary Density data, which
             # the Density n_components=[1] filter must exclude, and
@@ -1653,17 +1814,15 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
             # Legitimate pure Density gap-fill candidate.
             (("CCC",), (False, True, False)),
         ]
-        data_frame = _build_data_frame(property_types, substance_entries)
 
-        filtered = FilterByCoreAndAdditionalPropertyTypes.apply(
-            data_frame,
-            FilterByCoreAndAdditionalPropertyTypesSchema(
-                core_property_types={"EnthalpyOfMixing": None},
-                additional_property_types={
-                    "Density": AdditionalPropertyTypeConfig(n_components=[1]),
-                    "DielectricConstant": AdditionalPropertyTypeConfig(),
-                },
-            ),
+        filtered = self._filter(
+            substance_entries,
+            {"EnthalpyOfMixing": None},
+            {
+                "Density": {"n_components": [1]},
+                "DielectricConstant": {},
+            },
+            property_types=["EnthalpyOfMixing", "Density", "DielectricConstant"],
         )
 
         assert _substances_for_property(filtered, "EnthalpyOfMixing") == {("CC", "O")}
@@ -1677,16 +1836,11 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
             (("CC", "O"), (False, True)),
             (("CCC",), (True, False)),
         ]
-        data_frame = _build_data_frame(self.property_types, substance_entries)
 
-        filtered = FilterByCoreAndAdditionalPropertyTypes.apply(
-            data_frame,
-            FilterByCoreAndAdditionalPropertyTypesSchema(
-                core_property_types={"EnthalpyOfMixing": []},
-                additional_property_types={
-                    "Density": AdditionalPropertyTypeConfig(n_components=[])
-                },
-            ),
+        filtered = self._filter(
+            substance_entries,
+            {"EnthalpyOfMixing": []},
+            {"Density": {"n_components": []}},
         )
 
         assert _substances_for_property(filtered, "EnthalpyOfMixing") == {("CC", "O")}

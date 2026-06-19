@@ -1275,8 +1275,10 @@ class FilterByCoreAndAdditionalPropertyTypesSchema(CurationComponentSchema):
     )
     select_by: Literal["similarity", "diversity"] = Field(
         "similarity",
-        description="Gap-fill strategy: 'similarity' favours substances most similar "
-        "to the core set; 'diversity' favours dissimilar ones (MaxMin).",
+        description="Gap-fill strategy: 'similarity' favours substances similar to the "
+        "under-represented core (the core substances that lack the additional type), "
+        "spreading picks to balance coverage; 'diversity' favours substances dissimilar "
+        "to everything kept so far (MaxMin).",
     )
 
     @model_validator(mode="after")
@@ -1298,7 +1300,11 @@ class FilterByCoreAndAdditionalPropertyTypes(CurationComponent):
     For each additional type, up to ``int(scale_factor * core_count)`` substances
     are kept: first the overlap with the core set, then gap-fill candidates chosen
     by the ``select_by`` strategy, with preference for substances that cover
-    multiple additional types at once.
+    multiple additional types at once. In ``"similarity"`` mode the gap-fill targets
+    the *under-represented* core — the core substances that lack that additional type
+    — and spreads picks across those substances, so each tends to gain a nearby
+    representative rather than the budget concentrating around whichever ones the
+    candidate pool happens to sit densest around.
 
     This acts very similarly to the FilterByPropertyTypes component when ``scale_factor``
     is 0 for all additional types, but with the added guarantee that all core substances
@@ -1322,82 +1328,169 @@ class FilterByCoreAndAdditionalPropertyTypes(CurationComponent):
         )
 
     @classmethod
-    def _gap_fill(cls, schema, s_core, type_candidates, gap) -> set:
+    def _gap_fill(cls, schema, s_core, type_overlap, type_candidates, gap) -> dict:
         """Greedily pick candidate substances to fill ``gap`` per additional type.
 
-        Candidates covering several additional types at once are preferred; ties
-        are broken by the ``select_by`` strategy (most 'similarity' to, or most
-        'diversity' from, the core set), then by the substance tuple so the
-        selection is deterministic. ``gap`` is mutated in place. Returns the set
-        of selected substances.
+        Candidates covering several additional types at once are preferred. The
+        per-type tie-break depends on ``select_by``:
+
+        * ``"diversity"`` — MaxMin against everything kept so far (the core set
+          plus prior picks), favouring substances dissimilar to it.
+        * ``"similarity"`` — favour substances similar to the *under-represented*
+          core: the core substances that lack data for this additional type. As
+          each pick is made, the under-represented core substance it best
+          represents is dropped from the reference, so subsequent picks spread to
+          the still-uncovered under-represented core substances instead of piling
+          onto one already covered. Once every member has been covered the reference
+          refills, allowing balanced further rounds.
+
+        A pick is charged only to the types it covers that still have budget
+        (``gap > 0``), so a multi-type candidate taken for one type never drags in
+        rows for a type that is already satisfied or was never to be gap-filled
+        (``scale_factor`` 0). Ties are finally broken by the substance tuple so
+        selection is deterministic. ``gap`` is mutated in place. Returns a mapping
+        of each additional type to the set of substances chosen to fill its gap
+        (the always-kept core overlap is not included).
         """
         if not any(g > 0 for g in gap.values()):
-            return set()
+            return {a: set() for a in schema.additional_property_types}
 
         from rdkit import DataStructs
 
-        # Reference fingerprints: the core set; in diversity mode each pick is
-        # added so the MaxMin score reflects everything kept so far.
-        ref_smiles = {smi for sub in s_core for smi in sub}
-        ref_fps = [fp for fp in map(_morgan_fp, ref_smiles) if fp is not None]
+        fp_cache: Dict[tuple, list] = {}
 
-        def fp_score(substance):
-            fps_sub = [fp for fp in map(_morgan_fp, substance) if fp is not None]
-            if not fps_sub:
+        def sub_fps(substance):
+            """Cached, ``None``-free Morgan fingerprints for *substance*."""
+            if substance not in fp_cache:
+                fp_cache[substance] = [
+                    fp for fp in map(_morgan_fp, substance) if fp is not None
+                ]
+            return fp_cache[substance]
+
+        def sub_sim(fps_a, fps_b):
+            """Nearest-neighbour Tanimoto between two substances' fingerprints."""
+            if not fps_a or not fps_b:
                 return 0.0
-            if not ref_fps:
-                return 0.0 if schema.select_by == "similarity" else 1.0
-            nn_sim = max(
-                DataStructs.TanimotoSimilarity(fp, ref)
-                for fp in fps_sub
-                for ref in ref_fps
+            return max(
+                DataStructs.TanimotoSimilarity(x, y) for x in fps_a for y in fps_b
             )
-            return nn_sim if schema.select_by == "similarity" else 1.0 - nn_sim
 
+        # Which additional types each candidate covers (computed once). Covering
+        # more still-unfilled types at once is the primary ranking key, so one pick
+        # fills several gaps.
         coverage_map = {
             sub: [a for a, cands in type_candidates.items() if sub in cands]
             for sub in set().union(*type_candidates.values())
         }
-        # Similarity scores are static (the reference set is fixed), so compute
-        # them once; diversity scores change after every pick.
-        static_score = (
-            {sub: fp_score(sub) for sub in coverage_map}
-            if schema.select_by == "similarity"
-            else None
-        )
 
-        def rank(substance):
-            score = (
-                static_score[substance]
-                if static_score is not None
-                else fp_score(substance)
-            )
-            return (len(coverage_map[substance]), score, substance)
-
+        # Global dedup set (a substance is picked at most once) plus the per-type
+        # record of which substances were charged to each type's gap — the latter
+        # drives the final row masking in ``_apply``.
         selected: set = set()
+        selected_by_type = {a: set() for a in schema.additional_property_types}
+
+        def active_coverage(substance):
+            """How many still-unfilled additional types this candidate covers."""
+            return sum(1 for c in coverage_map[substance] if gap[c] > 0)
 
         def take(substance):
-            for covered in coverage_map[substance]:
-                gap[covered] = max(0, gap[covered] - 1)
+            """Charge *substance* against every type it covers that still has
+            budget, recording it per type. Returns those types so the caller can
+            advance their spread."""
+            filled = [c for c in coverage_map[substance] if gap[c] > 0]
+            for c in filled:
+                gap[c] -= 1
+                selected_by_type[c].add(substance)
             selected.add(substance)
-            if schema.select_by == "diversity":
-                for smi in substance:
-                    if smi not in ref_smiles:
-                        ref_smiles.add(smi)
-                        fp = _morgan_fp(smi)
-                        if fp is not None:
-                            ref_fps.append(fp)
+            return filled
+
+        if schema.select_by == "diversity":
+            # MaxMin: stay far from everything kept so far. The reference starts as
+            # the whole core set and grows with each pick.
+            ref_smiles = {smi for sub in s_core for smi in sub}
+            ref_fps = [fp for fp in map(_morgan_fp, ref_smiles) if fp is not None]
+
+            def rank(substance):
+                fps_sub = sub_fps(substance)
+                if not fps_sub:
+                    score = 0.0  # unparseable candidate: treat as least diverse
+                elif not ref_fps:
+                    score = 1.0
+                else:
+                    score = 1.0 - sub_sim(fps_sub, ref_fps)
+                return (active_coverage(substance), score, substance)
+
+            for add_type in schema.additional_property_types:
+                remaining = [
+                    sub for sub in type_candidates[add_type] if sub not in selected
+                ]
+                while gap[add_type] > 0 and remaining:
+                    best = max(remaining, key=rank)
+                    take(best)
+                    remaining.remove(best)
+                    for smi in best:
+                        if smi not in ref_smiles:
+                            ref_smiles.add(smi)
+                            fp = _morgan_fp(smi)
+                            if fp is not None:
+                                ref_fps.append(fp)
+            return selected_by_type
+
+        # select_by == "similarity": target the under-represented core per type.
+        # Each additional type keeps its own reference — the core substances that
+        # still lack it (falling back to the whole core if every core substance
+        # already has it). The references are shared across the whole fill rather
+        # than rebuilt per loop, so a multi-type candidate picked while filling one
+        # type also advances the spread of the others it covers.
+        type_under = {
+            a: (sorted(s_core - type_overlap[a]) or sorted(s_core))
+            for a in schema.additional_property_types
+        }
+        type_ref = {a: list(under) for a, under in type_under.items()}
+
+        def credit(substance, filled):
+            """For each type in *filled* (the types *substance* was charged to),
+            mark the one under-represented core substance it best represents as
+            covered: drop it from that type's reference (refilling once the
+            reference is exhausted). Skip a type when the pick resembles nothing in
+            its reference (e.g. an unparseable candidate, or a cross-fill dissimilar
+            to that type's core) — there is no real coverage to credit.
+            """
+            fps_sub = sub_fps(substance)
+            for covered_type in filled:
+                ref = type_ref[covered_type]
+                if not ref:
+                    continue
+                best_sim, core_sub = max(
+                    (sub_sim(fps_sub, sub_fps(cs)), cs) for cs in ref
+                )
+                if best_sim > 0.0:
+                    ref.remove(core_sub)
+                    if not ref:  # all covered → refill for a balanced next round
+                        type_ref[covered_type] = list(type_under[covered_type])
 
         for add_type in schema.additional_property_types:
             remaining = [
                 sub for sub in type_candidates[add_type] if sub not in selected
             ]
             while gap[add_type] > 0 and remaining:
-                best = max(remaining, key=rank)
-                take(best)
-                remaining.remove(best)
+                flat_ref_fps = [fp for cs in type_ref[add_type] for fp in sub_fps(cs)]
 
-        return selected
+                # Prefer covering more still-unfilled types, then nearest-neighbour
+                # similarity to this type's (shrinking) reference, then the substance
+                # tuple for determinism.
+                best = max(
+                    remaining,
+                    key=lambda sub, _ref=flat_ref_fps: (
+                        active_coverage(sub),
+                        sub_sim(sub_fps(sub), _ref),
+                        sub,
+                    ),
+                )
+                remaining.remove(best)
+                credit(best, take(best))
+
+        return selected_by_type
 
     @classmethod
     def _apply(
@@ -1465,21 +1558,22 @@ class FilterByCoreAndAdditionalPropertyTypes(CurationComponent):
         for a, overlap in type_overlap.items():
             target = int(schema.additional_property_types[a].scale_factor * len(s_core))
             gap[a] = max(0, target - len(overlap))
-        selected = cls._gap_fill(schema, s_core, type_candidates, gap)
+        selected_by_type = cls._gap_fill(
+            schema, s_core, type_overlap, type_candidates, gap
+        )
 
-        # Mask rows per additional type so that a substance kept for one type
-        # does not drag along its rows for another type whose n_components
-        # filter excludes it.
+        # Mask rows per additional type. A type keeps its core overlap plus exactly
+        # the candidates charged to its gap, so a substance kept for one type does
+        # not drag along its rows for another type that excludes it (whether by an
+        # n_components filter or by having no remaining budget).
         additional_mask = pandas.Series(False, index=data_frame.index)
         for add_type in schema.additional_property_types:
             val_col = cls._value_column(data_frame, add_type)
             if val_col is None:
                 continue
-            type_substances = type_overlap[add_type] | (
-                selected & type_candidates[add_type]
-            )
+            keep = type_overlap[add_type] | selected_by_type[add_type]
             additional_mask |= (
-                substance_col.isin(type_substances) & data_frame[val_col].notna()
+                substance_col.isin(keep) & data_frame[val_col].notna()
             )
 
         additional_rows = data_frame[
