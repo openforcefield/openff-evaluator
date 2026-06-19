@@ -1296,11 +1296,7 @@ class _GapFiller:
     """Greedy gap-fill selection for :class:`FilterByCoreAndAdditionalPropertyTypes`.
 
     Picks candidate substances to fill the per-type ``gap`` left once each
-    additional type's core overlap has been retained. The selection loop carries
-    a fair amount of mutable bookkeeping — a fingerprint cache, the per-type
-    budgets, the set of picks so far, and the shrinking similarity references — so
-    it lives on an instance: each step is a small, named method rather than a
-    closure over shared local state.
+    additional type's core overlap has been retained.
 
     Candidates covering several still-unfilled additional types at once are always
     preferred (one pick fills several gaps). The per-type tie-break then depends
@@ -1326,9 +1322,6 @@ class _GapFiller:
     """
 
     def __init__(self, schema, s_core, type_overlap, type_candidates, gap):
-        from rdkit import DataStructs
-
-        self._tanimoto = DataStructs.TanimotoSimilarity
         self.schema = schema
         self.s_core = s_core
         self.type_overlap = type_overlap
@@ -1374,9 +1367,13 @@ class _GapFiller:
 
     def _sub_sim(self, fps_a, fps_b):
         """Nearest-neighbour Tanimoto between two substances' fingerprints."""
+        from rdkit import DataStructs
+
         if not fps_a or not fps_b:
             return 0.0
-        return max(self._tanimoto(x, y) for x in fps_a for y in fps_b)
+        return max(
+            DataStructs.TanimotoSimilarity(x, y) for x in fps_a for y in fps_b
+        )
 
     # -- shared bookkeeping --------------------------------------------------
 
@@ -1457,21 +1454,22 @@ class _GapFiller:
             while self.gap[add_type] > 0 and remaining:
                 # Reference fingerprints for this type's current (shrinking)
                 # under-represented core, computed once per pick.
-                ref_fps = [
+                self._ref_fps = [
                     fp for cs in self._type_ref[add_type] for fp in self._sub_fps(cs)
                 ]
-                # Prefer covering more still-unfilled types, then similarity to
-                # this reference, then the substance tuple for determinism.
-                best = max(
-                    remaining,
-                    key=lambda sub: (
-                        self._active_coverage(sub),
-                        self._sub_sim(self._sub_fps(sub), ref_fps),
-                        sub,
-                    ),
-                )
+                best = max(remaining, key=self._similarity_rank)
                 remaining.remove(best)
                 self._credit(best, self._take(best))
+
+    def _similarity_rank(self, substance):
+        """Rank key: (#types covered, similarity to the under-represented core,
+        tuple). Prefers covering more still-unfilled types, then resemblance to the
+        current reference, then the substance tuple for determinism."""
+        return (
+            self._active_coverage(substance),
+            self._sub_sim(self._sub_fps(substance), self._ref_fps),
+            substance,
+        )
 
     def _credit(self, substance, filled):
         """For each type in *filled* (the types *substance* was charged to), mark
