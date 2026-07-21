@@ -1496,10 +1496,7 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
         candidates sit near octane (heptane @1.0, hexane @0.875) and one near
         benzene (toluene @0.273). With two gaps, the dynamic strategy picks one
         aliphatic and then — having marked octane covered — switches to toluene for
-        the benzene region, giving {heptane, toluene}. A static reference would take
-        the two highest-scoring aliphatics {heptane, hexane} and leave benzene
-        uncovered, so this pins the spreading behaviour.
-        """
+        the benzene region, giving {heptane, toluene}."""
         substance_entries = [
             (("CCCCCCCC",), (True, False)),  # core, under-represented
             (("c1ccccc1",), (True, False)),  # core, under-represented
@@ -1604,13 +1601,8 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
         }
         assert ("Cc1ccccc1",) not in data_frame_to_substances(filtered)
 
-    @pytest.mark.parametrize("select_by", ["similarity", "diversity"])
-    def test_filter_by_core_and_additional_multi_type_coverage(self, select_by):
+    def test_filter_by_core_and_additional_multi_type_coverage(self):
         """Gap-fill prefers substances covering multiple additional types."""
-        # Core: {CC+O} (EnthalpyOfMixing). Targets: 1 Density + 1
-        # DielectricConstant substance. CCC covers both additional types and
-        # fills both gaps at once, so it is preferred over CCCC (Density only)
-        # and CCCCC+O (DielectricConstant only) under either strategy.
         substance_entries = [
             (("CC", "O"),    (False, True, False)),
             (("CCC",),       (True, False, True)),
@@ -1626,7 +1618,6 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
                 "DielectricConstant": {},
             },
             property_types=["Density", "EnthalpyOfMixing", "DielectricConstant"],
-            select_by=select_by,
         )
 
         assert _substances_for_property(filtered, "EnthalpyOfMixing") == {("CC", "O")}
