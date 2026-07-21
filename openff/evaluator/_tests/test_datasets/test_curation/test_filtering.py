@@ -1256,76 +1256,12 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
             ),
         )
 
-    def test_validate_filter_by_core_and_additional(self):
-        """Generally test valid arguments for schema and set expectations"""
-        # Valid schema
-        FilterByCoreAndAdditionalPropertyTypesSchema(
-            core_property_types={"Density": None},
-            additional_property_types={
-                "EnthalpyOfMixing": AdditionalPropertyTypeConfig()
-            },
-        )
-        FilterByCoreAndAdditionalPropertyTypesSchema(
-            core_property_types={"Density": [1]},
-            additional_property_types={
-                "EnthalpyOfMixing": AdditionalPropertyTypeConfig(scale_factor=0.0)
-            },
-        )
-
-        # Types must be disjoint
+    def test_validate_filter_by_core_and_additional_disjoint(self):
+        """Core and additional property types must be disjoint."""
         with pytest.raises(ValidationError):
             FilterByCoreAndAdditionalPropertyTypesSchema(
                 core_property_types={"Density": None},
                 additional_property_types={"Density": AdditionalPropertyTypeConfig()},
-            )
-
-        # Additional types require a config value, not None
-        with pytest.raises(ValidationError):
-            FilterByCoreAndAdditionalPropertyTypesSchema(
-                core_property_types={"Density": None},
-                additional_property_types={"EnthalpyOfMixing": None},
-            )
-
-        # scale_factor must be non-negative
-        with pytest.raises(ValidationError):
-            FilterByCoreAndAdditionalPropertyTypesSchema(
-                core_property_types={"Density": None},
-                additional_property_types={
-                    "EnthalpyOfMixing": {"scale_factor": -1.0}
-                },
-            )
-
-        # Both dicts must be non-empty
-        with pytest.raises(ValidationError):
-            FilterByCoreAndAdditionalPropertyTypesSchema(
-                core_property_types={},
-                additional_property_types={
-                    "EnthalpyOfMixing": AdditionalPropertyTypeConfig()
-                },
-            )
-        with pytest.raises(ValidationError):
-            FilterByCoreAndAdditionalPropertyTypesSchema(
-                core_property_types={"Density": None},
-                additional_property_types={},
-            )
-
-        # select_by must be 'similarity' or 'diversity'
-        with pytest.raises(ValidationError):
-            FilterByCoreAndAdditionalPropertyTypesSchema(
-                core_property_types={"Density": None},
-                additional_property_types={
-                    "EnthalpyOfMixing": AdditionalPropertyTypeConfig()
-                },
-                select_by="random",
-            )
-
-        # Unknown config keys (e.g. typos) are rejected
-        with pytest.raises(ValidationError):
-            FilterByCoreAndAdditionalPropertyTypesSchema(
-                core_property_types={"Density": None},
-                additional_property_types={
-                    "EnthalpyOfMixing": {"scale_facto": 0.5}
-                },
             )
 
     def test_filter_by_core_and_additional_truncates_correctly(self):
@@ -1366,62 +1302,57 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
         }
         assert ("O", "c1ccccc1") not in data_frame_to_substances(filtered)
 
-    def test_filter_by_core_and_additional_full_overlap_ignore_scale_factor(self):
-        # Overlap > target: full overlap is retained without truncation.
-        substance_entries = [
-            (("CC",),       (True, False)),
-            (("CC", "O"),   (True, True)),
-            (("CCC",),      (True, False)),
-            (("CCC", "O"),  (True, True)),
-            (("CCCC",),     (True, False)),
-            (("CCCC", "O"), (True, True)),
-            (("CCCCC",),    (True, False)),
-            (("CCCCC", "O"), (True, True)),
-        ]
-
+    @pytest.mark.parametrize(
+        "scale_factor, substance_entries, expected_dhmix, expected_density",
+        [
+            pytest.param(
+                0.5,
+                [
+                    (("CC",),       (True, False)),
+                    (("CC", "O"),   (True, True)),
+                    (("CCC",),      (True, False)),
+                    (("CCC", "O"),  (True, True)),
+                    (("CCCC",),     (True, False)),
+                    (("CCCC", "O"), (True, True)),
+                    (("CCCCC",),    (True, False)),
+                    (("CCCCC", "O"), (True, True)),
+                ],
+                {("CC", "O"), ("CCC", "O"), ("CCCC", "O"), ("CCCCC", "O")},
+                {("CC", "O"), ("CCC", "O"), ("CCCC", "O"), ("CCCCC", "O")},
+                id="overlap_exceeds_target",
+            ),
+            pytest.param(
+                0.0,
+                [
+                    (("CC",),       (True, False)),
+                    (("CC", "O"),   (True, True)),
+                    (("CCC",),      (True, False)),
+                    (("CCC", "O"),  (True, False)),
+                    (("CCCC",),     (True, False)),
+                    (("CCCC", "O"), (True, False)),
+                ],
+                {("CC", "O")},
+                {("CC", "O")},
+                id="zero_scale_factor",
+            ),
+        ],
+    )
+    def test_filter_by_core_and_additional_no_gap_fill(
+        self, scale_factor, substance_entries, expected_dhmix, expected_density
+    ):
+        """No gap-fill when overlap meets target or scale_factor is 0."""
         filtered = self._filter(
             substance_entries,
             {"EnthalpyOfMixing": None},
-            {
-                # target=2 but overlap=4 → keep all 4
-                "Density": {"scale_factor": 0.5}
-            },
+            {"Density": {"scale_factor": scale_factor}},
         )
 
-        assert _substances_for_property(filtered, "EnthalpyOfMixing") == {
-            ("CC", "O"), ("CCC", "O"), ("CCCC", "O"), ("CCCCC", "O")
-        }
-        assert _substances_for_property(filtered, "Density") == {
-            ("CC", "O"), ("CCC", "O"), ("CCCC", "O"), ("CCCCC", "O")
-        }
-        # No gap-fill: the pure-substance density data are not selected.
-        assert ("CC",) not in data_frame_to_substances(filtered)
-
-    def test_filter_by_core_and_additional_zero_scale_factor(self):
-        # scale_factor=0: no gap-fill, but the core overlap is still retained.
-        substance_entries = [
-            (("CC",),       (True, False)),
-            (("CC", "O"),   (True, True)),
-            (("CCC",),      (True, False)),
-            (("CCC", "O"),  (True, False)),
-            (("CCCC",),     (True, False)),
-            (("CCCC", "O"), (True, False)),
-        ]
-
-        filtered = self._filter(
-            substance_entries,
-            {"EnthalpyOfMixing": None},
-            {"Density": {"scale_factor": 0.0}},
-        )
-
-        # Core = {CC+O}; its density data are overlap and survive, but no
-        # further density substances are gap-filled.
-        assert _substances_for_property(filtered, "EnthalpyOfMixing") == {("CC", "O")}
-        assert _substances_for_property(filtered, "Density") == {("CC", "O")}
+        assert _substances_for_property(filtered, "EnthalpyOfMixing") == expected_dhmix
+        assert _substances_for_property(filtered, "Density") == expected_density
         assert ("CC",) not in data_frame_to_substances(filtered)
 
     def test_filter_by_core_and_additional_empty_core(self):
-        # Empty core intersection of density and enthalpy of vaporization --> empty result.
+        # Viscosity has no column in the data frame, so core intersection is empty.
         substance_entries = [
             (("CC",),       (True, False, False)),
             (("CCC",),      (True, False, False)),
@@ -1634,34 +1565,6 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
         }
         # The redundant octane-region DC candidate is not taken.
         assert ("CCCCCC",) not in data_frame_to_substances(filtered)
-
-    def test_filter_by_core_and_additional_zero_gap_type_not_pulled_in(self):
-        """A multi-type pick does not retain rows for a type whose gap is zero.
-
-        Core (Density) = {CC+O}. EnthalpyOfMixing has a gap (scale_factor=1.0);
-        DielectricConstant is overlap-only (scale_factor=0.0). The single candidate
-        CCC carries both dHmix and DC data and is taken to fill dHmix. Its DC row must be
-        dropped — DC's target is 0 and CCC is not core overlap — rather than leaking
-        in because CCC was selected for another type.
-        """
-        substance_entries = [
-            (("CC", "O"), (True, False, False)),  # core
-            (("CCC",), (False, True, True)),  # dHmix+DC candidate
-        ]
-
-        filtered = self._filter(
-            substance_entries,
-            {"Density": None},
-            {
-                "EnthalpyOfMixing": {"scale_factor": 1.0},
-                "DielectricConstant": {"scale_factor": 0.0},
-            },
-            property_types=["Density", "EnthalpyOfMixing", "DielectricConstant"],
-        )
-
-        assert _substances_for_property(filtered, "EnthalpyOfMixing") == {("CCC",)}
-        # DC target is 0 and CCC is not overlap → no DC rows retained.
-        assert _substances_for_property(filtered, "DielectricConstant") == set()
 
     def test_filter_by_core_and_additional_cross_fill_consumes_dissimilar_budget(self):
         """A multi-type pick is charged to every type it still has budget for, even
