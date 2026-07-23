@@ -4,7 +4,7 @@ channels:
 dependencies:
     # Base depends
   - python
-  - pip
+  - uv
 
     # Testing and development
   - pytest
@@ -30,7 +30,7 @@ dependencies:
   - pyyaml
   - requests
   - python-dateutil
-  - pydantic =2,<2.12
+  - pydantic
   - taproom
   - dataclasses
   - pandas =2
