@@ -25,6 +25,7 @@ jobs:
       OE_LICENSE: ${{ github.workspace }}/oe_license.txt
 
     strategy:
+      fail-fast: false
       matrix:
         os:
           - ubuntu-latest
@@ -88,7 +89,7 @@ jobs:
         run: uv pip install . utilities/test_plugins/
 
       - name: Run tests
-        run: python -m pytest --cov=openff openff/evaluator/_tests/ --cov-report=xml --color=yes --durations=10 -vx
+        run: python -m pytest --cov=openff openff/evaluator/_tests/ --cov-report=xml --color=yes --durations=10
 
       - name: Run (non-GPU) tutorials
         if: ${{ matrix.pymbar-version == 3.1 }}
