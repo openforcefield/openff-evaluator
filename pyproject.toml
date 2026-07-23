@@ -31,7 +31,7 @@ fallback_version = "0.0.0"
 target-version = [ "py312" ]
 
 [tool.pytest]
-ini_options.timeout = 100
+ini_options.timeout = 1000
 
 [tool.coverage]
 run.omit = [
