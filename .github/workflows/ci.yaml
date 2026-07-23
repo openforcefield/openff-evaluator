@@ -25,7 +25,6 @@ jobs:
       OE_LICENSE: ${{ github.workspace }}/oe_license.txt
 
     strategy:
-      fail-fast: false
       matrix:
         os:
           - ubuntu-latest
@@ -86,7 +85,7 @@ jobs:
           echo $(pwd) >> $GITHUB_PATH
 
       - name: Install Package and test plugins
-        run: python -m uv pip install . utilities/test_plugins/
+        run: uv pip install . utilities/test_plugins/
 
       - name: Run tests
         run: python -m pytest --cov=openff openff/evaluator/_tests/ --cov-report=xml --color=yes --durations=10 -n auto
