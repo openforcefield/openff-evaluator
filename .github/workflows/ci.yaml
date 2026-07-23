@@ -88,7 +88,7 @@ jobs:
         run: uv pip install . utilities/test_plugins/
 
       - name: Run tests
-        run: python -m pytest --cov=openff openff/evaluator/_tests/ --cov-report=xml --color=yes --durations=10 -n auto
+        run: python -m pytest --cov=openff openff/evaluator/_tests/ --cov-report=xml --color=yes --durations=10 -vx
 
       - name: Run (non-GPU) tutorials
         if: ${{ matrix.pymbar-version == 3.1 }}
