@@ -25,7 +25,7 @@ jobs:
           aws-region: us-east-1
       - name: Create cloud runner
         id: aws-start
-        uses: omsf/start-aws-gha-runner@v1.1.1
+        uses: omsf/start-aws-gha-runner@v1.3.0
         with:
           aws_image_id: ami-0d5079d9be06933e5
           aws_instance_type: g4dn.xlarge
@@ -39,7 +39,7 @@ jobs:
     needs:
       - start-aws-runner
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Schedule auto-shutdown after 24 hours 
         # This is the failsafe if timeout-minutes above fails
