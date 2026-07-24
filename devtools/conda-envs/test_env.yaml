@@ -4,13 +4,14 @@ channels:
 dependencies:
     # Base depends
   - python
-  - pip
+  - uv
 
     # Testing and development
   - pytest
   - pytest-cov
   - pytest-xdist
   - pytest-randomly
+  - pytest-timeout
   - nbval
   - requests-mock # For testing http requests.
   - foyer
@@ -18,7 +19,7 @@ dependencies:
     # Standard dependencies
   - openff-toolkit
   - openff-interchange >=0.5.1
-  - ambertools
+  - ambertools =24
   - openmm
   - pymbar
   - dask >=2.7.0
@@ -30,7 +31,7 @@ dependencies:
   - pyyaml
   - requests
   - python-dateutil
-  - pydantic =2,<2.12
+  - pydantic
   - taproom
   - dataclasses
   - pandas =2
