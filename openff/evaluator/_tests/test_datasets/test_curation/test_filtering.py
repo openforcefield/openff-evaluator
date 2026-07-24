@@ -1278,12 +1278,12 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
         # Additional substances = overlap (always) + gap-fill up to
         # int(scale_factor * core_count) per additional type.
         substance_entries = [
-            (("CC",),       (True, False)),
-            (("CCC",),      (True, False)),
-            (("CCCC",),     (True, False)),
-            (("CCCCC",),    (True, False)),
-            (("CC", "O"),   (False, True)),
-            (("CCC", "O"),  (False, True)),
+            (("CC",), (True, False)),
+            (("CCC",), (True, False)),
+            (("CCCC",), (True, False)),
+            (("CCCCC",), (True, False)),
+            (("CC", "O"), (False, True)),
+            (("CCC", "O"), (False, True)),
             (("c1ccccc1", "O"), (False, True)),
         ]
 
@@ -1295,10 +1295,14 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
             {"EnthalpyOfMixing": {"scale_factor": 0.5}},
         )
         assert _substances_for_property(filtered, "Density") == {
-            ("CC",), ("CCC",), ("CCCC",), ("CCCCC",)
+            ("CC",),
+            ("CCC",),
+            ("CCCC",),
+            ("CCCCC",),
         }
         assert _substances_for_property(filtered, "EnthalpyOfMixing") == {
-            ("CC", "O"), ("CCC", "O")
+            ("CC", "O"),
+            ("CCC", "O"),
         }
         assert ("O", "c1ccccc1") not in data_frame_to_substances(filtered)
 
@@ -1308,13 +1312,13 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
             pytest.param(
                 0.5,
                 [
-                    (("CC",),       (True, False)),
-                    (("CC", "O"),   (True, True)),
-                    (("CCC",),      (True, False)),
-                    (("CCC", "O"),  (True, True)),
-                    (("CCCC",),     (True, False)),
+                    (("CC",), (True, False)),
+                    (("CC", "O"), (True, True)),
+                    (("CCC",), (True, False)),
+                    (("CCC", "O"), (True, True)),
+                    (("CCCC",), (True, False)),
                     (("CCCC", "O"), (True, True)),
-                    (("CCCCC",),    (True, False)),
+                    (("CCCCC",), (True, False)),
                     (("CCCCC", "O"), (True, True)),
                 ],
                 {("CC", "O"), ("CCC", "O"), ("CCCC", "O"), ("CCCCC", "O")},
@@ -1324,11 +1328,11 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
             pytest.param(
                 0.0,
                 [
-                    (("CC",),       (True, False)),
-                    (("CC", "O"),   (True, True)),
-                    (("CCC",),      (True, False)),
-                    (("CCC", "O"),  (True, False)),
-                    (("CCCC",),     (True, False)),
+                    (("CC",), (True, False)),
+                    (("CC", "O"), (True, True)),
+                    (("CCC",), (True, False)),
+                    (("CCC", "O"), (True, False)),
+                    (("CCCC",), (True, False)),
                     (("CCCC", "O"), (True, False)),
                 ],
                 {("CC", "O")},
@@ -1354,12 +1358,12 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
     def test_filter_by_core_and_additional_empty_core(self):
         # Viscosity has no column in the data frame, so core intersection is empty.
         substance_entries = [
-            (("CC",),       (True, False, False)),
-            (("CCC",),      (True, False, False)),
-            (("CCCC",),     (False, True, False)),
-            (("CCCCC",),    (False, True, False)),
-            (("CC", "O"),   (False, False, True)),
-            (("CCC", "O"),  (False, False, True)),
+            (("CC",), (True, False, False)),
+            (("CCC",), (True, False, False)),
+            (("CCCC",), (False, True, False)),
+            (("CCCCC",), (False, True, False)),
+            (("CC", "O"), (False, False, True)),
+            (("CCC", "O"), (False, False, True)),
             (("CCCC", "O"), (False, False, True)),
         ]
 
@@ -1375,13 +1379,16 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
     def test_filter_by_core_and_additional_multiple_core_types(self):
         """Strict intersection across multiple core types."""
         substance_entries = [
-            (("CC",),       (True, True, False)),
-            (("CC", "O"),   (False, False, True)),
-            (("CCC",),      (True, True, False)),
-            (("CCC", "O"),  (False, False, True)),
-            (("CCCC",),     (True, False, False)),   # Density only, not EnthalpyOfVaporization
-            (("CCCC", "O"), (False, False, True)),   # dHmix only
-            (("CCCCC",),    (False, True, False)),   # EnthalpyOfVaporization only
+            (("CC",), (True, True, False)),
+            (("CC", "O"), (False, False, True)),
+            (("CCC",), (True, True, False)),
+            (("CCC", "O"), (False, False, True)),
+            (
+                ("CCCC",),
+                (True, False, False),
+            ),  # Density only, not EnthalpyOfVaporization
+            (("CCCC", "O"), (False, False, True)),  # dHmix only
+            (("CCCCC",), (False, True, False)),  # EnthalpyOfVaporization only
         ]
 
         filtered = self._filter(
@@ -1392,8 +1399,14 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
         )
 
         assert _substances_for_property(filtered, "Density") == {("CC",), ("CCC",)}
-        assert _substances_for_property(filtered, "EnthalpyOfVaporization") == {("CC",), ("CCC",)}
-        assert _substances_for_property(filtered, "EnthalpyOfMixing") == {("CC", "O"), ("CCC", "O")}
+        assert _substances_for_property(filtered, "EnthalpyOfVaporization") == {
+            ("CC",),
+            ("CCC",),
+        }
+        assert _substances_for_property(filtered, "EnthalpyOfMixing") == {
+            ("CC", "O"),
+            ("CCC", "O"),
+        }
         assert ("CCCC",) not in data_frame_to_substances(filtered)
 
     def test_filter_by_core_and_additional_n_components(self):
@@ -1402,12 +1415,12 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
         # Restrict the additional type to binary mixtures; the (unphysical)
         # pure-substance enthalpy of mixing entry is excluded.
         substance_entries = [
-            (("CC",),       (True, False)),
-            (("CC", "O"),   (False, True)),
-            (("CCC",),      (True, False)),
-            (("CCC", "O"),  (False, True)),
+            (("CC",), (True, False)),
+            (("CC", "O"), (False, True)),
+            (("CCC",), (True, False)),
+            (("CCC", "O"), (False, True)),
             (("CC", "CCC"), (True, False)),
-            (("CCCCC",),    (False, True)),
+            (("CCCCC",), (False, True)),
         ]
 
         filtered = self._filter(
@@ -1418,7 +1431,8 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
 
         assert _substances_for_property(filtered, "Density") == {("CC",), ("CCC",)}
         assert _substances_for_property(filtered, "EnthalpyOfMixing") == {
-            ("CC", "O"), ("CCC", "O")
+            ("CC", "O"),
+            ("CCC", "O"),
         }
         assert ("CC", "CCC") not in data_frame_to_substances(filtered)
         assert ("CCCCC",) not in data_frame_to_substances(filtered)
@@ -1553,9 +1567,7 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
             select_by="similarity",
         )
 
-        assert _substances_for_property(filtered, "EnthalpyOfMixing") == {
-            ("CCCCCCC",)
-        }
+        assert _substances_for_property(filtered, "EnthalpyOfMixing") == {("CCCCCCC",)}
         assert _substances_for_property(filtered, "DielectricConstant") == {
             ("CCCCCCC",),  # the shared dHmix+DC pick covers the octane region
             ("Cc1ccccc1",),  # so the next DC pick spreads to the benzene region
@@ -1592,9 +1604,7 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
             select_by="similarity",
         )
 
-        assert _substances_for_property(filtered, "EnthalpyOfMixing") == {
-            ("CCCCCCC",)
-        }
+        assert _substances_for_property(filtered, "EnthalpyOfMixing") == {("CCCCCCC",)}
         # Heptane fills DC's single slot too; the closer toluene is not added.
         assert _substances_for_property(filtered, "DielectricConstant") == {
             ("CCCCCCC",)
@@ -1604,9 +1614,9 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
     def test_filter_by_core_and_additional_multi_type_coverage(self):
         """Gap-fill prefers substances covering multiple additional types."""
         substance_entries = [
-            (("CC", "O"),    (False, True, False)),
-            (("CCC",),       (True, False, True)),
-            (("CCCC",),      (True, False, False)),
+            (("CC", "O"), (False, True, False)),
+            (("CCC",), (True, False, True)),
+            (("CCCC",), (True, False, False)),
             (("CCCCC", "O"), (False, False, True)),
         ]
 
@@ -1634,15 +1644,15 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
         # DielectricConstant target=4 with overlap {CC+O, CCC+O} → gap-fill
         # the only candidate, CCCCCC+O.
         substance_entries = [
-            (("CC",),        (True,  False, False)),
-            (("CC", "O"),     (False, True,  True)),
-            (("CCC",),       (True,  False, False)),
-            (("CCC", "O"),    (False, True,  True)),
-            (("CCCC",),      (True,  False, False)),
-            (("CCCC", "O"),   (False, True,  False)),
-            (("CCCCC",),     (True,  False, False)),
-            (("CCCCC", "O"),  (False, True,  False)),
-            (("CCCCCC",),    (True,  False, False)),
+            (("CC",), (True, False, False)),
+            (("CC", "O"), (False, True, True)),
+            (("CCC",), (True, False, False)),
+            (("CCC", "O"), (False, True, True)),
+            (("CCCC",), (True, False, False)),
+            (("CCCC", "O"), (False, True, False)),
+            (("CCCCC",), (True, False, False)),
+            (("CCCCC", "O"), (False, True, False)),
+            (("CCCCCC",), (True, False, False)),
             (("CCCCCC", "O"), (False, False, True)),
         ]
 

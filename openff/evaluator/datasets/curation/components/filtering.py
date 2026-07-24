@@ -1266,7 +1266,9 @@ class FilterByCoreAndAdditionalPropertyTypesSchema(CurationComponentSchema):
         "Dict values are optional n_components filters; None (or an empty list) "
         "means no filter.",
     )
-    additional_property_types: Dict[constr(min_length=1), AdditionalPropertyTypeConfig] = Field(
+    additional_property_types: Dict[
+        constr(min_length=1), AdditionalPropertyTypeConfig
+    ] = Field(
         ...,
         min_length=1,
         description="Property types for which additional data are retained. Each "
@@ -1618,9 +1620,7 @@ class FilterByCoreAndAdditionalPropertyTypes(CurationComponent):
             if val_col is None:
                 continue
             keep = type_overlap[add_type] | selected_by_type[add_type]
-            additional_mask |= (
-                substance_col.isin(keep) & data_frame[val_col].notna()
-            )
+            additional_mask |= substance_col.isin(keep) & data_frame[val_col].notna()
 
         # --- Assemble ----------------------------------------------------------
         # Additional rows exclude the core rows (kept separately) to avoid dupes,
