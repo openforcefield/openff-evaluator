@@ -1723,6 +1723,43 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
         assert _substances_for_property(filtered, "EnthalpyOfMixing") == {("CC", "O")}
         assert _substances_for_property(filtered, "Density") == {("CCC",)}
 
+    def test_filter_by_core_dhmix_additional_density_n_components(self):
+        """Core on EnthalpyOfMixing (binaries), additional Density with
+        n_components=[1, 2] retains both pure and binary density data.
+        """
+        substance_entries = [
+            # Two binary mixtures with dHmix and density -> core set + overlap
+            (("CC", "O"), (True, True)),
+            (("CCC", "O"), (True, True)),
+            # Gap-fill candidates
+            (("CC",), (True, False)),  # pure (n_components=1)
+            (("CCCC", "O"), (True, False)), # mixture (n_components=2)
+            # excluded
+            (("CC", "O", "CCC"), (True, False)), # (n_components=3)
+            (("CF", "N"), (True, False)), # mixture (n_components=2 but too dissimilar)
+        ]
+
+        filtered = self._filter(
+            substance_entries,
+            {"EnthalpyOfMixing": None},
+            {"Density": {"scale_factor": 2.0, "n_components": [1, 2]}},
+        )
+
+        assert _substances_for_property(filtered, "EnthalpyOfMixing") == {
+            ("CC", "O"),
+            ("CCC", "O"),
+        }
+        density_subs = _substances_for_property(filtered, "Density")
+        # Core overlap: binaries that also have density
+        assert ("CC", "O") in density_subs
+        assert ("CCC", "O") in density_subs
+        # Gap-filled substances
+        assert ("CC",) in density_subs
+        assert ("CCCC", "O") in density_subs
+        # excluded
+        assert ("CC", "CCC", "O") not in density_subs
+        assert ("CF", "N") not in density_subs
+
 
 def test_validate_filter_by_tautomers():
     FilterByTautomersSchema()
