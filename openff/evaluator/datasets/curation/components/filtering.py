@@ -45,8 +45,8 @@ logger = logging.getLogger(__name__)
 ComponentEnvironments = List[List[ChemicalEnvironment]]
 MoleFractionRange = Tuple[confloat(ge=0.0, le=1.0), confloat(ge=0.0, le=1.0)]
 # A mapping of property type -> optional list of allowed component counts
-# (``None`` — or an empty list — means no ``n_components`` restriction).
-PropertyTypeFilter = Dict[constr(min_length=1), Optional[List[PositiveInt]]]
+# (an empty list means no ``n_components`` restriction).
+PropertyTypeFilter = Dict[constr(min_length=1), List[PositiveInt]]
 
 
 class FilterDuplicatesSchema(CurationComponentSchema):
