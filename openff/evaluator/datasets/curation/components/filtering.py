@@ -1269,9 +1269,7 @@ class FilterByCoreAndAdditionalPropertyTypesSchema(CurationComponentSchema):
         "Dict values are optional n_components filters; None (or an empty list) "
         "means no filter.",
     )
-    additional_property_types: Dict[
-        str, AdditionalPropertyTypeConfig
-    ] = Field(
+    additional_property_types: Dict[str, AdditionalPropertyTypeConfig] = Field(
         ...,
         min_length=1,
         description="Property types for which additional data are retained. Each "
@@ -1381,7 +1379,9 @@ class _GapFiller:
             ]
         return self._fp_cache[substance]
 
-    def _sub_sim(self, fps_a: "list[ExplicitBitVect]", fps_b: "list[ExplicitBitVect]") -> float:
+    def _sub_sim(
+        self, fps_a: "list[ExplicitBitVect]", fps_b: "list[ExplicitBitVect]"
+    ) -> float:
         """Optimal-assignment Tanimoto similarity between two substances."""
         from rdkit import DataStructs
 

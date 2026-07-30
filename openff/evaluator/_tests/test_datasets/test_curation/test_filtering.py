@@ -1733,10 +1733,10 @@ class TestFilterByCoreAndAdditionalPropertyTypes:
             (("CCC", "O"), (True, True)),
             # Gap-fill candidates
             (("CC",), (True, False)),  # pure (n_components=1)
-            (("CCCC", "O"), (True, False)), # mixture (n_components=2)
+            (("CCCC", "O"), (True, False)),  # mixture (n_components=2)
             # excluded
-            (("CC", "O", "CCC"), (True, False)), # (n_components=3)
-            (("CF", "N"), (True, False)), # mixture (n_components=2 but too dissimilar)
+            (("CC", "O", "CCC"), (True, False)),  # (n_components=3)
+            (("CF", "N"), (True, False)),  # mixture (n_components=2 but too dissimilar)
         ]
 
         filtered = self._filter(
