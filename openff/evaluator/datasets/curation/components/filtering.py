@@ -2,7 +2,10 @@ import functools
 import itertools
 import logging
 from collections import defaultdict
-from typing import Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
+
+if TYPE_CHECKING:
+    from rdkit.DataStructs import ExplicitBitVect
 
 import numpy
 import pandas
@@ -1218,7 +1221,7 @@ class FilterByEnvironments(CurationComponent):
 
 
 @functools.lru_cache(maxsize=4096)
-def _morgan_fp(smiles: str):
+def _morgan_fp(smiles: str) -> "ExplicitBitVect":
     """Return the Morgan (radius-2, 2048-bit) fingerprint for *smiles*.
 
     Returns ``None`` if the SMILES cannot be parsed by RDKit.
@@ -1267,7 +1270,7 @@ class FilterByCoreAndAdditionalPropertyTypesSchema(CurationComponentSchema):
         "means no filter.",
     )
     additional_property_types: Dict[
-        constr(min_length=1), AdditionalPropertyTypeConfig
+        str, AdditionalPropertyTypeConfig
     ] = Field(
         ...,
         min_length=1,
@@ -1310,31 +1313,57 @@ class _GapFiller:
 
     ``gap`` is mutated in place. :meth:`fill` returns each additional type's chosen
     substances (the always-kept core overlap is not included).
+
+    Parameters
+    ----------
+    schema
+        The parent filter schema; supplies ``select_by``, ``additional_property_types``,
+        and per-type configuration.
+    s_core
+        Substances present in every core property type (the core set).
+        Each substance is a tuple of SMILES.
+    type_overlap
+        ``{additional_type: {substances in both core and that type}}``.
+        Each additional type is a string (class name),
+        each substance is a tuple of SMILES.
+    type_candidates
+        ``{additional_type: {non-core substances with data for that type}}``.
+        Each additional type is a string (class name),
+        each substance is a tuple of SMILES.
+    gap
+        ``{additional_type: remaining count to fill}``. Mutated in place as
+        substances are selected.
     """
 
-    def __init__(self, schema, s_core, type_overlap, type_candidates, gap):
+    def __init__(
+        self,
+        schema: "FilterByCoreAndAdditionalPropertyTypesSchema",
+        s_core: set[tuple[str, ...]],
+        type_overlap: dict[str, set[tuple[str, ...]]],
+        type_candidates: dict[str, set[tuple[str, ...]]],
+        gap: dict[str, int],
+    ) -> None:
         self.schema = schema
         self.s_core = s_core
         self.type_overlap = type_overlap
         self.type_candidates = type_candidates
         self.gap = gap
 
-        # Memoised, None-free Morgan fingerprints, keyed by substance tuple.
-        self._fp_cache: Dict[tuple, list] = {}
+        self._fp_cache: dict[tuple[str, ...], list[ExplicitBitVect]] = {}
 
-        # Additional types each candidate covers; covering more is the top rank key.
-        self.coverage_map = {
+        self.coverage_map: dict[tuple[str, ...], list[str]] = {
             sub: [a for a, cands in type_candidates.items() if sub in cands]
             for sub in set().union(*type_candidates.values())
         }
 
-        # Global dedup set; per-type record drives the final row masking in ``_apply``.
-        self.selected: set = set()
-        self.selected_by_type = {a: set() for a in schema.additional_property_types}
+        self.selected: set[tuple[str, ...]] = set()
+        self.selected_by_type: dict[str, set[tuple[str, ...]]] = {
+            a: set() for a in schema.additional_property_types
+        }
 
     # -- entry point ---------------------------------------------------------
 
-    def fill(self) -> dict:
+    def fill(self) -> dict[str, set[tuple[str, ...]]]:
         """Run the configured ``select_by`` strategy; return ``selected_by_type``."""
         if self.schema.select_by == "diversity":
             self._fill_diversity()
@@ -1344,7 +1373,7 @@ class _GapFiller:
 
     # -- fingerprint helpers -------------------------------------------------
 
-    def _sub_fps(self, substance):
+    def _sub_fps(self, substance: tuple[str, ...]) -> list[ExplicitBitVect]:
         """Cached, ``None``-free Morgan fingerprints for *substance*."""
         if substance not in self._fp_cache:
             self._fp_cache[substance] = [
@@ -1352,7 +1381,7 @@ class _GapFiller:
             ]
         return self._fp_cache[substance]
 
-    def _sub_sim(self, fps_a, fps_b):
+    def _sub_sim(self, fps_a: list[ExplicitBitVect], fps_b: list[ExplicitBitVect]) -> float:
         """Optimal-assignment Tanimoto similarity between two substances."""
         from rdkit import DataStructs
 
@@ -1366,11 +1395,11 @@ class _GapFiller:
 
     # -- shared bookkeeping --------------------------------------------------
 
-    def _active_coverage(self, substance):
+    def _active_coverage(self, substance: tuple[str, ...]) -> int:
         """How many still-unfilled additional types this candidate covers."""
         return sum(1 for c in self.coverage_map[substance] if self.gap[c] > 0)
 
-    def _take(self, substance):
+    def _take(self, substance: tuple[str, ...]) -> list[str]:
         """Charge *substance* to every type it covers that still has budget; return
         those types."""
         filled = [c for c in self.coverage_map[substance] if self.gap[c] > 0]
@@ -1380,16 +1409,15 @@ class _GapFiller:
         self.selected.add(substance)
         return filled
 
-    def _remaining(self, add_type):
+    def _remaining(self, add_type: str) -> list[tuple[str, ...]]:
         """Not-yet-picked candidates carrying *add_type* data."""
         return [s for s in self.type_candidates[add_type] if s not in self.selected]
 
     # -- diversity strategy --------------------------------------------------
 
-    def _fill_diversity(self):
-        # Reference = every component kept so far (core set, then each pick).
-        self._ref_smiles = {smi for sub in self.s_core for smi in sub}
-        self._ref_fps = [
+    def _fill_diversity(self) -> None:
+        self._ref_smiles: set[str] = {smi for sub in self.s_core for smi in sub}
+        self._ref_fps: list[ExplicitBitVect] = [
             fp for fp in map(_morgan_fp, self._ref_smiles) if fp is not None
         ]
 
@@ -1401,7 +1429,9 @@ class _GapFiller:
                 remaining.remove(best)
                 self._grow_diversity_reference(best)
 
-    def _diversity_rank(self, substance):
+    def _diversity_rank(
+        self, substance: tuple[str, ...]
+    ) -> tuple[int, float, tuple[str, ...]]:
         """Rank key: (#types covered, distance from the kept set, tuple). An
         unparseable candidate scores 0.0 (least diverse), not the inverted 1.0."""
         fps_sub = self._sub_fps(substance)
@@ -1413,7 +1443,7 @@ class _GapFiller:
             score = 1.0 - self._sub_sim(fps_sub, self._ref_fps)
         return (self._active_coverage(substance), score, substance)
 
-    def _grow_diversity_reference(self, substance):
+    def _grow_diversity_reference(self, substance: tuple[str, ...]) -> None:
         """Fold a freshly picked substance's fingerprints into the MaxMin reference."""
         for smi in substance:
             if smi not in self._ref_smiles:
@@ -1424,15 +1454,14 @@ class _GapFiller:
 
     # -- similarity strategy -------------------------------------------------
 
-    def _fill_similarity(self):
-        # Per type, target its under-represented core (members lacking the type, or
-        # the whole core if none do). References persist across the whole fill, so a
-        # multi-type pick advances the spread of every type it covers.
-        self._type_under = {
+    def _fill_similarity(self) -> None:
+        self._type_under: dict[str, list[tuple[str, ...]]] = {
             a: (sorted(self.s_core - self.type_overlap[a]) or sorted(self.s_core))
             for a in self.schema.additional_property_types
         }
-        self._type_ref = {a: list(under) for a, under in self._type_under.items()}
+        self._type_ref: dict[str, list[tuple[str, ...]]] = {
+            a: list(under) for a, under in self._type_under.items()
+        }
 
         for add_type in self.schema.additional_property_types:
             remaining = self._remaining(add_type)
@@ -1445,7 +1474,9 @@ class _GapFiller:
                 remaining.remove(best)
                 self._credit(best, self._take(best))
 
-    def _similarity_rank(self, substance):
+    def _similarity_rank(
+        self, substance: tuple[str, ...]
+    ) -> tuple[int, float, tuple[str, ...]]:
         """Rank key: (#types covered, similarity to the under-represented core,
         tuple). Prefers covering more still-unfilled types, then resemblance to the
         current reference, then the substance tuple for determinism."""
@@ -1455,7 +1486,7 @@ class _GapFiller:
             substance,
         )
 
-    def _credit(self, substance, filled):
+    def _credit(self, substance: tuple[str, ...], filled: list[str]) -> None:
         """For each type *substance* was charged to, drop the core member it best
         represents from that type's reference (refilling when empty), so later picks
         spread to still-uncovered members. A pick resembling nothing credits nothing.
