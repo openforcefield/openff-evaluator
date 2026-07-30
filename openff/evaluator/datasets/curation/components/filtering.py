@@ -1349,7 +1349,7 @@ class _GapFiller:
         self.type_candidates = type_candidates
         self.gap = gap
 
-        self._fp_cache: dict[tuple[str, ...], list[ExplicitBitVect]] = {}
+        self._fp_cache: dict[tuple[str, ...], "list[ExplicitBitVect]"] = {}
 
         self.coverage_map: dict[tuple[str, ...], list[str]] = {
             sub: [a for a, cands in type_candidates.items() if sub in cands]
@@ -1373,7 +1373,7 @@ class _GapFiller:
 
     # -- fingerprint helpers -------------------------------------------------
 
-    def _sub_fps(self, substance: tuple[str, ...]) -> list[ExplicitBitVect]:
+    def _sub_fps(self, substance: tuple[str, ...]) -> "list[ExplicitBitVect]":
         """Cached, ``None``-free Morgan fingerprints for *substance*."""
         if substance not in self._fp_cache:
             self._fp_cache[substance] = [
@@ -1381,7 +1381,7 @@ class _GapFiller:
             ]
         return self._fp_cache[substance]
 
-    def _sub_sim(self, fps_a: list[ExplicitBitVect], fps_b: list[ExplicitBitVect]) -> float:
+    def _sub_sim(self, fps_a: "list[ExplicitBitVect]", fps_b: "list[ExplicitBitVect]") -> float:
         """Optimal-assignment Tanimoto similarity between two substances."""
         from rdkit import DataStructs
 
@@ -1417,7 +1417,7 @@ class _GapFiller:
 
     def _fill_diversity(self) -> None:
         self._ref_smiles: set[str] = {smi for sub in self.s_core for smi in sub}
-        self._ref_fps: list[ExplicitBitVect] = [
+        self._ref_fps: "list[ExplicitBitVect]" = [
             fp for fp in map(_morgan_fp, self._ref_smiles) if fp is not None
         ]
 
