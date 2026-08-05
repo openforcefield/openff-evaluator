@@ -175,6 +175,8 @@ Data Set API
     FilterBySubstances
     FilterByEnvironmentsSchema
     FilterByEnvironments
+    FilterByCoreAndAdditionalPropertyTypesSchema
+    FilterByCoreAndAdditionalPropertyTypes
 
 *FreeSolv*
 
