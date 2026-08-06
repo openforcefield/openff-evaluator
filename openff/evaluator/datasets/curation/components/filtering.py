@@ -2,12 +2,17 @@ import functools
 import itertools
 import logging
 from collections import defaultdict
-from typing import Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
+
+if TYPE_CHECKING:
+    from rdkit.DataStructs import ExplicitBitVect
 
 import numpy
 import pandas
 from openff.units import unit
 from pydantic import (
+    BaseModel,
+    ConfigDict,
     Field,
     PositiveFloat,
     PositiveInt,
@@ -42,6 +47,9 @@ logger = logging.getLogger(__name__)
 
 ComponentEnvironments = List[List[ChemicalEnvironment]]
 MoleFractionRange = Tuple[confloat(ge=0.0, le=1.0), confloat(ge=0.0, le=1.0)]
+# A mapping of property type -> optional list of allowed component counts
+# (``None`` — or an empty list — means no ``n_components`` restriction).
+PropertyTypeFilter = Dict[constr(min_length=1), Optional[List[PositiveInt]]]
 
 
 class FilterDuplicatesSchema(CurationComponentSchema):
@@ -1212,6 +1220,448 @@ class FilterByEnvironments(CurationComponent):
         return data_frame[data_frame.apply(filter_function, axis=1)]
 
 
+@functools.lru_cache(maxsize=4096)
+def _morgan_fp(smiles: str) -> "ExplicitBitVect":
+    """Return the Morgan (radius-2, 2048-bit) fingerprint for *smiles*.
+
+    Returns ``None`` if the SMILES cannot be parsed by RDKit.
+    """
+    # Deliberately use the open-source RDKit backend here (not OpenEye).
+    from rdkit import Chem
+    from rdkit.Chem import AllChem
+
+    mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        return None
+    return AllChem.GetMorganFingerprintAsBitVect(mol, radius=2, nBits=2048)
+
+
+class AdditionalPropertyTypeConfig(BaseModel):
+    """Per-type configuration for an additional property type."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    scale_factor: confloat(ge=0.0, allow_inf_nan=False) = Field(
+        1.0,
+        description="Ratio of gap-fill substances to core count for this type: "
+        "int(scale_factor * core_count) substances are targeted. The overlap — "
+        "additional-type data already present for core substances — is always "
+        "retained. Set to 0 for overlap-only (no gap-fill).",
+    )
+    n_components: Optional[List[PositiveInt]] = Field(
+        None,
+        description="If set, only substances with this many components qualify "
+        "for this additional type. An empty list is treated the same as None: "
+        "no n_components restriction.",
+    )
+
+
+class FilterByCoreAndAdditionalPropertyTypesSchema(CurationComponentSchema):
+    type: Literal["FilterByCoreAndAdditionalPropertyTypes"] = (
+        "FilterByCoreAndAdditionalPropertyTypes"
+    )
+
+    core_property_types: PropertyTypeFilter = Field(
+        ...,
+        min_length=1,
+        description="Property types that define the core substance set. A substance "
+        "must have data for ALL listed types to be included in the core set. "
+        "Dict values are optional n_components filters; None (or an empty list) "
+        "means no filter.",
+    )
+    additional_property_types: Dict[str, AdditionalPropertyTypeConfig] = Field(
+        ...,
+        min_length=1,
+        description="Property types for which additional data are retained. Each "
+        "key is a property type name; its value is an AdditionalPropertyTypeConfig "
+        "controlling the scale_factor and optional n_components filter.",
+    )
+    select_by: Literal["similarity", "diversity"] = Field(
+        "similarity",
+        description="Gap-fill strategy: 'similarity' favours substances similar to the "
+        "under-represented core (the core substances that lack the additional type), "
+        "spreading picks to balance coverage; 'diversity' favours substances dissimilar "
+        "to everything kept so far (MaxMin).",
+    )
+
+    @model_validator(mode="after")
+    def _validate_disjoint(self):
+        overlap = set(self.core_property_types) & set(self.additional_property_types)
+        if overlap:
+            raise ValueError(
+                "core_property_types and additional_property_types share keys: "
+                f"{overlap}"
+            )
+        return self
+
+
+class _GapFiller:
+    """Greedily pick candidate substances to fill each additional type's ``gap``.
+
+    Candidates covering more still-unfilled types are preferred (one pick fills
+    several gaps); ties break on a similarity score, then the substance tuple
+    (deterministic). The score depends on ``schema.select_by``:
+
+    * ``"diversity"`` — distance (1 − Tanimoto) from everything kept so far, which
+      grows with each pick (MaxMin).
+    * ``"similarity"`` — Tanimoto to the *under-represented* core (core substances
+      lacking this type). Each pick drops the core member it best represents from
+      the reference, so picks spread across the core instead of piling onto one;
+      the reference refills once exhausted.
+
+    ``gap`` is mutated in place. :meth:`fill` returns each additional type's chosen
+    substances (the always-kept core overlap is not included).
+
+    Parameters
+    ----------
+    schema
+        The parent filter schema; supplies ``select_by``, ``additional_property_types``,
+        and per-type configuration.
+    s_core
+        Substances present in every core property type (the core set).
+        Each substance is a tuple of SMILES.
+    type_overlap
+        ``{additional_type: {substances in both core and that type}}``.
+        Each additional type is a string (class name),
+        each substance is a tuple of SMILES.
+    type_candidates
+        ``{additional_type: {non-core substances with data for that type}}``.
+        Each additional type is a string (class name),
+        each substance is a tuple of SMILES.
+    gap
+        ``{additional_type: remaining count to fill}``. Mutated in place as
+        substances are selected.
+    """
+
+    def __init__(
+        self,
+        schema: "FilterByCoreAndAdditionalPropertyTypesSchema",
+        s_core: set[tuple[str, ...]],
+        type_overlap: dict[str, set[tuple[str, ...]]],
+        type_candidates: dict[str, set[tuple[str, ...]]],
+        gap: dict[str, int],
+    ) -> None:
+        self.schema = schema
+        self.s_core = s_core
+        self.type_overlap = type_overlap
+        self.type_candidates = type_candidates
+        self.gap = gap
+
+        self._fp_cache: dict[tuple[str, ...], "list[ExplicitBitVect]"] = {}
+
+        self.coverage_map: dict[tuple[str, ...], list[str]] = {
+            sub: [a for a, cands in type_candidates.items() if sub in cands]
+            for sub in set().union(*type_candidates.values())
+        }
+
+        self.selected: set[tuple[str, ...]] = set()
+        self.selected_by_type: dict[str, set[tuple[str, ...]]] = {
+            a: set() for a in schema.additional_property_types
+        }
+
+    # -- entry point ---------------------------------------------------------
+
+    def fill(self) -> dict[str, set[tuple[str, ...]]]:
+        """Run the configured ``select_by`` strategy; return ``selected_by_type``."""
+        if self.schema.select_by == "diversity":
+            self._fill_diversity()
+        else:
+            self._fill_similarity()
+        return self.selected_by_type
+
+    # -- fingerprint helpers -------------------------------------------------
+
+    def _sub_fps(self, substance: tuple[str, ...]) -> "list[ExplicitBitVect]":
+        """Cached, ``None``-free Morgan fingerprints for *substance*."""
+        if substance not in self._fp_cache:
+            self._fp_cache[substance] = [
+                fp for fp in map(_morgan_fp, substance) if fp is not None
+            ]
+        return self._fp_cache[substance]
+
+    def _sub_sim(
+        self, fps_a: "list[ExplicitBitVect]", fps_b: "list[ExplicitBitVect]"
+    ) -> float:
+        """Optimal-assignment Tanimoto similarity between two substances."""
+        from rdkit import DataStructs
+
+        if not fps_a or not fps_b:
+            return 0.0
+        cost = numpy.array(
+            [[1.0 - DataStructs.TanimotoSimilarity(a, b) for b in fps_b] for a in fps_a]
+        )
+        ri, ci = linear_sum_assignment(cost)
+        return float((1.0 - cost[ri, ci]).sum())
+
+    # -- shared bookkeeping --------------------------------------------------
+
+    def _active_coverage(self, substance: tuple[str, ...]) -> int:
+        """How many still-unfilled additional types this candidate covers."""
+        return sum(1 for c in self.coverage_map[substance] if self.gap[c] > 0)
+
+    def _take(self, substance: tuple[str, ...]) -> list[str]:
+        """Charge *substance* to every type it covers that still has budget; return
+        those types."""
+        filled = [c for c in self.coverage_map[substance] if self.gap[c] > 0]
+        for c in filled:
+            self.gap[c] -= 1
+            self.selected_by_type[c].add(substance)
+        self.selected.add(substance)
+        return filled
+
+    def _remaining(self, add_type: str) -> list[tuple[str, ...]]:
+        """Not-yet-picked candidates carrying *add_type* data."""
+        return [s for s in self.type_candidates[add_type] if s not in self.selected]
+
+    # -- diversity strategy --------------------------------------------------
+
+    def _fill_diversity(self) -> None:
+        self._ref_smiles: set[str] = {smi for sub in self.s_core for smi in sub}
+        self._ref_fps: "list[ExplicitBitVect]" = [
+            fp for fp in map(_morgan_fp, self._ref_smiles) if fp is not None
+        ]
+
+        for add_type in self.schema.additional_property_types:
+            remaining = self._remaining(add_type)
+            while self.gap[add_type] > 0 and remaining:
+                best = max(remaining, key=self._diversity_rank)
+                self._take(best)
+                remaining.remove(best)
+                self._grow_diversity_reference(best)
+
+    def _diversity_rank(
+        self, substance: tuple[str, ...]
+    ) -> tuple[int, float, tuple[str, ...]]:
+        """Rank key: (#types covered, distance from the kept set, tuple). An
+        unparseable candidate scores 0.0 (least diverse), not the inverted 1.0."""
+        fps_sub = self._sub_fps(substance)
+        if not fps_sub:
+            score = 0.0
+        elif not self._ref_fps:
+            score = 1.0
+        else:
+            score = 1.0 - self._sub_sim(fps_sub, self._ref_fps)
+        return (self._active_coverage(substance), score, substance)
+
+    def _grow_diversity_reference(self, substance: tuple[str, ...]) -> None:
+        """Fold a freshly picked substance's fingerprints into the MaxMin reference."""
+        for smi in substance:
+            if smi not in self._ref_smiles:
+                self._ref_smiles.add(smi)
+                fp = _morgan_fp(smi)
+                if fp is not None:
+                    self._ref_fps.append(fp)
+
+    # -- similarity strategy -------------------------------------------------
+
+    def _fill_similarity(self) -> None:
+        self._type_under: dict[str, list[tuple[str, ...]]] = {
+            a: (sorted(self.s_core - self.type_overlap[a]) or sorted(self.s_core))
+            for a in self.schema.additional_property_types
+        }
+        self._type_ref: dict[str, list[tuple[str, ...]]] = {
+            a: list(under) for a, under in self._type_under.items()
+        }
+
+        for add_type in self.schema.additional_property_types:
+            remaining = self._remaining(add_type)
+            while self.gap[add_type] > 0 and remaining:
+                # Fingerprints of this type's current (shrinking) under-rep core.
+                self._ref_fps = [
+                    fp for cs in self._type_ref[add_type] for fp in self._sub_fps(cs)
+                ]
+                best = max(remaining, key=self._similarity_rank)
+                remaining.remove(best)
+                self._credit(best, self._take(best))
+
+    def _similarity_rank(
+        self, substance: tuple[str, ...]
+    ) -> tuple[int, float, tuple[str, ...]]:
+        """Rank key: (#types covered, similarity to the under-represented core,
+        tuple). Prefers covering more still-unfilled types, then resemblance to the
+        current reference, then the substance tuple for determinism."""
+        return (
+            self._active_coverage(substance),
+            self._sub_sim(self._sub_fps(substance), self._ref_fps),
+            substance,
+        )
+
+    def _credit(self, substance: tuple[str, ...], filled: list[str]) -> None:
+        """For each type *substance* was charged to, drop the core member it best
+        represents from that type's reference (refilling when empty), so later picks
+        spread to still-uncovered members. A pick resembling nothing credits nothing.
+        """
+        fps_sub = self._sub_fps(substance)
+        for covered_type in filled:
+            ref = self._type_ref[covered_type]
+            if not ref:
+                continue
+            best_sim, core_sub = max(
+                (self._sub_sim(fps_sub, self._sub_fps(cs)), cs) for cs in ref
+            )
+            if best_sim > 0.0:
+                ref.remove(core_sub)
+                if not ref:  # all covered → refill for a balanced next round
+                    self._type_ref[covered_type] = list(self._type_under[covered_type])
+
+
+class FilterByCoreAndAdditionalPropertyTypes(CurationComponent):
+    """Retain data for core property types and supplement with additional types.
+
+    The *core substance set* is the intersection of substance sets across all
+    ``core_property_types`` (each optionally constrained by ``n_components``).
+    For each additional type, up to ``int(scale_factor * core_count)`` substances
+    are kept: first the overlap with the core set, then gap-fill candidates chosen
+    by the ``select_by`` strategy, with preference for substances that cover
+    multiple additional types at once. In ``"similarity"`` mode the gap-fill targets
+    the *under-represented* core — the core substances that lack that additional type
+    — and spreads picks across those substances, so each tends to gain a nearby
+    representative rather than the budget concentrating around whichever ones the
+    candidate pool happens to sit densest around.
+
+    This acts very similarly to the FilterByPropertyTypes component when ``scale_factor``
+    is 0 for all additional types, but with the added guarantee that all core substances
+    are retained, even if they don't have data for all additional types.
+    With a positive ``scale_factor``, this component can be used to curate a data set
+    with good coverage of the core set across multiple properties,
+    while supplementing with additional data for substances in the same or diverse
+    chemical space.
+    """
+
+    @staticmethod
+    def _value_column(data_frame: pandas.DataFrame, property_type: str):
+        """The ``<type> Value ...`` column for *property_type*, or ``None``."""
+        return next(
+            (
+                header
+                for header in data_frame
+                if " Value " in header and header.split(" ")[0] == property_type
+            ),
+            None,
+        )
+
+    @staticmethod
+    def _substance_tuple(row) -> tuple:
+        """Substance identity for a data-frame row: its components, sorted (the
+        same convention as ``data_frame_to_substances``)."""
+        n = int(row["N Components"])
+        return tuple(sorted(row[f"Component {i + 1}"] for i in range(n)))
+
+    @classmethod
+    def _type_substances(
+        cls, data_frame, substance_col, property_type, n_components_filter
+    ):
+        """Substances with data for *property_type*, optionally restricted to the
+        allowed component counts."""
+        val_col = cls._value_column(data_frame, property_type)
+        if val_col is None:
+            return set()
+        mask = data_frame[val_col].notna()
+        if n_components_filter:
+            mask &= data_frame["N Components"].isin(n_components_filter)
+        return set(substance_col[mask])
+
+    @classmethod
+    def _gap_fill(cls, schema, s_core, type_overlap, type_candidates, gap) -> dict:
+        """Greedily pick candidate substances to fill ``gap`` per additional type.
+
+        Thin wrapper around :class:`_GapFiller`; see that class for the selection
+        rules. Returns each additional type's chosen gap-fill substances (the
+        always-kept core overlap is not included).
+        """
+        # Nothing to fill (every type is overlap-only or already satisfied):
+        # short-circuit before importing rdkit or building the selection machinery.
+        if not any(g > 0 for g in gap.values()):
+            return {a: set() for a in schema.additional_property_types}
+        return _GapFiller(schema, s_core, type_overlap, type_candidates, gap).fill()
+
+    @classmethod
+    def _apply(
+        cls,
+        data_frame: pandas.DataFrame,
+        schema: FilterByCoreAndAdditionalPropertyTypesSchema,
+        n_processes,  # unused
+    ) -> pandas.DataFrame:
+        if len(data_frame) == 0:
+            return data_frame
+
+        # --- Substance identity ------------------------------------------------
+        # One substance tuple per row, the single source of substance identity for
+        # every set and mask below.
+        substance_col = data_frame.apply(cls._substance_tuple, axis=1)
+
+        # --- Core substance set ------------------------------------------------
+        # Intersection of the per-type substance sets: a substance must carry data
+        # for every core type (each optionally constrained by n_components) to
+        # qualify. No core substances → nothing to anchor on, return empty.
+        s_core = set.intersection(
+            *(
+                cls._type_substances(data_frame, substance_col, prop_type, nc_filter)
+                for prop_type, nc_filter in schema.core_property_types.items()
+            )
+        )
+        if not s_core:
+            return data_frame.iloc[0:0]
+
+        # --- Core rows ---------------------------------------------------------
+        # Rows whose substance is in S_core and which carry at least one core-type
+        # value. Every core type has a value column here — a missing column would
+        # have emptied the intersection above.
+        core_val_cols = [
+            cls._value_column(data_frame, prop_type)
+            for prop_type in schema.core_property_types
+        ]
+        core_rows = data_frame[
+            substance_col.isin(s_core) & data_frame[core_val_cols].notna().any(axis=1)
+        ]
+
+        # --- Overlap vs. candidates per additional type ------------------------
+        # Split each additional type's substances into the core overlap (always
+        # kept, regardless of scale_factor) and the gap-fill candidates (those
+        # outside the core set).
+        type_overlap = {}
+        type_candidates = {}
+        for add_type, config in schema.additional_property_types.items():
+            s_a = cls._type_substances(
+                data_frame, substance_col, add_type, config.n_components
+            )
+            type_overlap[add_type] = s_core & s_a
+            type_candidates[add_type] = s_a - s_core
+
+        # --- Per-type gap and gap-fill selection -------------------------------
+        # Target int(scale_factor * core_count) substances per type; the gap is
+        # whatever the overlap does not already cover (so a type with target 0, or
+        # whose overlap meets the target, is gap-filled with nothing).
+        gap = {}
+        for a, overlap in type_overlap.items():
+            target = int(schema.additional_property_types[a].scale_factor * len(s_core))
+            gap[a] = max(0, target - len(overlap))
+        selected_by_type = cls._gap_fill(
+            schema, s_core, type_overlap, type_candidates, gap
+        )
+
+        # --- Additional-type row mask ------------------------------------------
+        # Each type keeps its core overlap plus exactly the candidates charged to
+        # its gap, so a substance kept for one type does not drag along its rows
+        # for another type that excludes it (whether by an n_components filter or
+        # by having no remaining budget).
+        additional_mask = pandas.Series(False, index=data_frame.index)
+        for add_type in schema.additional_property_types:
+            val_col = cls._value_column(data_frame, add_type)
+            if val_col is None:
+                continue
+            keep = type_overlap[add_type] | selected_by_type[add_type]
+            additional_mask |= substance_col.isin(keep) & data_frame[val_col].notna()
+
+        # --- Assemble ----------------------------------------------------------
+        # Additional rows exclude the core rows (kept separately) to avoid dupes,
+        # then concatenate the two with a fresh index.
+        additional_rows = data_frame[
+            additional_mask & ~data_frame.index.isin(core_rows.index)
+        ]
+        return pandas.concat([core_rows, additional_rows], ignore_index=True)
+
+
 class FilterByTautomersSchema(CurationComponentSchema):
     """Configure tautomer-family filtering for curated data.
 
@@ -1416,5 +1866,6 @@ FilterComponentSchema = Union[
     FilterByNComponentsSchema,
     FilterBySubstancesSchema,
     FilterByEnvironmentsSchema,
+    FilterByCoreAndAdditionalPropertyTypesSchema,
     FilterByTautomersSchema,
 ]
