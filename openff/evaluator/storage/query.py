@@ -15,7 +15,7 @@ from openff.evaluator.storage.data import (
     StoredFreeEnergyData,
     StoredSimulationData,
 )
-from openff.evaluator.substances import ExactAmount, Substance
+from openff.evaluator.substances import ExactAmount, MoleFraction, Substance
 from openff.evaluator.thermodynamics import ThermodynamicState
 
 
@@ -199,6 +199,39 @@ class BaseSimulationDataQuery(BaseDataQuery, abc.ABC):
         optional=True,
     )
 
+    @staticmethod
+    def _discretized_mf_match(query_sub, data_sub, max_molecules):
+        """Check if two substances match after accounting for molecule-count
+        discretization.  Tolerates ±1 molecule per component, using the same
+        rounding convention as ``MoleFraction.to_number_of_molecules``."""
+        if query_sub.number_of_components != data_sub.number_of_components:
+            return False
+
+        def _mf_map(sub):
+            return {
+                c.smiles: next(
+                    (a for a in sub.get_amounts(c) if isinstance(a, MoleFraction)),
+                    None,
+                )
+                for c in sub.components
+            }
+
+        q, d = _mf_map(query_sub), _mf_map(data_sub)
+        if q.keys() != d.keys():
+            return False
+        return all(
+            (q[s] is None) == (d[s] is None)
+            and (
+                q[s] is None
+                or abs(
+                    q[s].to_number_of_molecules(max_molecules)
+                    - d[s].to_number_of_molecules(max_molecules)
+                )
+                <= 1
+            )
+            for s in q
+        )
+
     def _match_substance(self, data_object):
         """Attempt to match the substance (or a subset of it).
 
@@ -219,7 +252,14 @@ class BaseSimulationDataQuery(BaseDataQuery, abc.ABC):
         data_substance: Substance = data_object.substance
 
         if self.substance_query == UNDEFINED:
-            return None if self.substance != data_substance else self.substance
+            if self.substance == data_substance:
+                return self.substance
+            max_mol = getattr(data_object, "max_number_of_molecules", None)
+            if max_mol and self._discretized_mf_match(
+                self.substance, data_substance, max_mol
+            ):
+                return self.substance
+            return None
 
         # Handle the sub-substance match.
         if self.substance_query.components_only:
