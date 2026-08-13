@@ -375,6 +375,6 @@ def test_discretized_substance_query_via_local_storage():
         query.substance = substance_query
 
         results = storage.query(query)
-        assert len(results) == 1, (
-            f"Expected 1 match for discretized substance query, got {len(results)}"
-        )
+        assert (
+            len(results) == 1
+        ), f"Expected 1 match for discretized substance query, got {len(results)}"
