@@ -526,8 +526,7 @@ class Workflow:
             current_molecule_labels = dict()
             param_is_list = False
             for tag, parameter_handler in force_field._parameter_handlers.items():
-                if type(parameter_handler) is VirtualSiteHandler:
-                    param_is_list = True
+                param_is_list = type(parameter_handler) is VirtualSiteHandler
 
                 matches = parameter_handler.find_matches(top_mol, unique=True)
 
