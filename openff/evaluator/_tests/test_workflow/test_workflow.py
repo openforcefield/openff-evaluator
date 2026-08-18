@@ -338,6 +338,78 @@ def test_find_relevant_gradient_keys(tmp_path):
     assert {*gradient_keys} == expected_gradient_keys
 
 
+@pytest.fixture
+def ff_with_vsite_and_libcharge():
+    """ForceField with vdW + VirtualSites + LibraryCharges.
+
+    Exercises the param_is_list reset path: VirtualSiteHandler sets it,
+    and LibraryCharges follows — so any sticky-flag bug surfaces.
+    """
+    force_field = ForceField()
+    vdw = force_field.get_parameter_handler("vdW")
+    for smirks in ("[#1:1]", "[#17:1]"):
+        vdw.add_parameter(
+            {
+                "smirks": smirks,
+                "epsilon": 0.0 * unit.kilocalorie_per_mole,
+                "sigma": 1.0 * unit.angstrom,
+            }
+        )
+    vsite = VirtualSiteHandler(version=0.3)
+    vsite.add_parameter(
+        {
+            "smirks": "[#1:1][#17:2]",
+            "type": "BondCharge",
+            "distance": 0.1 * unit.nanometers,
+            "match": "all_permutations",
+            "charge_increment1": 0.0 * unit.elementary_charge,
+            "charge_increment2": 0.0 * unit.elementary_charge,
+        }
+    )
+    force_field.register_parameter_handler(vsite)
+    lc = force_field.get_parameter_handler("LibraryCharges")
+    lc.add_parameter(
+        {
+            "smirks": "[#17:1]",
+            "charge": [0.0 * unit.elementary_charge],
+        }
+    )
+    return force_field
+
+
+def test_label_molecules_post_vsite(ff_with_vsite_and_libcharge):
+    """label_molecules extracts .parameter_type after VirtualSiteHandler."""
+    from openff.toolkit.topology import Molecule, Topology
+
+    ff = ff_with_vsite_and_libcharge
+    topology = Topology.from_molecules([Molecule.from_smiles("[H]Cl")])
+    labels = Workflow.label_molecules(ff, topology)
+
+    lc_param = ff.get_parameter_handler("LibraryCharges").parameters["[#17:1]"]
+    lc_labels = labels[0]["LibraryCharges"]
+    for key, val in lc_labels.items():
+        assert val is lc_param, (
+            f"LibraryCharges label for {key} is {type(val).__name__}, "
+            f"expected the parameter object itself"
+        )
+
+
+def test_find_relevant_gradient_keys_post_vsite(
+    ff_with_vsite_and_libcharge, tmp_path
+):
+    """_find_relevant_gradient_keys doesn't raise on handlers after VirtualSites."""
+    ff_path = os.path.join(tmp_path, "ff.json")
+    SmirnoffForceFieldSource.from_object(ff_with_vsite_and_libcharge).json(ff_path)
+
+    lc_key = ParameterGradientKey(
+        tag="LibraryCharges", smirks="[#17:1]", attribute="charge"
+    )
+    gradient_keys = Workflow._find_relevant_gradient_keys(
+        Substance.from_components("[H]Cl"), ff_path, [lc_key]
+    )
+    assert gradient_keys == [lc_key]
+
+
 def test_generate_default_metadata_defaults():
     dummy_property = create_dummy_property(Density)
     dummy_forcefield = "openff-2.2.1.offxml"
