@@ -394,9 +394,7 @@ def test_label_molecules_post_vsite(ff_with_vsite_and_libcharge):
         )
 
 
-def test_find_relevant_gradient_keys_post_vsite(
-    ff_with_vsite_and_libcharge, tmp_path
-):
+def test_find_relevant_gradient_keys_post_vsite(ff_with_vsite_and_libcharge, tmp_path):
     """_find_relevant_gradient_keys doesn't raise on handlers after VirtualSites."""
     ff_path = os.path.join(tmp_path, "ff.json")
     SmirnoffForceFieldSource.from_object(ff_with_vsite_and_libcharge).json(ff_path)
