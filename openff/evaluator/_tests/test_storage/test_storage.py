@@ -20,7 +20,7 @@ from openff.evaluator.storage.query import (
     SimulationDataQuery,
     SubstanceQuery,
 )
-from openff.evaluator.substances import Substance
+from openff.evaluator.substances import Component, MoleFraction, Substance
 
 # ---------------------------------------------------------------------------
 # Parametrize helpers
@@ -276,3 +276,105 @@ def test_duplicate_data_storage(factory, reverse_order):
 
         # Make sure all pieces of data got assigned the same key.
         assert len(all_storage_keys) == 1
+
+
+def _make_substance(mf_a, mf_b, smiles_a="C", smiles_b="CO"):
+    """Build a binary Substance with explicit mole fractions."""
+    sub = Substance()
+    sub.add_component(Component(smiles=smiles_a), MoleFraction(mf_a))
+    sub.add_component(Component(smiles=smiles_b), MoleFraction(mf_b))
+    return sub
+
+
+def test_discretized_substance_query_match():
+    """
+    MoleFraction.to_number_of_molecules floors on half-integer ties
+    (e.g. 0.3155 * 1000 = 315.5 --> 315).  For a binary mixture we can get 999
+    molecules instead of 1000...
+
+        MoleFraction(0.3155).to_number_of_molecules(1000) = 315
+        MoleFraction(0.6845).to_number_of_molecules(1000) = 684
+
+    If I manually added a substance to a LocalFileStorage with a representative
+    substance, the query still needs to match.
+    """
+
+    # Verify the rounding deficit that motivates this test
+    assert MoleFraction(0.3155).to_number_of_molecules(1000) == 315
+    assert MoleFraction(0.6845).to_number_of_molecules(1000) == 684  # total 999
+
+    # 315 / 999 = approx 0.3153
+    # 684 / 999 = approx 0.6847
+    substance_real = _make_substance(0.3153, 0.6847)
+    substance_query = _make_substance(0.3155, 0.6845)
+    assert substance_real != substance_query  # exact equality fails
+
+    with tempfile.TemporaryDirectory() as base_directory:
+        # Stored data: 4 dp substance, 999 actual mols, max 1000
+        data_directory = os.path.join(base_directory, "data_directory")
+        data_object = create_dummy_equilibration_data(
+            data_directory,
+            substance_real,
+            number_of_molecules=999,
+            max_number_of_molecules=1000,
+        )
+
+        # Query with 3 dp substance — should match via discretized fallback
+        query = EquilibrationDataQuery()
+        query.substance = substance_query
+
+        result = query.apply(data_object)
+        assert result is not None, (
+            "Query with 3 dp substance should match stored 4 dp substance "
+            "via discretized mole-fraction fallback"
+        )
+
+        # Reverse: stored at 3 dp, queried at 4 dp
+        data_directory_2 = os.path.join(base_directory, "data_directory_2")
+        data_object_2 = create_dummy_equilibration_data(
+            data_directory_2,
+            substance_query,
+            number_of_molecules=999,
+            max_number_of_molecules=1000,
+        )
+
+        query_4dp = EquilibrationDataQuery()
+        query_4dp.substance = substance_real
+
+        result_2 = query_4dp.apply(data_object_2)
+        assert result_2 is not None, (
+            "Query with 4 dp substance should match stored 3 dp substance "
+            "via discretized mole-fraction fallback"
+        )
+
+
+def test_discretized_substance_query_via_local_storage():
+    """End-to-end through LocalFileStorage: stored substance has the
+    re-derived mole fractions (315/999 ≈ 0.3153, 684/999 ≈ 0.6847) while
+    the query uses the original 4 dp values (0.3155/0.6845).  Reproduces
+    the original bug where the query returned no results."""
+
+    substance_real = _make_substance(0.3153, 0.6847)
+    substance_query = _make_substance(0.3155, 0.6845)
+
+    with tempfile.TemporaryDirectory() as base_directory:
+        data_directory = os.path.join(base_directory, "data_directory")
+        data_object = create_dummy_equilibration_data(
+            data_directory,
+            substance_real,
+            number_of_molecules=999,
+            max_number_of_molecules=1000,
+        )
+
+        backend_directory = os.path.join(base_directory, "storage_dir")
+        storage = LocalFileStorage(backend_directory)
+        storage.store_object(data_object, data_directory)
+
+        # Query with the original 4 dp substance — should find the stored data.
+        query = EquilibrationDataQuery()
+        query.substance = substance_query
+
+        results = storage.query(query)
+        assert (
+            len(results) == 1
+        ), f"Expected 1 match for discretized substance query, got {len(results)}"
