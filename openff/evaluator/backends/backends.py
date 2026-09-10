@@ -22,6 +22,7 @@ class ComputeResources:
         CUDA = "CUDA"
         OpenCL = "OpenCL"
         auto = "auto"
+        HIP = "HIP"
 
     class GPUPrecision(Enum):
         """An enumeration of the different precision for GPU calculations."""
