@@ -146,7 +146,9 @@ def setup_platform_with_resources(compute_resources, high_precision=False):
         elif toolkit_enum == ComputeResources.GPUToolkit.OpenCL:
             # noinspection PyCallByClass,PyTypeChecker
             platform = Platform.getPlatformByName("OpenCL")
-
+        elif toolkit_enum == ComputeResources.GPUToolkit.HIP:
+            # noinspection PyCallByClass,PyTypeChecker
+            platform = Platform.getPlatformByName("HIP")
         else:
             raise KeyError(f"Specified GPU toolkit {toolkit_enum} is not supported.")
 
