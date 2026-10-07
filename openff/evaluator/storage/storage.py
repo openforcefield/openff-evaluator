@@ -454,9 +454,14 @@ class StorageBackend(abc.ABC):
             return results
 
         for unique_key in self._stored_object_keys[data_class.__name__]:
-            if not self._object_exists(unique_key):
-                # Make sure the object is still in the system.
-                continue
+            # additional hits to the filesystem dramatically slow down the query.
+            # it is also not necessary to check if the object exists, as the stored_object_keys are loaded from the
+            # storage backend and should only contain valid keys.
+            # If we cannot load it, it will be caught in the retrieve_object method and skipped.
+            #
+            # if not self._object_exists(unique_key):
+            #     # Make sure the object is still in the system.
+            #     continue
 
             stored_object, stored_directory = self.retrieve_object(
                 unique_key, data_class
