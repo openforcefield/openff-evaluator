@@ -454,9 +454,6 @@ class StorageBackend(abc.ABC):
             return results
 
         for unique_key in self._stored_object_keys[data_class.__name__]:
-            if not self._object_exists(unique_key):
-                # Make sure the object is still in the system.
-                continue
 
             stored_object, stored_directory = self.retrieve_object(
                 unique_key, data_class
