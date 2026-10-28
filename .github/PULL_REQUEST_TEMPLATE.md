@@ -1,12 +1,9 @@
-## Description
-Provide a brief description of the PR's purpose here.
+### Description
+<!-- Provide a brief description of the PR's purpose here -->
 
-## Todos
-Notable points that this PR has either accomplished or will accomplish.
-  - [ ] TODO 1
+### Checklist
 
-## Questions
-- [ ] Question1
-
-## Status
-- [ ] Ready to go
+- [ ] Add tests
+- [ ] Lint
+- [ ] Update docstrings
+- [ ] [AI disclosure](../AI_POLICY.md)
